@@ -1,0 +1,71 @@
+# Westalife Residence — PROD dağıtım composition
+# Kullanım: .env.example -> .env kopyalanip doldurulur, sonra:
+#   docker compose -f docker-compose.prod.yml up -d --build
+# Mimari: yalnızca web servisi (nginx) 80 portuyla disariya acilir.
+#   web (nginx)  -> / (React SPA) + /api/ -> api:8080 (reverse proxy, ayni origin, CORS yok)
+#   api          -> ic agda, migration bundle once calisir (migrator)
+#   db           -> ic agda, UTF-8 + tr-TR ICU collation
+
+name: sayacokuma-prod
+
+services:
+  db:
+    image: postgres:18-alpine
+    container_name: sayacokuma-prod-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      # UTF-8 zorunlulugu + Turkce siralama (Kural: DB UTF-8)
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale-provider=icu --icu-locale=tr-TR"
+    volumes:
+      - sayacokuma_pgdata_prod:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  migrator:
+    image: sayacokuma-api:latest
+    container_name: sayacokuma-prod-migrator
+    # API imajinin icine gomulu migration bundle (/app/migrate)
+    entrypoint: ["/app/migrate", "--connection", "${DATABASE_CONNECTION}"]
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  api:
+    image: sayacokuma-api:latest
+    container_name: sayacokuma-prod-api
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: ${DATABASE_CONNECTION}
+      # Faz 7 hazirligi: JWT_SECRET / TenantId gibi env'ler buraya eklenecek (simdilik kod yok)
+    depends_on:
+      db:
+        condition: service_healthy
+      migrator:
+        condition: service_completed_successfully
+    volumes:
+      # Serilog file sink (relative path logs/) — Kural #2: mutlak yol yok
+      - sayacokuma_api_logs:/app/logs
+
+  web:
+    image: sayacokuma-web:latest
+    container_name: sayacokuma-prod-web
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-80}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  sayacokuma_pgdata_prod:
+  sayacokuma_api_logs:

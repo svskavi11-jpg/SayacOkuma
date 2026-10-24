@@ -1,0 +1,11 @@
+**/bin/
+**/obj/
+**/node_modules/
+**/dist/
+**/logs/
+.git/
+docs/
+test-outputs/
+*.md
+.env
+docker-compose*.yml

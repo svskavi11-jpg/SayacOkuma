@@ -1,0 +1,29 @@
+# Westalife Residence — Sayaç Okuma Sistemi
+# PostgreSQL 18 (UTF-8, Türkçe ICU collation ile) — geliştirme ortamı
+# Not: Makinede zaten 5432'de çalışan başka bir postgres var; çakışmaması için 5433 kullanılır.
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: sayacokuma-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: sayacokuma
+      POSTGRES_USER: sayacokuma
+      POSTGRES_PASSWORD: SayaOkuma2026!
+      # UTF-8 zorunluluğu + Türkçe sıralama (ICU) — deterministik, DB varsayılan collation'ı
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale-provider=icu --icu-locale=tr-TR"
+    ports:
+      # Not: Host'ta yerel PostgreSQL 18, 5432 VE 5433 portlarını dinlediği için 55432 kullanılır.
+      - "55432:5432"
+    volumes:
+      # PostgreSQL 18+ imajları tüm data dizininin mount edilmesini bekliyor.
+      - sayacokuma_pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sayacokuma -d sayacokuma"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  sayacokuma_pgdata:

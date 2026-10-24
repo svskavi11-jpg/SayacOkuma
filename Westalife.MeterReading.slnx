@@ -1,0 +1,19 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/api/">
+    <Project Path="src/api/Westalife.Api/Westalife.Api.csproj" />
+  </Folder>
+  <Folder Name="/src/application/">
+    <Project Path="src/application/Westalife.Application/Westalife.Application.csproj" />
+  </Folder>
+  <Folder Name="/src/domain/">
+    <Project Path="src/domain/Westalife.Domain/Westalife.Domain.csproj" />
+  </Folder>
+  <Folder Name="/src/infrastructure/">
+    <Project Path="src/infrastructure/Westalife.Infrastructure/Westalife.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Westalife.Domain.Tests/Westalife.Domain.Tests.csproj" />
+    <Project Path="tests/Westalife.Infrastructure.Tests/Westalife.Infrastructure.Tests.csproj" />
+  </Folder>
+</Solution>
