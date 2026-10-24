@@ -1,4 +1,4 @@
-﻿using System.Net.Sockets;
+using System.Net.Sockets;
 using Westalife.Infrastructure.Metering.Exceptions;
 using Westalife.Infrastructure.Metering.Protocol;
 
@@ -26,7 +26,8 @@ public sealed class MbusTcpChannel : IMbusChannel
     {
         try
         {
-            _client = new TcpClient();
+            _client = new TcpClient { NoDelay = true };
+            _client.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
             using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             timeoutCts.CancelAfter(_responseTimeoutMs);
             await _client.ConnectAsync(_host, _port, timeoutCts.Token);
@@ -49,6 +50,8 @@ public sealed class MbusTcpChannel : IMbusChannel
         var stream = RequireStream();
         try
         {
+            // Onceki (gec gelen / yarim kalan) yanit baytlari bu istegin yanitina karismasin.
+            DiscardPendingInput(stream);
             await stream.WriteAsync(data, cancellationToken);
             await stream.FlushAsync(cancellationToken);
         }
@@ -93,7 +96,8 @@ public sealed class MbusTcpChannel : IMbusChannel
 
             var length = await ReadByteAsync(stream, timeoutCts.Token);
             remaining.Add((byte)length);
-            remaining.Add((byte)length); // L L
+            // Ikinci L baytini tekrar etme: telden gercekten oku (68 L L 68 ...); aksi halde stop baytı okunmadan kalir.
+            remaining.Add((byte)await ReadByteAsync(stream, timeoutCts.Token));
 
             var totalFrameBytes = length + 6; // 68 L L 68 ... CS 16
             while (remaining.Count < totalFrameBytes)
@@ -107,9 +111,23 @@ public sealed class MbusTcpChannel : IMbusChannel
         {
             throw new MbusTimeoutException($"TCP yanÄ±tÄ± {timeoutMilliseconds} ms iÃ§inde gelmedi.");
         }
-        catch (IOException ex)
+        catch (Exception ex) when (ex is IOException or EndOfStreamException or SocketException or ObjectDisposedException)
         {
-            throw new MbusConnectionException("TCP okuma hatasÄ±: baÄŸlantÄ± koptu.", ex);
+            // EndOfStreamException: gateway baglantiyi karsi taraftan kapatti (ReadExactly IOException atmaz).
+            throw new MbusConnectionException("TCP okuma hatasi: baglanti koptu.", ex);
+        }
+    }
+
+    /// <summary>Soketteki okunmamis tum baytlari atar (senkron kaymayi onler).</summary>
+    private static void DiscardPendingInput(NetworkStream stream)
+    {
+        var scratch = new byte[256];
+        while (stream.DataAvailable)
+        {
+            if (stream.Read(scratch, 0, scratch.Length) <= 0)
+            {
+                break;
+            }
         }
     }
 

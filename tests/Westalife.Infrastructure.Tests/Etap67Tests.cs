@@ -1,4 +1,4 @@
-using ClosedXML.Excel;
+﻿using ClosedXML.Excel;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -95,35 +95,14 @@ public class Etap67Tests
         return (apartment.Id, meter.Id);
     }
 
-    private static async Task<(DateTimeOffset From, DateTimeOffset To)> RandomFreePeriodAsync(
-        IApplicationDbContext db)
-    {
-        // Test DB'si kalıcı olduğundan eski test faturaları dönemleri işgal eder; 2026 içinde
-        // (seed m²'nin geçerli olduğu dönem — SeedTimestamp 2026-01-01) boş 3 günlük pencere aranır.
-        // Okuma tarihleri de bugünden önce olmalıdır (2026-10'tan önce → güvenli).
-        var random = new Random();
-        var from = new DateTimeOffset(2026, 1, 5, 0, 0, 0, TimeSpan.Zero)
-            .AddDays(random.Next(0, 265));
-        var to = from.AddDays(3);
+    // Deterministik (sabit) donem slotlari: rastgele/UtcNow'a bagli tarih yok. Slotlar Etab66Tests'ten (0-1) ayridir.
+    private const int EditSlot = 2;
+    private const int WarningSlot = 3;
+    private const int LockedEditSlot = 4;
+    private const int LockedReadingSlot = 5;
 
-        for (var attempt = 0; attempt < 60; attempt++)
-        {
-            // [from-48h, to) penceresinin tamamı boş olmalı: testler from-24h'ta da okuma girer
-            // ve kilitli (önceki koşuldan kalma) dönemlere denk gelmemelidir.
-            var scanStart = from.AddHours(-48);
-            var overlaps = await db.GasInvoices.AnyAsync(i =>
-                i.ReadingDateFrom < to && scanStart < i.ReadingDateTo);
-            if (!overlaps)
-            {
-                return (from, to);
-            }
-
-            from = from.AddDays(7);
-            to = to.AddDays(7);
-        }
-
-        throw new InvalidOperationException("Test için boş fatura dönemi bulunamadı.");
-    }
+    private static Task<(DateTimeOffset From, DateTimeOffset To)> FixedPeriodAsync(
+        IApplicationDbContext db, int slot) => TestPeriods.FixedFreePeriodAsync(db, slot);
 
     private static AddGasInvoiceCommand BuildInvoiceCommand(
         string invoiceNumber, DateTimeOffset from, DateTimeOffset to, string? note = null) => new(
@@ -137,7 +116,7 @@ public class Etap67Tests
     public async Task UpdateInvoice_EditsFields_TouchesLastModifiedOn_AndAddsNote()
     {
         var (mediator, db) = Build();
-        var (from, to) = await RandomFreePeriodAsync(db);
+        var (from, to) = await FixedPeriodAsync(db, EditSlot);
         var invoiceId = await mediator.Send(BuildInvoiceCommand(
             $"E67A{Random.Shared.Next(100000, 999999)}", from, to));
 
@@ -167,7 +146,7 @@ public class Etap67Tests
     {
         var (mediator, db) = Build();
         var (apartmentId, meterId) = await ImportRandomMeterAsync(mediator, db);
-        var (from, to) = await RandomFreePeriodAsync(db);
+        var (from, to) = await FixedPeriodAsync(db, WarningSlot);
 
         await mediator.Send(new AddManualMeterReadingCommand(apartmentId, meterId, from.AddHours(-24), 1000m));
         await mediator.Send(new AddManualMeterReadingCommand(apartmentId, meterId, from.AddHours(24), 1500m));
@@ -191,7 +170,7 @@ public class Etap67Tests
     {
         var (mediator, db) = Build();
         var (apartmentId, meterId) = await ImportRandomMeterAsync(mediator, db);
-        var (from, to) = await RandomFreePeriodAsync(db);
+        var (from, to) = await FixedPeriodAsync(db, LockedEditSlot);
 
         await mediator.Send(new AddManualMeterReadingCommand(apartmentId, meterId, from.AddHours(-24), 1000m));
         await mediator.Send(new AddManualMeterReadingCommand(apartmentId, meterId, from.AddHours(24), 1500m));
@@ -517,7 +496,7 @@ public class Etap67Tests
     {
         var (mediator, db) = Build();
         var (apartmentId, meterId) = await ImportRandomMeterAsync(mediator, db);
-        var (from, to) = await RandomFreePeriodAsync(db);
+        var (from, to) = await FixedPeriodAsync(db, LockedReadingSlot);
 
         var r1 = await mediator.Send(new AddManualMeterReadingCommand(
             apartmentId, meterId, from.AddHours(-24), 1000m));

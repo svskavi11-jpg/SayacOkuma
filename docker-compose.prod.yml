@@ -46,6 +46,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__DefaultConnection: ${DATABASE_CONNECTION}
+      Security__ApiKey: ${SECURITY_API_KEY:?SECURITY_API_KEY .env icinde tanimli olmali}
       # Faz 7 hazirligi: JWT_SECRET / TenantId gibi env'ler buraya eklenecek (simdilik kod yok)
     depends_on:
       db:
@@ -60,6 +61,9 @@ services:
     image: sayacokuma-web:latest
     container_name: sayacokuma-prod-web
     restart: unless-stopped
+    environment:
+      # nginx sablonu bu degeri X-Api-Key basligi olarak API'ye iletir.
+      SECURITY_API_KEY: ${SECURITY_API_KEY:?SECURITY_API_KEY .env icinde tanimli olmali}
     ports:
       - "${WEB_PORT:-80}:80"
     depends_on:

@@ -79,30 +79,12 @@ public class Etab66Tests
         return (apartment.Id, meter.Id);
     }
 
-    /// <summary>Çakışmayan rastgele fatura dönemi üretir (exclusion constraint'e takılmamak için).</summary>
-    private static async Task<(DateTimeOffset From, DateTimeOffset To)> RandomFreePeriodAsync(
-        IApplicationDbContext db)
-    {
-        var random = new Random();
-        var from = new DateTimeOffset(2026, 1, 5, 0, 0, 0, TimeSpan.Zero)
-            .AddDays(random.Next(0, 270));
-        var to = from.AddDays(3);
+    // Deterministik (sabit) dönem slotları: her test kendi slotunu kullanır (rastgele tarih yok).
+    private const int UncalculatedSlot = 0;
+    private const int LockSlot = 1;
 
-        for (var attempt = 0; attempt < 10; attempt++)
-        {
-            var overlaps = await db.GasInvoices.AnyAsync(i =>
-                i.ReadingDateFrom < to && from < i.ReadingDateTo);
-            if (!overlaps)
-            {
-                return (from, to);
-            }
-
-            from = from.AddDays(7);
-            to = to.AddDays(7);
-        }
-
-        throw new InvalidOperationException("Test için boş fatura dönemi bulunamadı.");
-    }
+    private static Task<(DateTimeOffset From, DateTimeOffset To)> FixedPeriodAsync(
+        IApplicationDbContext db, int slot) => TestPeriods.FixedFreePeriodAsync(db, slot);
 
     private static AddGasInvoiceCommand BuildInvoiceCommand(
         string invoiceNumber, DateTimeOffset from, DateTimeOffset to) => new(
@@ -288,7 +270,7 @@ public class Etab66Tests
     public async Task Lock_UncalculatedInvoice_Throws()
     {
         var (mediator, db) = Build();
-        var (from, to) = await RandomFreePeriodAsync(db);
+        var (from, to) = await FixedPeriodAsync(db, UncalculatedSlot);
         var invoiceId = await mediator.Send(BuildInvoiceCommand(
             $"E66UNC{Random.Shared.Next(100000, 999999)}", from, to));
 
@@ -303,7 +285,7 @@ public class Etab66Tests
     {
         var (mediator, db) = Build();
         var (apartmentId, meterId) = await ImportRandomMeterAsync(mediator, db);
-        var (from, to) = await RandomFreePeriodAsync(db);
+        var (from, to) = await FixedPeriodAsync(db, LockSlot);
 
         // Dönem içi tüketim: başlangıç + dönem okuması (hesaplamada tüketim > 0 olsun).
         await mediator.Send(new AddManualMeterReadingCommand(apartmentId, meterId, from.AddHours(-24), 1000m));

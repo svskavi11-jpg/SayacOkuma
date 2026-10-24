@@ -143,6 +143,13 @@ public sealed class ImportMetersFromExcelCommandHandler
                 .Where(a => int.TryParse(a.DoorNumber, out var d) && doorSet.Contains(d))
                 .ToDictionary(a => int.Parse(a.DoorNumber), a => a);
 
+            // Faturaya girmis (hesaplanmis) daireler: m² degisikligi SCD Type 2 ile islenir, gecmis fatura bozulmaz.
+            var billedApartmentIds = (await _db.ApartmentInvoices
+                .Select(i => i.ApartmentId)
+                .Distinct()
+                .ToListAsync(cancellationToken))
+                .ToHashSet();
+
             foreach (var row in parsed.Rows)
             {
                 if (row.OwnerName is null && row.SquareMeters is null)
@@ -177,17 +184,18 @@ public sealed class ImportMetersFromExcelCommandHandler
 
                     if (!unchanged)
                     {
-                        if (activeDimension is not null)
+                        // Yalnizca henuz hic faturalanmamis (ilk kurulum / yer tutucu) daire icin "uzerine yaz";
+                        // faturalanmis dairede gercek degisiklik -> eski kayit ValidTo ile kapanir, yeni kayit acilir.
+                        var isUnbilled = !billedApartmentIds.Contains(apartment.Id);
+                        if (activeDimension is not null && isUnbilled)
                         {
-                            // Excel ana liste: m² düzeltme olarak işlenir (tarihçe/dönem kayması oluşmaz);
-                            // böylece Daireler ekranındaki m² ile hesaplanan m² her zaman aynıdır.
                             activeDimension.CorrectSquareMeters(row.SquareMeters.Value);
                         }
                         else
                         {
                             var newDimension = apartment.AddDimension(
                                 row.SquareMeters.Value,
-                                DomainConstants.SeedData.DefaultCommonAreaRatio,
+                                activeDimension?.CommonAreaRatio ?? DomainConstants.SeedData.DefaultCommonAreaRatio,
                                 DateTimeOffset.UtcNow);
                             _db.ApartmentDimensions.Add(newDimension);
                         }

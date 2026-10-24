@@ -47,6 +47,12 @@ builder.Services.AddOpenApi();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
+// Prod'da API anahtari zorunlu: eksikse uygulama acilmaz (guvensiz acik API'yi onler).
+if (!builder.Environment.IsDevelopment() && string.IsNullOrWhiteSpace(builder.Configuration[ApiKeyMiddleware.ConfigKey]))
+{
+    throw new InvalidOperationException($"{ApiKeyMiddleware.ConfigKey} ayari prod ortaminda zorunludur.");
+}
+
 var app = builder.Build();
 
 app.UseSerilogRequestLogging();
@@ -64,6 +70,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors();
+
+app.UseMiddleware<ApiKeyMiddleware>();
 
 app.UseAuthorization();
 
