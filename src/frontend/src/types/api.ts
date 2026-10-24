@@ -130,6 +130,20 @@ export interface AppSettingsDTO {
   usbBaudRate: number
 }
 
+export interface NoticeSettingsDTO {
+  leftTitle: string | null
+  rightTitle: string | null
+  dueDateDays: number
+  readingServiceFee: number
+  defaultNote: string | null
+  defaultSubscriberNumber: string | null
+  buildingAddress: string
+  hasLeftLogo: boolean
+  hasRightLogo: boolean
+  logoLeftHeightMm: number
+  logoRightHeightMm: number
+}
+
 export interface MbusConnectionTestResult {
   success: boolean
   message: string

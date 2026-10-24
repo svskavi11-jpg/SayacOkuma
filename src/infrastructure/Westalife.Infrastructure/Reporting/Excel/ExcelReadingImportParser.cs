@@ -50,13 +50,14 @@ public sealed class ExcelReadingImportParser : IExcelReadingImportParser
         }
 
         var doorCol = GetColumn("kapino", "daireno", "daire");
+        var serialCol = GetColumn("sayacserino", "serino", "sayacno");
         var dateCol = GetColumn("okumatarihi", "tarih", "tarihsaat");
         var indexCol = GetColumn("endekskwh", "endeks", "kumulatifendeks", "kwh");
 
-        if (doorCol is null || dateCol is null || indexCol is null)
+        if ((doorCol is null && serialCol is null) || dateCol is null || indexCol is null)
         {
             errors.Add(
-                "Zorunlu başlıklar bulunamadı. Şablon başlıkları: \"Kapı No\", \"Okuma Tarihi\", \"Endeks (kWh)\". " +
+                "Zorunlu başlıklar bulunamadı. Şablon başlıkları: \"Kapı No\" (veya \"Sayaç Seri No\"), \"Okuma Tarihi\", \"Endeks (kWh)\". " +
                 $"Dosyada bulunan başlıklar: {string.Join(", ", columnMap.Keys)}");
             return new ExcelReadingImportResult(rows, errors);
         }
@@ -65,23 +66,30 @@ public sealed class ExcelReadingImportParser : IExcelReadingImportParser
         foreach (var dataRow in usedRows.Skip(1))
         {
             var rowNumber = dataRow.RowNumber();
-            var doorCell = dataRow.Cell(doorCol.Value);
+            var doorText = doorCol is null ? string.Empty : dataRow.Cell(doorCol.Value).GetString().Trim();
+            var serialText = serialCol is null ? string.Empty : dataRow.Cell(serialCol.Value).GetString().Trim();
             var dateCell = dataRow.Cell(dateCol.Value);
             var indexCell = dataRow.Cell(indexCol.Value);
-            var doorText = doorCell.GetString().Trim();
             var dateText = dateCell.GetString().Trim();
             var indexText = indexCell.GetString().Trim();
 
-            if (string.IsNullOrWhiteSpace(doorText) && string.IsNullOrWhiteSpace(dateText)
-                && string.IsNullOrWhiteSpace(indexText))
+            if (string.IsNullOrWhiteSpace(doorText) && string.IsNullOrWhiteSpace(serialText)
+                && string.IsNullOrWhiteSpace(dateText) && string.IsNullOrWhiteSpace(indexText))
             {
                 continue; // tamamen boş satır — sessizce atla
             }
 
-            if (!int.TryParse(doorText, out var doorNumber) || doorNumber < 1)
+            // Seri no doluysa eşleştirme seri no ile yapılır; kapı no bu durumda opsiyoneldir.
+            int? doorNumber = null;
+            if (string.IsNullOrWhiteSpace(serialText) || !string.IsNullOrWhiteSpace(doorText))
             {
-                errors.Add($"Satır {rowNumber}: Kapı No sayısal olmalıdır (girilen: \"{doorText}\").");
-                continue;
+                if (!int.TryParse(doorText, out var parsedDoor) || parsedDoor < 1)
+                {
+                    errors.Add($"Satır {rowNumber}: Kapı No sayısal olmalıdır (girilen: \"{doorText}\").");
+                    continue;
+                }
+
+                doorNumber = parsedDoor;
             }
 
             DateTimeOffset readingDate;
@@ -112,7 +120,8 @@ public sealed class ExcelReadingImportParser : IExcelReadingImportParser
                 continue;
             }
 
-            rows.Add(new ExcelReadingImportRow(doorNumber, readingDate, index));
+            rows.Add(new ExcelReadingImportRow(
+                doorNumber, readingDate, index, string.IsNullOrWhiteSpace(serialText) ? null : serialText));
 
             if (rows.Count >= MaxRows)
             {

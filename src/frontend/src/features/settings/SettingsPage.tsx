@@ -16,6 +16,7 @@ import {
 import { ApiOutlined } from '@ant-design/icons'
 import { apiClient } from '../../api/client'
 import type { AppSettingsDTO, MbusConnectionTestResult } from '../../types/api'
+import { NoticeSettingsCard } from './NoticeSettingsCard'
 
 /** Ayarlar sayfası: şirket/bina adı ve 30/70 oranları. Toplam tam %100 olmalıdır. */
 export function SettingsPage() {
@@ -71,6 +72,7 @@ export function SettingsPage() {
   }
 
   return (
+    <>
     <Card title="Ayarlar" style={{ maxWidth: 700 }}>
       <Typography.Paragraph type="secondary">
         Şirket adı PDF başlıklarında, bina adı tüm ekran ve raporlarda kullanılır.
@@ -197,5 +199,7 @@ export function SettingsPage() {
         </Button>
       </Form>
     </Card>
+    <NoticeSettingsCard />
+    </>
   )
 }

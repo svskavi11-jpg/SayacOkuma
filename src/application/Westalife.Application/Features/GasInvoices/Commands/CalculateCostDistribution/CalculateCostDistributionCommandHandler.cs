@@ -40,15 +40,33 @@ public sealed class CalculateCostDistributionCommandHandler
         var periodMidpoint = invoice.ReadingDateFrom
             .Add((invoice.ReadingDateTo - invoice.ReadingDateFrom) / 2);
 
-        var apartmentsWithDimensions = await
+        var allDimensions = await
             (from apartment in _db.Apartments
              where apartment.IsActive
              join dimension in _db.ApartmentDimensions
                  on apartment.Id equals dimension.ApartmentId
-             where dimension.ValidFrom <= periodMidpoint
-                && (dimension.ValidTo == null || dimension.ValidTo > periodMidpoint)
-             select new { apartment.Id, apartment.DoorNumber, dimension.SquareMeters })
+             select new
+             {
+                 apartment.Id,
+                 apartment.DoorNumber,
+                 dimension.SquareMeters,
+                 dimension.ValidFrom,
+                 dimension.ValidTo
+             })
             .ToListAsync(cancellationToken);
+
+        // Dönemde geçerli kayıt varsa o; yoksa (m² dönemden SONRA tanımlandıysa) en eski kayıt kullanılır,
+        // böylece tanımlı m² hiçbir zaman yok sayılıp yanlış hesap üretilmez.
+        var apartmentsWithDimensions = allDimensions
+            .GroupBy(d => d.Id)
+            .Select(g =>
+            {
+                var atPeriod = g.FirstOrDefault(d =>
+                    d.ValidFrom <= periodMidpoint && (d.ValidTo == null || d.ValidTo > periodMidpoint));
+                var chosen = atPeriod ?? g.OrderBy(d => d.ValidFrom).First();
+                return new { chosen.Id, chosen.DoorNumber, chosen.SquareMeters };
+            })
+            .ToList();
 
         if (apartmentsWithDimensions.Count == 0)
         {

@@ -60,6 +60,21 @@ public class ApartmentDimension : BaseEntity
         LastModifiedOn = DateTimeOffset.UtcNow;
     }
 
+    /// <summary>
+    /// Aktif kaydın m² değerini TARİHÇE OLUŞTURMADAN düzeltir (hatalı/yer tutucu veri düzeltmesi;
+    /// örn. Excel'den toplu m² aktarımı). Gerçek bir değişiklik için SCD akışı (AddDimension) kullanılır.
+    /// </summary>
+    public void CorrectSquareMeters(decimal squareMeters)
+    {
+        if (squareMeters <= 0m)
+        {
+            throw new ArgumentException(DomainConstants.ValidationMessages.SquareMetersMustBePositive, nameof(squareMeters));
+        }
+
+        SquareMeters = squareMeters;
+        LastModifiedOn = DateTimeOffset.UtcNow;
+    }
+
     /// <summary>Verilen zaman anında bu kayıt geçerli mi? (tstzrange semantiği: from dahil, to hariç)</summary>
     public bool IsValidAt(DateTimeOffset moment) =>
         ValidFrom <= moment && (ValidTo is null || moment < ValidTo.Value);

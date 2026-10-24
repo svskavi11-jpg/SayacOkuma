@@ -157,6 +157,25 @@ public static class DomainConstants
 
         public const int TcpHostMaxLength = 100;
         public const int UsbPortNameMaxLength = 20;
+
+        /// <summary>Bireysel Gider Bildirimi form ayarları.</summary>
+        public const int NoticeTitleMaxLength = 100;
+        public const int NoticeNoteMaxLength = 1000;
+        public const int SubscriberNumberMaxLength = 20;
+        public const int DueDateDaysDefault = 15;
+        public const int DueDateDaysMax = 120;
+        public const int LogoMaxBytes = 1_048_576; // 1 MB
+        public const int LogoHeightMmMin = 8;
+        public const int LogoHeightMmMax = 40;
+        public const int LogoHeightMmDefault = 17;
+        public const string LogoHeightInvalid = "Logo yüksekliği 8 ile 40 mm arasında olmalıdır.";
+        public const string LogoSideLeft = "left";
+        public const string LogoSideRight = "right";
+        public const string LogoTooLarge = "Logo dosyası en fazla 1 MB olabilir.";
+        public const string LogoTypeInvalid = "Logo yalnızca PNG veya JPG olabilir.";
+        public const string LogoSideInvalid = "Logo tarafı 'left' veya 'right' olmalıdır.";
+        public const string DueDateDaysInvalid = "Son ödeme gün sayısı 0 ile 120 arasında olmalıdır.";
+        public const string ReadingServiceFeeInvalid = "Okuma hizmet bedeli negatif olamaz.";
     }
 
     public static class ValidationMessages

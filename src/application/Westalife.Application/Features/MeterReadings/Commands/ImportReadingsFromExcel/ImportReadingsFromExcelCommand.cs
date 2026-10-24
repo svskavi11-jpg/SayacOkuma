@@ -69,6 +69,13 @@ public sealed class ImportReadingsFromExcelCommandHandler
             .GroupBy(m => m.ApartmentId!.Value)
             .ToDictionary(g => g.Key, g => g.OrderByDescending(m => m.CreatedOn).First());
 
+        // 3b) Seri no ile eşleme (bağlantısız okuyucu programın dosyası): aynı seri no'da en yeni aktif sayaç.
+        var metersBySerial = (await _db.Meters
+            .Where(m => m.IsActive && m.Type == MeterType.Calorimeter)
+            .ToListAsync(cancellationToken))
+            .GroupBy(m => m.SerialNumber.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(m => m.CreatedOn).First(), StringComparer.OrdinalIgnoreCase);
+
         // 4) Kilitli dönem pencereleri (satır bazlı engelleme için önceden yüklenir).
         var lockedPeriods = await _db.GasInvoices
             .Where(i => i.IsLocked)
@@ -88,13 +95,28 @@ public sealed class ImportReadingsFromExcelCommandHandler
 
         foreach (var row in parsed.Rows)
         {
-            // Eşleşmeyen kapı veya aktif kalorimetresi olmayan daire.
-            if (!apartmentsByDoor.TryGetValue(row.DoorNumber, out var apartment)
-                || !metersByApartment.TryGetValue(apartment.Id, out var meter))
+            // Etiket (hata mesajları için): seri no varsa "Sayaç X", yoksa "Kapı N".
+            var label = !string.IsNullOrWhiteSpace(row.SerialNumber)
+                ? $"Sayaç {row.SerialNumber}"
+                : $"Kapı {row.DoorNumber}";
+
+            // Eşleşme: seri no doluysa seri no ile; değilse kapı no → daire → aktif kalorimetre.
+            Meter? meter = null;
+            if (!string.IsNullOrWhiteSpace(row.SerialNumber))
+            {
+                metersBySerial.TryGetValue(row.SerialNumber.Trim(), out meter);
+            }
+            else if (row.DoorNumber is { } door
+                && apartmentsByDoor.TryGetValue(door, out var apartment))
+            {
+                metersByApartment.TryGetValue(apartment.Id, out meter);
+            }
+
+            if (meter is null)
             {
                 unmatched++;
                 rowErrors.Add(
-                    $"Kapı {row.DoorNumber}: {DomainConstants.ValidationMessages.ReadingImportNoActiveMeter}");
+                    $"{label}: {DomainConstants.ValidationMessages.ReadingImportNoActiveMeter}");
                 continue;
             }
 
@@ -102,7 +124,7 @@ public sealed class ImportReadingsFromExcelCommandHandler
             if (lockedPeriods.Any(p => p.ReadingDateFrom <= row.ReadingDateUtc
                 && row.ReadingDateUtc < p.ReadingDateTo))
             {
-                rowErrors.Add($"Kapı {row.DoorNumber}: {DomainConstants.GasInvoice.PeriodLocked}");
+                rowErrors.Add($"{label}: {DomainConstants.GasInvoice.PeriodLocked}");
                 continue;
             }
 
@@ -135,7 +157,7 @@ public sealed class ImportReadingsFromExcelCommandHandler
             if (lastIndex.HasValue && row.IndexValue < lastIndex.Value)
             {
                 rowErrors.Add(
-                    $"Kapı {row.DoorNumber}: {DomainConstants.ValidationMessages.ManualReadingIndexRegression}");
+                    $"{label}: {DomainConstants.ValidationMessages.ManualReadingIndexRegression}");
                 continue;
             }
 
@@ -152,7 +174,7 @@ public sealed class ImportReadingsFromExcelCommandHandler
             if (periodConsumption > DomainConstants.MeterReading.MaxPeriodConsumptionKWh)
             {
                 rowErrors.Add(
-                    $"Kapı {row.DoorNumber}: {DomainConstants.ValidationMessages.MeterConsumptionMustBeValid} " +
+                    $"{label}: {DomainConstants.ValidationMessages.MeterConsumptionMustBeValid} " +
                     $"(son endeks {lastIdx} → girilen endeks {row.IndexValue}; fark " +
                     $"{periodConsumption} kWh, üst sınır {DomainConstants.MeterReading.MaxPeriodConsumptionKWh} kWh).");
                 continue;
@@ -171,7 +193,7 @@ public sealed class ImportReadingsFromExcelCommandHandler
             catch (ArgumentException ex)
             {
                 // Beklenmeyen alan hatası: satır bazlı raporlanır, içe aktarma devam eder.
-                rowErrors.Add($"Kapı {row.DoorNumber}: {ex.Message}");
+                rowErrors.Add($"{label}: {ex.Message}");
                 continue;
             }
 

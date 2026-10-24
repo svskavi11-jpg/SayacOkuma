@@ -105,8 +105,14 @@ public sealed class ExcelMeterImportParser : IExcelMeterImportParser
 
             if (initialIndexCol is not null)
             {
-                var indexText = dataRow.Cell(initialIndexCol.Value).GetString().Trim();
-                if (!string.IsNullOrWhiteSpace(indexText))
+                var indexCell = dataRow.Cell(initialIndexCol.Value);
+                var indexText = indexCell.GetString().Trim();
+                if (indexCell.DataType == ClosedXML.Excel.XLDataType.Number && indexCell.TryGetValue(out decimal indexNumber))
+                {
+                    // Gerçek sayı hücresi: metne çevirmeden oku (ondalık/binlik ayraç karmaşası olmaz).
+                    initialIndex = indexNumber;
+                }
+                else if (!string.IsNullOrWhiteSpace(indexText))
                 {
                     if (decimal.TryParse(indexText, NumberStyles.Any, CultureInfo.GetCultureInfo("tr-TR"), out var parsed) ||
                         decimal.TryParse(indexText, NumberStyles.Any, CultureInfo.InvariantCulture, out parsed))
@@ -123,11 +129,25 @@ public sealed class ExcelMeterImportParser : IExcelMeterImportParser
 
             if (initialDateCol is not null)
             {
-                var dateText = dataRow.Cell(initialDateCol.Value).GetString().Trim();
-                if (!string.IsNullOrWhiteSpace(dateText))
+                var dateCell = dataRow.Cell(initialDateCol.Value);
+                var dateText = dateCell.GetString().Trim();
+
+                if (dateCell.DataType == ClosedXML.Excel.XLDataType.DateTime && dateCell.TryGetValue(out DateTime cellDate))
                 {
-                    if (DateTime.TryParse(dateText, CultureInfo.GetCultureInfo("tr-TR"), DateTimeStyles.None, out var parsedDate) ||
-                        DateTime.TryParse(dateText, CultureInfo.InvariantCulture, DateTimeStyles.None, out parsedDate))
+                    // Gerçek Excel tarih hücresi: metne çevirmeden doğrudan kullan (gün/ay kayması olmaz).
+                    initialDate = new DateTimeOffset(DateTime.SpecifyKind(cellDate.Date, DateTimeKind.Unspecified), TimeSpan.Zero);
+                }
+                else if (!string.IsNullOrWhiteSpace(dateText))
+                {
+                    string[] formats =
+                    [
+                        "dd.MM.yyyy HH:mm:ss", "dd.MM.yyyy HH:mm", "dd.MM.yyyy",
+                        "dd/MM/yyyy HH:mm:ss", "dd/MM/yyyy HH:mm", "dd/MM/yyyy",
+                        "yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd HH:mm", "yyyy-MM-dd",
+                    ];
+
+                    if (DateTime.TryParseExact(dateText, formats, CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsedDate) ||
+                        DateTime.TryParse(dateText, CultureInfo.GetCultureInfo("tr-TR"), DateTimeStyles.None, out parsedDate))
                     {
                         initialDate = new DateTimeOffset(parsedDate, TimeSpan.Zero);
                     }
@@ -145,8 +165,14 @@ public sealed class ExcelMeterImportParser : IExcelMeterImportParser
             // Etap 6.7: opsiyonel m² sütunu (SCD Type 2 dimension güncellemesi için).
             if (squareMetersCol is not null)
             {
-                var m2Text = dataRow.Cell(squareMetersCol.Value).GetString().Trim();
-                if (!string.IsNullOrWhiteSpace(m2Text))
+                var m2Cell = dataRow.Cell(squareMetersCol.Value);
+                var m2Text = m2Cell.GetString().Trim();
+                if (m2Cell.DataType == ClosedXML.Excel.XLDataType.Number && m2Cell.TryGetValue(out decimal m2Number))
+                {
+                    // Gerçek sayı hücresi: 47,4 → 47.4 (metne çevrilip tr-TR ile 474 okunmaz).
+                    squareMeters = m2Number > 0m ? m2Number : null;
+                }
+                else if (!string.IsNullOrWhiteSpace(m2Text))
                 {
                     if (decimal.TryParse(m2Text, NumberStyles.Any, CultureInfo.GetCultureInfo("tr-TR"), out var m2)
                         || decimal.TryParse(m2Text, NumberStyles.Any, CultureInfo.InvariantCulture, out m2))

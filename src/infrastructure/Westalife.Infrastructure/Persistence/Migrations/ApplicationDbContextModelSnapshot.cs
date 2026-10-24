@@ -1529,6 +1529,19 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("CreatedOn")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("DefaultNoticeNote")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("DefaultSubscriberNumber")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<int>("DueDateDays")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(15);
+
                     b.Property<decimal>("FixedCostRatio")
                         .HasPrecision(9, 6)
                         .HasColumnType("numeric(9,6)");
@@ -1536,9 +1549,47 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset?>("LastModifiedOn")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<byte[]>("LogoLeft")
+                        .HasColumnType("bytea");
+
+                    b.Property<string>("LogoLeftContentType")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<int>("LogoLeftHeightMm")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(17);
+
+                    b.Property<byte[]>("LogoRight")
+                        .HasColumnType("bytea");
+
+                    b.Property<string>("LogoRightContentType")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<int>("LogoRightHeightMm")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(17);
+
                     b.Property<string>("MeterConnectionType")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<string>("NoticeLeftTitle")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("NoticeRightTitle")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<decimal>("ReadingServiceFee")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m);
 
                     b.Property<string>("TcpHost")
                         .HasColumnType("text");
@@ -1564,8 +1615,12 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CompanyName = "Çınar Teknik",
                             ConsumptionRatio = 0.70m,
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            DueDateDays = 15,
                             FixedCostRatio = 0.30m,
+                            LogoLeftHeightMm = 17,
+                            LogoRightHeightMm = 17,
                             MeterConnectionType = "Simulator",
+                            ReadingServiceFee = 0m,
                             TcpPort = 2000,
                             UsbBaudRate = 2400
                         });

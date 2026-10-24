@@ -6,9 +6,10 @@ namespace Westalife.Infrastructure.Reporting.Pdf;
 /// <summary>Danfoss formu ortak hücre/başlık stilleri.</summary>
 internal static class ReportComposeExtensions
 {
+    /// <summary>Referans formdaki koyu gri bölüm başlık şeridi.</summary>
     public static IContainer SectionHeader(this IContainer container, string title)
     {
-        container.Background("#E4E4E4").Padding(4).Text(t => t.Span(title).Bold().FontSize(9.5f));
+        container.Background("#9E9E9E").Padding(4).Text(t => t.Span(title).Bold().FontSize(9.5f));
         return container;
     }
 

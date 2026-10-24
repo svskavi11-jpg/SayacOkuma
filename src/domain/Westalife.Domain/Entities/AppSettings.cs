@@ -31,6 +31,40 @@ public class AppSettings : BaseEntity
 
     public int UsbBaudRate { get; private set; } = 2400;
 
+    // --- Bireysel Gider Bildirimi (PDF) ayarları ---
+
+    /// <summary>Sol üst başlık metni (hizmet firması); sol logo yoksa metin olarak basılır.</summary>
+    public string? NoticeLeftTitle { get; private set; }
+
+    /// <summary>Sağ üst başlık metni (örn. Danfoss); sağ logo yoksa metin olarak basılır.</summary>
+    public string? NoticeRightTitle { get; private set; }
+
+    public byte[]? LogoLeft { get; private set; }
+
+    public string? LogoLeftContentType { get; private set; }
+
+    public byte[]? LogoRight { get; private set; }
+
+    public string? LogoRightContentType { get; private set; }
+
+    /// <summary>Sol logonun PDF'teki yüksekliği (mm); genişlik oranla otomatik belirlenir.</summary>
+    public int LogoLeftHeightMm { get; private set; } = DomainConstants.AppSettings.LogoHeightMmDefault;
+
+    /// <summary>Sağ logonun PDF'teki yüksekliği (mm).</summary>
+    public int LogoRightHeightMm { get; private set; } = DomainConstants.AppSettings.LogoHeightMmDefault;
+
+    /// <summary>Son ödeme tarihi = oluşturma tarihi + bu gün sayısı.</summary>
+    public int DueDateDays { get; private set; } = DomainConstants.AppSettings.DueDateDaysDefault;
+
+    /// <summary>"Okuma Hizmet Bedeli" satırı tutarı (varsayılan 0).</summary>
+    public decimal ReadingServiceFee { get; private set; }
+
+    /// <summary>Faturada özel not yoksa "Ek Açıklamalar" bölümünde basılacak varsayılan metin.</summary>
+    public string? DefaultNoticeNote { get; private set; }
+
+    /// <summary>Faturada abone no boşsa kullanılacak varsayılan abone numarası.</summary>
+    public string? DefaultSubscriberNumber { get; private set; }
+
     private AppSettings() { } // EF Core
 
     public AppSettings(string companyName, string buildingName, decimal fixedCostRatio, decimal consumptionRatio)
@@ -117,4 +151,107 @@ public class AppSettings : BaseEntity
             : DomainConstants.AppSettings.UsbBaudRateDefault;
         LastModifiedOn = DateTimeOffset.UtcNow;
     }
+
+    /// <summary>Bildirim formu metin/sayısal ayarlarını günceller (logolar ayrı metotlarla yönetilir).</summary>
+    public void UpdateNoticeSettings(
+        string? leftTitle, string? rightTitle, int dueDateDays, decimal readingServiceFee,
+        string? defaultNote, string? defaultSubscriberNumber)
+    {
+        if (dueDateDays < 0 || dueDateDays > DomainConstants.AppSettings.DueDateDaysMax)
+        {
+            throw new ArgumentException(DomainConstants.AppSettings.DueDateDaysInvalid, nameof(dueDateDays));
+        }
+
+        if (readingServiceFee < 0m)
+        {
+            throw new ArgumentException(DomainConstants.AppSettings.ReadingServiceFeeInvalid, nameof(readingServiceFee));
+        }
+
+        NoticeLeftTitle = Normalize(leftTitle);
+        NoticeRightTitle = Normalize(rightTitle);
+        DueDateDays = dueDateDays;
+        ReadingServiceFee = decimal.Round(readingServiceFee, 2);
+        DefaultNoticeNote = Normalize(defaultNote);
+        DefaultSubscriberNumber = Normalize(defaultSubscriberNumber);
+        LastModifiedOn = DateTimeOffset.UtcNow;
+    }
+
+    /// <summary>Sol/sağ logo yüksekliklerini (mm) ayarlar.</summary>
+    public void SetLogoSizes(int leftHeightMm, int rightHeightMm)
+    {
+        if (leftHeightMm < DomainConstants.AppSettings.LogoHeightMmMin
+            || leftHeightMm > DomainConstants.AppSettings.LogoHeightMmMax
+            || rightHeightMm < DomainConstants.AppSettings.LogoHeightMmMin
+            || rightHeightMm > DomainConstants.AppSettings.LogoHeightMmMax)
+        {
+            throw new ArgumentException(DomainConstants.AppSettings.LogoHeightInvalid);
+        }
+
+        LogoLeftHeightMm = leftHeightMm;
+        LogoRightHeightMm = rightHeightMm;
+        LastModifiedOn = DateTimeOffset.UtcNow;
+    }
+
+    /// <summary>Sol veya sağ logoyu ayarlar (PNG/JPG, en fazla 1 MB).</summary>
+    public void SetLogo(string side, byte[] content, string contentType)
+    {
+        if (content.Length == 0 || content.Length > DomainConstants.AppSettings.LogoMaxBytes)
+        {
+            throw new DomainException(DomainConstants.AppSettings.LogoTooLarge);
+        }
+
+        if (contentType != "image/png" && contentType != "image/jpeg")
+        {
+            throw new DomainException(DomainConstants.AppSettings.LogoTypeInvalid);
+        }
+
+        var isPng = content.Length > 4 && content[0] == 0x89 && content[1] == 0x50 && content[2] == 0x4E && content[3] == 0x47;
+        var isJpeg = content.Length > 3 && content[0] == 0xFF && content[1] == 0xD8 && content[2] == 0xFF;
+        if (!isPng && !isJpeg)
+        {
+            throw new DomainException(DomainConstants.AppSettings.LogoTypeInvalid);
+        }
+
+        // İçeriğin gerçek biçimi kaydedilen content-type'ı belirler.
+        contentType = isPng ? "image/png" : "image/jpeg";
+
+        switch (side)
+        {
+            case DomainConstants.AppSettings.LogoSideLeft:
+                LogoLeft = content;
+                LogoLeftContentType = contentType;
+                break;
+            case DomainConstants.AppSettings.LogoSideRight:
+                LogoRight = content;
+                LogoRightContentType = contentType;
+                break;
+            default:
+                throw new DomainException(DomainConstants.AppSettings.LogoSideInvalid);
+        }
+
+        LastModifiedOn = DateTimeOffset.UtcNow;
+    }
+
+    /// <summary>Sol veya sağ logoyu kaldırır (metin başlığa dönülür).</summary>
+    public void RemoveLogo(string side)
+    {
+        switch (side)
+        {
+            case DomainConstants.AppSettings.LogoSideLeft:
+                LogoLeft = null;
+                LogoLeftContentType = null;
+                break;
+            case DomainConstants.AppSettings.LogoSideRight:
+                LogoRight = null;
+                LogoRightContentType = null;
+                break;
+            default:
+                throw new DomainException(DomainConstants.AppSettings.LogoSideInvalid);
+        }
+
+        LastModifiedOn = DateTimeOffset.UtcNow;
+    }
+
+    private static string? Normalize(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }

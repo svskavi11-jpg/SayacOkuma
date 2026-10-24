@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Bağlantısız (internetsiz/veritabanısız) M-Bus okuyucu: sayaçları M-Bus arabirimi üzerinden tarar,
+    okumaları ana yazılımın "Okuma İçe Aktar" Excel biçiminde (.xlsx) dışa aktarır.
+    M-Bus protokol/kanal kodu Infrastructure'dan DOĞRUDAN kaynak olarak bağlanır (kod tekrarı yok);
+    EF Core/PostgreSQL gibi ağır bağımlılıklar exe'ye girmez.
+    Kasıtlı olarak .slnx içine EKLENMEZ (Docker derlemesi Linux'ta çalışır, bu proje yalnız Windows).
+  -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Westalife.MbusReader</RootNamespace>
+    <AssemblyName>SayacOkuyucu</AssemblyName>
+    <ApplicationHighDpiMode>SystemAware</ApplicationHighDpiMode>
+    <Version>1.0.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ClosedXML" Version="0.105.1" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.13" />
+    <PackageReference Include="System.IO.Ports" Version="10.0.13" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Infrastructure: M-Bus transport + protokol + dayanıklılık (MbusConnectionTester hariç: Application arayüzüne bağlı). -->
+    <Compile Include="..\..\infrastructure\Westalife.Infrastructure\Metering\Connections\*.cs"
+             Exclude="..\..\infrastructure\Westalife.Infrastructure\Metering\Connections\MbusConnectionTester.cs"
+             LinkBase="Metering\Connections" />
+    <Compile Include="..\..\infrastructure\Westalife.Infrastructure\Metering\Exceptions\*.cs" LinkBase="Metering\Exceptions" />
+    <Compile Include="..\..\infrastructure\Westalife.Infrastructure\Metering\Protocol\*.cs" LinkBase="Metering\Protocol" />
+    <Compile Include="..\..\infrastructure\Westalife.Infrastructure\Metering\Resilience\*.cs" LinkBase="Metering\Resilience" />
+
+    <!-- Application: yalnız saf model/enum dosyaları. -->
+    <Compile Include="..\..\application\Westalife.Application\Common\Enums\MeterReadErrorCode.cs" LinkBase="Shared" />
+    <Compile Include="..\..\application\Westalife.Application\Common\Enums\MeterReaderConnectionType.cs" LinkBase="Shared" />
+    <Compile Include="..\..\application\Westalife.Application\Common\Models\MeterSnapshot.cs" LinkBase="Shared" />
+    <Compile Include="..\..\application\Westalife.Application\Common\Models\MeterReadResult.cs" LinkBase="Shared" />
+    <Compile Include="..\..\application\Westalife.Application\Common\Models\MeteringOptions.cs" LinkBase="Shared" />
+  </ItemGroup>
+
+</Project>

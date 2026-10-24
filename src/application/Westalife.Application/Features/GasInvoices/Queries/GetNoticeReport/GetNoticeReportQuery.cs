@@ -33,7 +33,13 @@ public sealed record NoticeReportData(
     decimal UnitPriceConsumptionPerKwh,
     decimal ReadingServiceFeeAmount,
     string? InvoiceNote,
-    IReadOnlyList<NoticeRow> Rows);
+    IReadOnlyList<NoticeRow> Rows,
+    string? LeftTitle = null,
+    string? RightTitle = null,
+    byte[]? LeftLogo = null,
+    byte[]? RightLogo = null,
+    int LeftLogoHeightMm = DomainConstants.AppSettings.LogoHeightMmDefault,
+    int RightLogoHeightMm = DomainConstants.AppSettings.LogoHeightMmDefault);
 
 public sealed record NoticeRow(
     Guid ApartmentId,
@@ -145,6 +151,14 @@ public sealed class GetNoticeReportQueryHandler : IRequestHandler<GetNoticeRepor
 
         var periodName = invoice.ReadingDateFrom.ToString("MMMM yyyy", CultureInfo.GetCultureInfo("tr-TR"));
 
+        // Ayarlar'dan (DB) gelen form değerleri; fatura notu boşsa varsayılan açıklama kullanılır.
+        var subscriber = string.IsNullOrWhiteSpace(invoice.SubscriberNumber)
+            ? settings?.DefaultSubscriberNumber ?? string.Empty
+            : invoice.SubscriberNumber;
+        var note = string.IsNullOrWhiteSpace(invoice.Note) ? settings?.DefaultNoticeNote : invoice.Note;
+        var dueDays = settings?.DueDateDays ?? _reportingOptions.DueDateDays;
+        var readingFee = settings?.ReadingServiceFee ?? _reportingOptions.ReadingServiceFeeAmount;
+
         return new NoticeReportData(
             settings?.CompanyName ?? string.Empty,
             building.Name,
@@ -153,17 +167,23 @@ public sealed class GetNoticeReportQueryHandler : IRequestHandler<GetNoticeRepor
             invoice.ReadingDateFrom,
             invoice.ReadingDateTo,
             (int)(invoice.ReadingDateTo - invoice.ReadingDateFrom).TotalDays,
-            invoice.SubscriberNumber,
+            subscriber,
             invoice.MasterMeterSerial,
             invoice.IssuedOn,
-            invoice.IssuedOn.AddDays(_reportingOptions.DueDateDays),
+            invoice.IssuedOn.AddDays(dueDays),
             invoice.TotalAmount,
             totalSquareMeters,
             totalConsumption,
             totalSquareMeters == 0m ? 0m : Math.Round(fixedPool / totalSquareMeters, 6),
             totalConsumption == 0m ? 0m : Math.Round(consumptionPool / totalConsumption, 6),
-            _reportingOptions.ReadingServiceFeeAmount,
-            invoice.Note,
-            noticeRows);
+            readingFee,
+            note,
+            noticeRows,
+            settings?.NoticeLeftTitle,
+            settings?.NoticeRightTitle,
+            settings?.LogoLeft,
+            settings?.LogoRight,
+            settings?.LogoLeftHeightMm ?? DomainConstants.AppSettings.LogoHeightMmDefault,
+            settings?.LogoRightHeightMm ?? DomainConstants.AppSettings.LogoHeightMmDefault);
     }
 }

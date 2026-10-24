@@ -30,6 +30,20 @@ public class AppSettingsConfiguration : IEntityTypeConfiguration<AppSettings>
         builder.Property(s => s.ConsumptionRatio)
             .HasPrecision(DomainConstants.RatioPrecision, DomainConstants.RatioScale);
 
+        // Bireysel Gider Bildirimi ayarları (logolar byte[] olarak DB'de tutulur).
+        builder.Property(s => s.NoticeLeftTitle).HasMaxLength(DomainConstants.AppSettings.NoticeTitleMaxLength);
+        builder.Property(s => s.NoticeRightTitle).HasMaxLength(DomainConstants.AppSettings.NoticeTitleMaxLength);
+        builder.Property(s => s.LogoLeftContentType).HasMaxLength(50);
+        builder.Property(s => s.LogoRightContentType).HasMaxLength(50);
+        builder.Property(s => s.LogoLeftHeightMm).HasDefaultValue(DomainConstants.AppSettings.LogoHeightMmDefault);
+        builder.Property(s => s.LogoRightHeightMm).HasDefaultValue(DomainConstants.AppSettings.LogoHeightMmDefault);
+        builder.Property(s => s.DueDateDays).HasDefaultValue(DomainConstants.AppSettings.DueDateDaysDefault);
+        builder.Property(s => s.ReadingServiceFee)
+            .HasPrecision(DomainConstants.MoneyPrecision, DomainConstants.MoneyScale)
+            .HasDefaultValue(0m);
+        builder.Property(s => s.DefaultNoticeNote).HasMaxLength(DomainConstants.AppSettings.NoticeNoteMaxLength);
+        builder.Property(s => s.DefaultSubscriberNumber).HasMaxLength(DomainConstants.AppSettings.SubscriberNumberMaxLength);
+
         // Seed: "Çınar Teknik" (kullanıcı Ayarlar sayfasından değiştirebilir).
         builder.HasData(new
         {
@@ -43,6 +57,10 @@ public class AppSettingsConfiguration : IEntityTypeConfiguration<AppSettings>
             TcpPort = 2000,
             UsbPortName = (string?)null,
             UsbBaudRate = 2400,
+            DueDateDays = DomainConstants.AppSettings.DueDateDaysDefault,
+            ReadingServiceFee = 0m,
+            LogoLeftHeightMm = DomainConstants.AppSettings.LogoHeightMmDefault,
+            LogoRightHeightMm = DomainConstants.AppSettings.LogoHeightMmDefault,
             CreatedOn = DomainConstants.SeedData.SeedTimestamp,
             LastModifiedOn = (DateTimeOffset?)null
         });

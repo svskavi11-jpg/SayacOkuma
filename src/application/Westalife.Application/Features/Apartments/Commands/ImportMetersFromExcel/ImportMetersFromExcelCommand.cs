@@ -177,11 +177,21 @@ public sealed class ImportMetersFromExcelCommandHandler
 
                     if (!unchanged)
                     {
-                        var newDimension = apartment.AddDimension(
-                            row.SquareMeters.Value,
-                            activeDimension?.CommonAreaRatio ?? DomainConstants.SeedData.DefaultCommonAreaRatio,
-                            DateTimeOffset.UtcNow);
-                        _db.ApartmentDimensions.Add(newDimension);
+                        if (activeDimension is not null)
+                        {
+                            // Excel ana liste: m² düzeltme olarak işlenir (tarihçe/dönem kayması oluşmaz);
+                            // böylece Daireler ekranındaki m² ile hesaplanan m² her zaman aynıdır.
+                            activeDimension.CorrectSquareMeters(row.SquareMeters.Value);
+                        }
+                        else
+                        {
+                            var newDimension = apartment.AddDimension(
+                                row.SquareMeters.Value,
+                                DomainConstants.SeedData.DefaultCommonAreaRatio,
+                                DateTimeOffset.UtcNow);
+                            _db.ApartmentDimensions.Add(newDimension);
+                        }
+
                         dimensionsUpdated++;
                     }
                 }
