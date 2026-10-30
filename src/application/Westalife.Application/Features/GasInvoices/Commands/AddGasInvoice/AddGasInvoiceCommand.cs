@@ -21,4 +21,5 @@ public sealed record AddGasInvoiceCommand(
     decimal DistributionAmount,
     decimal DistributionVat,
     decimal TotalAmount,
-    string? Note = null) : IRequest<Guid>;
+    string? Note = null,
+    DateOnly? DueDate = null) : IRequest<Guid>;

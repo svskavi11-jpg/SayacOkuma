@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
-import { Button, Card, Select, Space, Table, Tag, Typography } from 'antd'
+import { Button, Card, Input, Select, Space, Table, Tag, Typography } from 'antd'
 import { DownloadOutlined, FileExcelOutlined, FilePdfOutlined } from '@ant-design/icons'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { apiClient } from '../../api/client'
 import { downloadFile } from '../../api/download'
@@ -21,6 +21,9 @@ export function ReportsPage() {
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(
     searchParams.get('invoice'),
   )
+  // Filtre: kapı no / daire adı arama
+  const [search, setSearch] = useState('')
+  const [onlyFailed, setOnlyFailed] = useState(false)
 
   const invoicesQuery = useQuery({
     queryKey: ['gas-invoices'],
@@ -41,6 +44,20 @@ export function ReportsPage() {
   const periodLabel = selectedInvoice
     ? `${new Date(selectedInvoice.periodFrom).toLocaleDateString('tr-TR')} - ${new Date(selectedInvoice.periodTo).toLocaleDateString('tr-TR')}`
     : ''
+
+  // Sıralama: kapı numarası sayısal (1, 2, ... 10) — metin sırası (1, 10, 11, 2) değil.
+  const filteredRows = useMemo(() => {
+    const q = search.trim().toLocaleLowerCase('tr-TR')
+    return [...(resultQuery.data?.rows ?? [])]
+      .filter((r) => !onlyFailed || r.isMeterReadFailed)
+      .filter(
+        (r) =>
+          q === '' ||
+          r.doorNumber.toLocaleLowerCase('tr-TR').includes(q) ||
+          r.apartmentTitle.toLocaleLowerCase('tr-TR').includes(q),
+      )
+      .sort((a, b) => Number(a.doorNumber) - Number(b.doorNumber) || a.doorNumber.localeCompare(b.doorNumber, 'tr'))
+  }, [resultQuery.data, search, onlyFailed])
 
   return (
     <Card title="Raporlar">
@@ -68,11 +85,11 @@ export function ReportsPage() {
               onClick={() =>
                 void downloadFile(
                   `/gas-invoices/${selectedInvoice.id}/reports/notice.pdf`,
-                  'BireyselGiderBildirimi-72-sayfa.pdf',
+                  `BireyselGiderBildirimi-${selectedInvoice.invoiceNumber}.pdf`,
                 )
               }
             >
-              Toplu PDF İndir (72 Sayfa)
+              Toplu PDF İndir {resultQuery.data?.rows.length ? `(${resultQuery.data.rows.length} Sayfa)` : ''}
             </Button>
             <Button
               icon={<FileExcelOutlined />}
@@ -80,7 +97,7 @@ export function ReportsPage() {
               onClick={() =>
                 void downloadFile(
                   `/gas-invoices/${selectedInvoice.id}/reports/borclar.xlsx`,
-                  'Borclistesii.xlsx',
+                  `Borclistesi-${selectedInvoice.invoiceNumber}.xlsx`,
                 )
               }
             >
@@ -92,13 +109,37 @@ export function ReportsPage() {
 
         {resultQuery.data && (
           <Card size="small" title="Tek Daire Bildirimi (PDF)">
+            <Space wrap style={{ marginBottom: 8 }}>
+              <Input.Search
+                allowClear
+                placeholder="Kapı no veya daire adı ara…"
+                style={{ width: 260 }}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              <Button
+                type={onlyFailed ? 'primary' : 'default'}
+                onClick={() => setOnlyFailed((v) => !v)}
+              >
+                Sadece okunamayanlar
+              </Button>
+              <Typography.Text type="secondary">
+                {filteredRows.length} / {resultQuery.data.rows.length} daire
+              </Typography.Text>
+            </Space>
             <Table
               rowKey="apartmentInvoiceId"
               size="small"
-              dataSource={resultQuery.data.rows}
+              dataSource={filteredRows}
               pagination={{ pageSize: 12 }}
               columns={[
-                { title: 'Kapı', dataIndex: 'doorNumber', width: 80 },
+                {
+                  title: 'Kapı',
+                  dataIndex: 'doorNumber',
+                  width: 80,
+                  defaultSortOrder: 'ascend',
+                  sorter: (a, b) => Number(a.doorNumber) - Number(b.doorNumber),
+                },
                 { title: 'Daire', dataIndex: 'apartmentTitle' },
                 { title: 'm²', width: 90, render: (_: unknown, r) => r.squareMetersUsed.toFixed(2) },
                 { title: 'kWh', width: 100, render: (_: unknown, r) => r.consumptionKWhUsed.toFixed(2) },

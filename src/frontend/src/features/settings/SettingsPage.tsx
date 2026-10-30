@@ -17,6 +17,7 @@ import { ApiOutlined } from '@ant-design/icons'
 import { apiClient } from '../../api/client'
 import type { AppSettingsDTO, MbusConnectionTestResult } from '../../types/api'
 import { NoticeSettingsCard } from './NoticeSettingsCard'
+import { InterestSettingsCard } from './InterestSettingsCard'
 
 /** Ayarlar sayfası: şirket/bina adı ve 30/70 oranları. Toplam tam %100 olmalıdır. */
 export function SettingsPage() {
@@ -68,12 +69,12 @@ export function SettingsPage() {
   const sumValid = Math.round(sum * 100) === 100
 
   if (settingsQuery.isLoading || !initial) {
-    return <Card loading style={{ maxWidth: 700 }} />
+    return <Card loading style={{ maxWidth: 800 }} />
   }
 
   return (
     <>
-    <Card title="Ayarlar" style={{ maxWidth: 700 }}>
+    <Card title="Ayarlar" style={{ maxWidth: 800 }}>
       <Typography.Paragraph type="secondary">
         Şirket adı PDF başlıklarında, bina adı tüm ekran ve raporlarda kullanılır.
         Oranlar hesaplama motorunun temelidir — toplam tam %100 olmalıdır.
@@ -199,6 +200,7 @@ export function SettingsPage() {
         </Button>
       </Form>
     </Card>
+    <InterestSettingsCard />
     <NoticeSettingsCard />
     </>
   )

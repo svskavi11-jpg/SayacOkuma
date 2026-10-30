@@ -1,4 +1,4 @@
-using Westalife.Domain.Common;
+﻿using Westalife.Domain.Common;
 using Westalife.Domain.Constants;
 
 namespace Westalife.Domain.Entities;
@@ -61,6 +61,18 @@ public class GasInvoice : BaseEntity
     /// <summary>Fatura duyuru/not alanı (Etap 6.7) — PDF "Ek Açıklamalar" kutusuna basılır.</summary>
     public string? Note { get; private set; }
 
+    /// <summary>
+    /// Faz 6.8: dairelere yansıtılan faturanın SON ÖDEME TARİHİ (vade). Gecikme faizi bu tarihten itibaren
+    /// günlük basit faizle işler (Anapara × Oran/100 × Gün/365).
+    /// </summary>
+    public DateOnly DueDate { get; private set; }
+
+    /// <summary>Faz 6.8: bina, doğalgaz firmasına bu faturayı ödedi mi? (nakit çıkışı kaynağı)</summary>
+    public bool IsPaid { get; private set; }
+
+    /// <summary>Faturanın doğalgaz firmasına ödendiği tarih (nakit akışında gider bu tarihte düşer).</summary>
+    public DateOnly? PaidOn { get; private set; }
+
     private GasInvoice() { } // EF Core
 
     public GasInvoice(
@@ -78,7 +90,8 @@ public class GasInvoice : BaseEntity
         decimal distributionAmount,
         decimal distributionVat,
         decimal totalAmount,
-        string? note = null)
+        string? note = null,
+        DateOnly? dueDate = null)
     {
         if (string.IsNullOrWhiteSpace(invoiceNumber))
         {
@@ -118,6 +131,43 @@ public class GasInvoice : BaseEntity
         DistributionVat = distributionVat;
         TotalAmount = decimal.Round(totalAmount, 2);
         Note = string.IsNullOrWhiteSpace(note) ? null : note.Trim();
+        DueDate = dueDate ?? DateOnly.FromDateTime(issuedOn.DateTime);
+    }
+
+    // Saat dilimi kaymasi (UTC/yerel gece yarisi) yuzunden 1 gunluk tolerans: DB'den UTC gelen tarih bir gun geri gorunebilir.
+    private DateOnly IssuedDateTolerantFloor() => DateOnly.FromDateTime(IssuedOn.DateTime).AddDays(-1);
+
+    /// <summary>Son ödeme tarihini (vade) ayarlar. Düzenleme tarihinden önce olamaz. Dönem kilidinden bağımsızdır.</summary>
+    public void SetDueDate(DateOnly dueDate)
+    {
+        if (dueDate < IssuedDateTolerantFloor())
+        {
+            throw new ArgumentException(DomainConstants.GasInvoice.DueDateBeforeIssued, nameof(dueDate));
+        }
+
+        DueDate = dueDate;
+        LastModifiedOn = DateTimeOffset.UtcNow;
+    }
+
+    /// <summary>Faturayı doğalgaz firmasına ödendi olarak işaretler (nakit akışı gideri).</summary>
+    public void MarkPaid(DateOnly paidOn)
+    {
+        if (paidOn < IssuedDateTolerantFloor())
+        {
+            throw new ArgumentException(DomainConstants.GasInvoice.PaidOnBeforeIssued, nameof(paidOn));
+        }
+
+        IsPaid = true;
+        PaidOn = paidOn;
+        LastModifiedOn = DateTimeOffset.UtcNow;
+    }
+
+    /// <summary>Ödendi işaretini geri alır.</summary>
+    public void MarkUnpaid()
+    {
+        IsPaid = false;
+        PaidOn = null;
+        LastModifiedOn = DateTimeOffset.UtcNow;
     }
 
     /// <summary>

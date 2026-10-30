@@ -11,6 +11,7 @@
 | Etap 6.5 | M-Bus Donanım Ayarları (AppSettings'ten dinamik okuyucu + Bağlantıyı Test Et) + Dashboard "Sayaçları Şimdi Oku" | ✔ TAMAMLANDI (canlı doğrulandı: settings roundtrip, test-mbus, trigger Simulator 72 sayaç) |
 | Etap 6.6 | Manuel Okuma Girişi + Excel Okuma İçe Aktarma + Dönem Kilitleme (period locking) | ✔ TAMAMLANDI (53/53 test; docs\ETAP66_PLAN.md; canlıda doğrulandı) |
 | Etap 6.7 | Fatura Düzenleme + Ayarlar Validasyon Fix + Excel Şablonu (Kat Maliki/m²) + ApartmentOwner SCD Type 2 + Fatura Notu (PDF Ek Açıklamalar) + Son Endeks/Tarih Kolonları + Tüketim Analizi (@ant-design/plots) + Okuma Düzeltme/Toplu Düzenleme + MeterReadingAuditLog | ✔ TAMAMLANDI (62/62 test; migration Etap67AuditAndAnalysis) — 23.10.2026 |
+| Etap 6.8 | Tahsilat/Cari Hesap + PDF Ekstre (Faz 6.8) + Devir Bakiyesi Anapara/Faiz Ayrımı (Ledger FIFO: Devir Faiz→Anapara→Fatura; geçmiş faize faiz yok; sentez SourceId; Devir Bakiye Modal'ı) | ✔ TAMAMLANDI (86/86 test; migration Etap68SplitOpeningBalance) — 26.10.2026 |
 | Faz 7 | SaaS Multi-Tenant + Identity/JWT (plan: docs\FAZ7_SAAS_PLAN.md) | 📋 PLAN HAZIR (kod yazılacak) |
 
 ### Faz 4'te Öğrenilen Teknik Notlar

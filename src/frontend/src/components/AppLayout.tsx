@@ -3,6 +3,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { App as AntdApp, Layout, Menu, Typography } from 'antd'
 import {
   DashboardOutlined,
+  DollarOutlined,
   HomeOutlined,
   FileTextOutlined,
   BarChartOutlined,
@@ -13,11 +14,12 @@ import { registerNotifier } from '../api/notifier'
 const { Sider, Content, Header } = Layout
 
 const menuItems = [
-  { key: '/', icon: <DashboardOutlined />, label: 'Panel' },
-  { key: '/apartments', icon: <HomeOutlined />, label: 'Daireler' },
-  { key: '/invoices', icon: <FileTextOutlined />, label: 'Faturalar' },
-  { key: '/reports', icon: <BarChartOutlined />, label: 'Raporlar' },
-  { key: '/settings', icon: <SettingOutlined />, label: 'Ayarlar' },
+  { key: '/',          icon: <DashboardOutlined />, label: 'Panel' },
+  { key: '/apartments', icon: <HomeOutlined />,      label: 'Daireler' },
+  { key: '/invoices',   icon: <FileTextOutlined />,  label: 'Faturalar' },
+  { key: '/payments',   icon: <DollarOutlined />,    label: 'Tahsilat' },
+  { key: '/reports',    icon: <BarChartOutlined />,  label: 'Raporlar' },
+  { key: '/settings',   icon: <SettingOutlined />,   label: 'Ayarlar' },
 ]
 
 export function AppLayout() {

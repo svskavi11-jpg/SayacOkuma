@@ -65,6 +65,12 @@ public class GasInvoiceConfiguration : IEntityTypeConfiguration<GasInvoice>
 
         builder.Property(i => i.LockedOn);
 
+        // Faz 6.8: son ödeme tarihi (vade) ve doğalgaz firmasına ödeme (nakit çıkışı).
+        builder.Property(i => i.DueDate).IsRequired();
+        builder.Property(i => i.IsPaid).IsRequired().HasDefaultValue(false);
+        builder.Property(i => i.PaidOn);
+        builder.HasIndex(i => i.PaidOn).HasDatabaseName("IX_GasInvoices_PaidOn");
+
         builder.HasIndex(i => i.IsLocked)
             .HasDatabaseName("IX_GasInvoices_IsLocked");
 

@@ -44,6 +44,12 @@ public class AppSettingsConfiguration : IEntityTypeConfiguration<AppSettings>
         builder.Property(s => s.DefaultNoticeNote).HasMaxLength(DomainConstants.AppSettings.NoticeNoteMaxLength);
         builder.Property(s => s.DefaultSubscriberNumber).HasMaxLength(DomainConstants.AppSettings.SubscriberNumberMaxLength);
 
+        // Faz 6.8: gecikme faizi (yıllık basit faiz, günlük işletim). Varsayılan: kapalı.
+        builder.Property(s => s.IsInterestEnabled).HasDefaultValue(false);
+        builder.Property(s => s.InterestPeriod).IsRequired().HasMaxLength(20)
+            .HasDefaultValue(DomainConstants.AppSettings.InterestPeriodDaily);
+        builder.Property(s => s.InterestRate).HasPrecision(9, 4).HasDefaultValue(0m);
+
         // Seed: "Çınar Teknik" (kullanıcı Ayarlar sayfasından değiştirebilir).
         builder.HasData(new
         {
@@ -61,6 +67,9 @@ public class AppSettingsConfiguration : IEntityTypeConfiguration<AppSettings>
             ReadingServiceFee = 0m,
             LogoLeftHeightMm = DomainConstants.AppSettings.LogoHeightMmDefault,
             LogoRightHeightMm = DomainConstants.AppSettings.LogoHeightMmDefault,
+            IsInterestEnabled = false,
+            InterestPeriod = DomainConstants.AppSettings.InterestPeriodDaily,
+            InterestRate = 0m,
             CreatedOn = DomainConstants.SeedData.SeedTimestamp,
             LastModifiedOn = (DateTimeOffset?)null
         });

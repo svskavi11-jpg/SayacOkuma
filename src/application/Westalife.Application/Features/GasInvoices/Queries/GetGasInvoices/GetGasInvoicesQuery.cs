@@ -14,7 +14,10 @@ public sealed record GasInvoiceListItem(
     DateTimeOffset PeriodTo,
     decimal TotalAmount,
     bool HasCalculation,
-    bool IsLocked);
+    bool IsLocked,
+    DateOnly DueDate,
+    bool IsPaid,
+    DateOnly? PaidOn);
 
 public sealed class GetGasInvoicesQueryHandler : IRequestHandler<GetGasInvoicesQuery, IReadOnlyList<GasInvoiceListItem>>
 {
@@ -37,7 +40,10 @@ public sealed class GetGasInvoicesQueryHandler : IRequestHandler<GetGasInvoicesQ
                 i.ReadingDateTo,
                 i.TotalAmount,
                 _db.ApartmentInvoices.Any(x => x.GasInvoiceId == i.Id && !x.IsSuperseded),
-                i.IsLocked))
+                i.IsLocked,
+                i.DueDate,
+                i.IsPaid,
+                i.PaidOn))
             .ToListAsync(cancellationToken);
 
         return items;

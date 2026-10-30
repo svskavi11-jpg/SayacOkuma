@@ -65,6 +65,17 @@ public class AppSettings : BaseEntity
     /// <summary>Faturada abone no boşsa kullanılacak varsayılan abone numarası.</summary>
     public string? DefaultSubscriberNumber { get; private set; }
 
+    // --- Faz 6.8: Gecikme faizi ayarları ---
+
+    /// <summary>Gecikme faizi işletilsin mi? (varsayılan kapalı).</summary>
+    public bool IsInterestEnabled { get; private set; }
+
+    /// <summary>Faiz işletme periyodu. Yasal takip gereği yalnızca "Daily" (günlük) desteklenir.</summary>
+    public string InterestPeriod { get; private set; } = DomainConstants.AppSettings.InterestPeriodDaily;
+
+    /// <summary>YILLIK basit faiz oranı (%). Faiz = Anapara × Oran/100 × Gün/365; bileşik faiz YOKTUR.</summary>
+    public decimal InterestRate { get; private set; }
+
     private AppSettings() { } // EF Core
 
     public AppSettings(string companyName, string buildingName, decimal fixedCostRatio, decimal consumptionRatio)
@@ -249,6 +260,25 @@ public class AppSettings : BaseEntity
                 throw new DomainException(DomainConstants.AppSettings.LogoSideInvalid);
         }
 
+        LastModifiedOn = DateTimeOffset.UtcNow;
+    }
+
+    /// <summary>Gecikme faizi ayarlarını günceller (yıllık basit faiz, günlük işletim).</summary>
+    public void UpdateInterestSettings(bool isEnabled, string interestPeriod, decimal interestRate)
+    {
+        if (interestPeriod != DomainConstants.AppSettings.InterestPeriodDaily)
+        {
+            throw new ArgumentException(DomainConstants.AppSettings.InterestPeriodInvalid, nameof(interestPeriod));
+        }
+
+        if (interestRate < 0m || interestRate > DomainConstants.AppSettings.InterestRateMax)
+        {
+            throw new ArgumentException(DomainConstants.AppSettings.InterestRateInvalid, nameof(interestRate));
+        }
+
+        IsInterestEnabled = isEnabled;
+        InterestPeriod = interestPeriod;
+        InterestRate = decimal.Round(interestRate, 4);
         LastModifiedOn = DateTimeOffset.UtcNow;
     }
 

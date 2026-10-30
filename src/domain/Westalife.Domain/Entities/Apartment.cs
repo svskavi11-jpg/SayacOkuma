@@ -19,6 +19,30 @@ public class Apartment : BaseEntity
 
     public bool IsActive { get; private set; } = true;
 
+    /// <summary>
+    /// Devir (açılış) bakiyesi — ANAPARA kısmı (Etap 6.8 → ikiye ayrıldı).
+    /// + = daire borçlu, - = alacaklı (fazla ödeme). Bu tutar <see cref="OpeningBalanceDate"/>
+    /// tarihinden itibaren günlük basit faize tabidir.
+    /// </summary>
+    public decimal OpeningBalancePrincipal { get; private set; }
+
+    /// <summary>
+    /// Devir ile gelen GEÇMİŞ dönem gecikme faizi. Kapalı bir borçtur —
+    /// bu tutara tekrar faiz İŞLEMEZ (faiz üzerine faiz yasağı).
+    /// </summary>
+    public decimal OpeningBalanceInterest { get; private set; }
+
+    /// <summary>Devir bakiyesinin geçerli olduğu tarih (faiz bu tarihten işler).</summary>
+    public DateOnly? OpeningBalanceDate { get; private set; }
+
+    /// <summary>
+    /// Faz 6.9: dairenin bağlı olduğu aidat tarifesı. Tarife-bazlı dağıtımda
+    /// dönem borcu bu tarifenin tutarından hesaplanır. null = tarife atanmamış.
+    /// </summary>
+    public Guid? AidatTariffId { get; private set; }
+
+    public AidatTariff? AidatTariff { get; private set; }
+
     private readonly List<ApartmentDimension> _dimensions = [];
     public IReadOnlyCollection<ApartmentDimension> Dimensions => _dimensions.AsReadOnly();
 
@@ -102,5 +126,53 @@ public class Apartment : BaseEntity
         _owners.Add(owner);
         LastModifiedOn = DateTimeOffset.UtcNow;
         return owner;
+    }
+
+    /// <summary>
+    /// Devir bakiyesini ANAPARA + GEÇMİŞ FAİZ olarak ayarlar. Her ikisi 0 verilirse devir temizlenir.
+    /// Anapara veya faiz 0'dan farklıysa tarih zorunludur (faiz başlangıcı ve defter sırası için).
+    /// Geçmiş faiz tutarına tekrar faiz işletilmez; faiz yalnızca anapara kalanından işler.
+    /// </summary>
+    public void SetOpeningBalance(decimal principal, decimal interest, DateOnly? balanceDate)
+    {
+        if (Math.Abs(principal) > DomainConstants.Apartment.OpeningBalanceMaxAbs)
+        {
+            throw new ArgumentException(DomainConstants.Apartment.OpeningBalanceOutOfRange, nameof(principal));
+        }
+
+        if (Math.Abs(interest) > DomainConstants.Apartment.OpeningBalanceMaxAbs)
+        {
+            throw new ArgumentException(DomainConstants.Apartment.OpeningBalanceOutOfRange, nameof(interest));
+        }
+
+        if ((principal != 0m || interest != 0m) && balanceDate is null)
+        {
+            throw new ArgumentException(DomainConstants.Apartment.OpeningBalanceDateRequired, nameof(balanceDate));
+        }
+
+        OpeningBalancePrincipal = decimal.Round(principal, 2);
+        OpeningBalanceInterest = decimal.Round(interest, 2);
+        OpeningBalanceDate = principal == 0m && interest == 0m ? null : balanceDate;
+        LastModifiedOn = DateTimeOffset.UtcNow;
+    }
+
+    /// <summary>
+    /// Faz 6.9: dairenin aidat tarifesini atar veya temizler (null = tarifesiz).
+    /// Aynı tarife tekrar atanırsa no-op döner (LastModifiedOn güncellenmez).
+    /// </summary>
+    public void SetAidatTariff(Guid? tariffId)
+    {
+        if (tariffId == Guid.Empty)
+        {
+            tariffId = null;
+        }
+
+        if (AidatTariffId == tariffId)
+        {
+            return;
+        }
+
+        AidatTariffId = tariffId;
+        LastModifiedOn = DateTimeOffset.UtcNow;
     }
 }

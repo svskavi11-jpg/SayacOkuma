@@ -1,10 +1,12 @@
 using System.Globalization;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Westalife.Application.Common;
 using Westalife.Application.Common.Interfaces;
 using Westalife.Application.Common.Models;
 using Westalife.Domain.Constants;
 using Westalife.Domain.Exceptions;
+using Westalife.Domain.Services.Ledger;
 
 namespace Westalife.Application.Features.GasInvoices.Queries.GetNoticeReport;
 
@@ -54,7 +56,38 @@ public sealed record NoticeRow(
     decimal FixedAmount,
     decimal ConsumptionAmount,
     decimal TotalAmount,
-    bool IsMeterReadFailed);
+    bool IsMeterReadFailed,
+
+    /// <summary>Etap 6.8: Dairenin cari hesap (Ledger) özeti — künye + gecikmiş borç dökümü için.</summary>
+    NoticeLedgerSummary? Ledger = null);
+
+/// <summary>Etap 6.8: Dairenin cari hesap (Ledger) özeti — PDF künyesi ve gecikmiş borç dökümü besler.</summary>
+public sealed record NoticeLedgerSummary(
+    /// <summary>Devir bakiyesi ANAPARA kalanı (ödenmemiş).</summary>
+    decimal OpeningBalancePrincipalRemaining,
+
+    /// <summary>Devir ile gelen geçmiş faiz kalanı (kapalı borç — faiz işlemez).</summary>
+    decimal OpeningBalanceInterestRemaining,
+
+    /// <summary>Hesaplama günü itibarıyla toplam işlemiş gecikme faizi (anapara + fatura kalanlarından).</summary>
+    decimal InterestAccrued,
+
+    /// <summary>Güncel toplam bakiye (pozitif = borçlu).</summary>
+    decimal TotalBalance,
+
+    /// <summary>Uygulanan yıllık faiz oranı (%).</summary>
+    decimal AnnualInterestRate,
+
+    /// <summary>Gecikmiş borç/faiz dökümü satırları (kalanı veya işleyen faizi 0 olmayanlar).</summary>
+    IReadOnlyList<NoticeDebtRow> Debts);
+
+public sealed record NoticeDebtRow(
+    string Period,
+    DateOnly DueDate,
+    decimal RemainingPrincipal,
+    int OverdueDays,
+    decimal AnnualInterestRate,
+    decimal InterestAccrued);
 
 public sealed class GetNoticeReportQueryHandler : IRequestHandler<GetNoticeReportQuery, NoticeReportData>
 {
@@ -81,11 +114,11 @@ public sealed class GetNoticeReportQueryHandler : IRequestHandler<GetNoticeRepor
             .AsNoTracking()
             .FirstOrDefaultAsync(cancellationToken);
 
-        var rows = await
+        var rawRows = await
             (from row in _db.ApartmentInvoices
              join apartment in _db.Apartments on row.ApartmentId equals apartment.Id
              where row.GasInvoiceId == invoice.Id && !row.IsSuperseded
-             orderby apartment.DoorNumber
+             // Sıralama bellekte sayısal yapılır (aşağıda).
              select new
              {
                  Row = row,
@@ -94,6 +127,8 @@ public sealed class GetNoticeReportQueryHandler : IRequestHandler<GetNoticeRepor
                  SerialNumber = apartment.Meters.Select(m => m.SerialNumber).FirstOrDefault()
              })
             .ToListAsync(cancellationToken);
+
+        var rows = rawRows.OrderByDoorNumber(r => r.DoorNumber).ToList();
 
         if (rows.Count == 0)
         {
@@ -117,6 +152,62 @@ public sealed class GetNoticeReportQueryHandler : IRequestHandler<GetNoticeRepor
              })
             .ToDictionaryAsync(x => x.ApartmentId, cancellationToken);
 
+        // ── Etap 6.8: Cari hesap (Ledger) özetleri — künye + gecikmiş borç/faiz dökümü ──
+        // Her daire için LedgerService çalıştırılır (72 daire için tek batch yüklemesi — N+1 yok).
+        var annualRate = settings?.InterestRate ?? 0m;
+        var asOfToday = DateOnly.FromDateTime(DateTime.Today);
+        var apartmentIds = rows.Select(r => r.Row.ApartmentId).Distinct().ToList();
+
+        var apartmentsById = await _db.Apartments
+            .AsNoTracking()
+            .Where(a => apartmentIds.Contains(a.Id))
+            .ToDictionaryAsync(a => a.Id, cancellationToken);
+
+        var allInvoices = await _db.ApartmentInvoices
+            .AsNoTracking()
+            .Include(i => i.GasInvoice)
+            .Where(i => apartmentIds.Contains(i.ApartmentId) && !i.IsSuperseded)
+            .ToListAsync(cancellationToken);
+
+        var allPayments = await _db.Payments
+            .AsNoTracking()
+            .Where(p => apartmentIds.Contains(p.ApartmentId))
+            .ToListAsync(cancellationToken);
+
+        var ledgerMap = new Dictionary<Guid, NoticeLedgerSummary>();
+        foreach (var apartmentId in apartmentIds)
+        {
+            var apartment = apartmentsById[apartmentId];
+            var apartmentInvoices = allInvoices.Where(i => i.ApartmentId == apartmentId).ToList();
+            var apartmentPayments = allPayments.Where(p => p.ApartmentId == apartmentId).ToList();
+
+            var ledger = LedgerService.Calculate(apartment, apartmentInvoices, apartmentPayments, annualRate, asOfToday);
+
+            // Döküm satırları: kalanı veya işleyen faizi 0 olmayan borçlar.
+            var debts = ledger.Lines
+                .Where(l => l.RemainingPrincipal != 0m || l.InterestAccrued != 0m)
+                .Select(l => new NoticeDebtRow(
+                    Period: l.Label ?? "Borç",
+                    DueDate: l.DueDate,
+                    RemainingPrincipal: l.RemainingPrincipal,
+                    OverdueDays: Math.Max(0, asOfToday.DayNumber - l.DueDate.DayNumber),
+                    AnnualInterestRate: annualRate,
+                    InterestAccrued: l.InterestAccrued))
+                .ToList();
+
+            ledgerMap[apartmentId] = new NoticeLedgerSummary(
+                OpeningBalancePrincipalRemaining: ledger.Lines
+                    .Where(l => l.Type == LedgerDebtType.OpeningBalancePrincipal)
+                    .Sum(l => l.RemainingPrincipal),
+                OpeningBalanceInterestRemaining: ledger.Lines
+                    .Where(l => l.Type == LedgerDebtType.OpeningBalanceInterest)
+                    .Sum(l => l.RemainingPrincipal),
+                InterestAccrued: ledger.TotalInterestAccrued,
+                TotalBalance: ledger.TotalBalance,
+                AnnualInterestRate: annualRate,
+                Debts: debts);
+        }
+
         var noticeRows = rows.Select(r =>
         {
             readingStats.TryGetValue(r.Row.ApartmentId, out var stats);
@@ -133,7 +224,8 @@ public sealed class GetNoticeReportQueryHandler : IRequestHandler<GetNoticeRepor
                 r.Row.FixedAmount,
                 r.Row.ConsumptionAmount,
                 r.Row.TotalAmount,
-                r.Row.IsMeterReadFailed);
+                r.Row.IsMeterReadFailed,
+                ledgerMap.GetValueOrDefault(r.Row.ApartmentId));
         }).ToList();
 
         // Kural #1 invariant: Σ satır tutarı fatura toplamına eşit değilse rapor ÜRETİLMEZ.

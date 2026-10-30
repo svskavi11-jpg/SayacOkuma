@@ -47,8 +47,24 @@ public class CostDistributionIntegrationTests
         // 2) Okumalar: dÃ¶nemden Ã¶nce bir endeks + dÃ¶nem iÃ§inde bir endeks â†’ dÃ¶nem tÃ¼ketimi tÃ¼retilir.
         //    KapÄ± 72 bilinÃ§li olarak OKUNMAYACAK (kÄ±smi baÅŸarÄ± senaryosu).
         var db = provider.GetRequiredService<IApplicationDbContext>();
+
+        // Kalici test DB temizligi: onceki kosullardan kalmis donem kilitlerini ac.
+        // (Kilitli pencere, asagida hesaplanan okuma tarihlerini kapsarsa tum okumalar
+        // LockedPeriodSkipped sayilir ve InsertedCount=0 olur.)
+        await db.GasInvoices.Where(i => i.IsLocked).ExecuteUpdateAsync(s => s
+            .SetProperty(i => i.IsLocked, false)
+            .SetProperty(i => i.LockedOn, (DateTimeOffset?)null));
+
         var lastPeriodEnd = await db.GasInvoices.MaxAsync(i => (DateTimeOffset?)i.ReadingDateTo) ?? DateTimeOffset.UtcNow.AddDays(-365);
+        // Tekrar koşum dayanikliligi: onceki basarisiz kosum okumalari ekleyip faturayi
+        // olusturamadiysa ayni tarihler duplicate sayilir (InsertedCount=0 dongusu).
+        // Bu yuzden okuma tarihleri bosalana kadar donem birer gun ileri kaydirilir.
         var periodFrom = lastPeriodEnd.AddDays(1);
+        while (await db.MeterReadings.AnyAsync(r =>
+            r.ReadingDateUtc == periodFrom.AddDays(-10) || r.ReadingDateUtc == periodFrom.AddDays(15)))
+        {
+            periodFrom = periodFrom.AddDays(1);
+        }
         var periodTo = periodFrom.AddDays(30);
         var readingBefore = periodFrom.AddDays(-10);
         var readingInside = periodFrom.AddDays(15);

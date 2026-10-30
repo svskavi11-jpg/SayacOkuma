@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Westalife.Application.Common;
 using Westalife.Application.Common.Interfaces;
 using Westalife.Domain.Constants;
 using Westalife.Domain.Entities;
@@ -89,13 +90,13 @@ public sealed class CalculateCostDistributionCommandHandler
             .ToDictionaryAsync(x => x.ApartmentId, x => x.TotalKWh, cancellationToken);
 
         var inputItems = apartmentsWithDimensions
-            .OrderBy(a => a.DoorNumber)
+            .OrderByDoorNumber(a => a.DoorNumber)
             .Select(a =>
             {
                 var hasReading = consumptionByApartment.TryGetValue(a.Id, out var kwh);
                 return new ApartmentConsumptionInfo(
                     a.Id,
-                    int.Parse(a.DoorNumber),
+                    int.TryParse(a.DoorNumber, out var d) ? d : 0,
                     a.SquareMeters,
                     hasReading ? kwh : 0m,
                     !hasReading);

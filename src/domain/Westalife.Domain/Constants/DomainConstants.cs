@@ -40,6 +40,11 @@ public static class DomainConstants
         public const int DoorNumberMaxLength = 10;
         public const int TitleMaxLength = 100;
         public const int MinDoorNumber = 1;
+
+        /// <summary>Devir (açılış) bakiyesi: + borçlu, - alacaklı (fazla ödeme). Mutlak üst sınır.</summary>
+        public const decimal OpeningBalanceMaxAbs = 10_000_000m;
+        public const string OpeningBalanceOutOfRange = "Devir bakiyesi izin verilen aralığın dışında.";
+        public const string OpeningBalanceDateRequired = "Devir bakiyesi için bakiye tarihi zorunludur.";
     }
 
     public static class ApartmentDimension
@@ -75,12 +80,38 @@ public static class DomainConstants
         public const string DefaultChangedBy = "Yönetici";
     }
 
+    /// <summary>Aidat tarifesı kuralları (Faz 6.9).</summary>
+    public static class AidatTariff
+    {
+        public const int NameMaxLength = 100;
+
+        /// <summary>Tarife m² değeri üst sınırı (daire m² üst sınırı ile uyumlu).</summary>
+        public const decimal SquareMetersMax = 1000m;
+
+        /// <summary>Tek tarife aylık tutarı için mutlak üst sınır (TL).</summary>
+        public const decimal AmountMax = 1_000_000m;
+
+        public const int SquareMetersPrecision = 9;
+        public const int SquareMetersScale = 2;
+    }
+
+    /// <summary>Aidat tahakkuk kuralları (Faz 6.9).</summary>
+    public static class AidatInvoice
+    {
+        public const int NoteMaxLength = 500;
+    }
+
     public static class GasInvoice
     {
         public const int InvoiceNumberMaxLength = 50;
         public const int SubscriberNumberMaxLength = 20;
         public const int MeterSerialMaxLength = 20;
         public const int NoteMaxLength = 1000;
+
+        /// <summary>Faz 6.8: son ödeme tarihi / ödendi (nakit çıkışı) kuralları.</summary>
+        public const string PaidOnRequired = "Ödendi olarak işaretlemek için ödeme tarihi zorunludur.";
+        public const string PaidOnBeforeIssued = "Ödeme tarihi fatura düzenleme tarihinden önce olamaz.";
+        public const string DueDateBeforeIssued = "Son ödeme tarihi fatura düzenleme tarihinden önce olamaz.";
 
         /// <summary>Dönem kilidi kuralları (Etap 6.6).</summary>
         public const string PeriodLocked =
@@ -133,6 +164,37 @@ public static class DomainConstants
         public const string AmountMustBeNonNegative = "Daire borç satırı tutarları negatif olamaz.";
     }
 
+    /// <summary>
+    /// Faz 6.8: Daire tahsilat (ödeme) kuralları.
+    /// </summary>
+    public static class Payment
+    {
+        public const int DescriptionMaxLength = 500;
+        public const int ReceivedByMaxLength = 100;
+
+        public const decimal AmountMax = 10_000_000m;
+        public const string AmountMustBePositive = "Tahsilat tutarı sıfırdan büyük olmalıdır.";
+        public const string AmountTooLarge = "Tahsilat tutarı izin verilen üst sınırı aşıyor.";
+        public const string PaymentDateFuture = "Tahsilat tarihi bugünden ileri olamaz.";
+        public const string AlreadyCancelled = "Bu tahsilat zaten iptal edilmiş.";
+        public const string NotFound = "Tahsilat kaydı bulunamadı.";
+        public const string CancellationReasonRequired = "İptal gerekçesi zorunludur.";
+        public const int CancellationReasonMaxLength = 500;
+
+        /// <summary>Faz 7'ye kadar (JWT yok) tahsilatı giren kullanıcı boş bırakılırsa kullanılır.</summary>
+        public const string DefaultReceivedBy = "Yönetici";
+    }
+
+    /// <summary>
+    /// Faz 6.8: Ödeme-Borç eşleştirme (allocation) kuralları.
+    /// </summary>
+    public static class PaymentAllocation
+    {
+        public const string AmountMustBePositive = "Eşleştirme tutarı sıfırdan büyük olmalıdır.";
+        public const string AllocationExceedsPayment = "Eşleştirme toplamı tahsilat tutarını aşamaz.";
+        public const string AllocationExceedsDebt = "Eşleştirme tutarı borçtan fazla olamaz.";
+    }
+
     public static class AppSettings
     {
         public const int CompanyNameMaxLength = 100;
@@ -176,6 +238,12 @@ public static class DomainConstants
         public const string LogoSideInvalid = "Logo tarafı 'left' veya 'right' olmalıdır.";
         public const string DueDateDaysInvalid = "Son ödeme gün sayısı 0 ile 120 arasında olmalıdır.";
         public const string ReadingServiceFeeInvalid = "Okuma hizmet bedeli negatif olamaz.";
+
+        /// <summary>Faz 6.8: gecikme faizi ayarları. Faiz basit faizdir, günlük işletilir (Anapara × Oran/100 × Gün/365).</summary>
+        public const string InterestPeriodDaily = "Daily";
+        public const decimal InterestRateMax = 500m;
+        public const string InterestRateInvalid = "Yıllık faiz oranı 0 ile 500 arasında olmalıdır.";
+        public const string InterestPeriodInvalid = "Faiz dönemi yalnızca 'Daily' (günlük) olabilir.";
     }
 
     public static class ValidationMessages
@@ -228,5 +296,16 @@ public static class DomainConstants
 
         public const string ReadingCorrectionIndexOutsideChain =
             "Yeni endeks değeri, bu okumanın önceki ve sonraki okumalarıyla uyumsuz (zincir bütünlüğü bozulur).";
+
+        /// <summary>Faz 6.9: Aidat (ortak gider) kuralları.</summary>
+        public const string AidatTariffNameRequired = "Aidat tarife adı zorunludur.";
+        public const string AidatTariffSquareMetersInvalid = "Aidat tarife m² değeri 0'dan büyük ve geçerli aralıkta olmalıdır.";
+        public const string AidatTariffAmountMustBePositive = "Aidat tarife tutarı 0'dan büyük ve geçerli aralıkta olmalıdır.";
+        public const string AidatPeriodInvalid = "Aidat dönemi geçersiz: dönem bitişi, dönem başlangıcından önce olamaz.";
+        public const string AidatInvoiceIdRequired = "Aidat tahakkuk kimliği (AidatInvoiceId) zorunludur.";
+        public const string AidatChargeApartmentRequired = "Aidat borcu için daire kimliği (ApartmentId) zorunludur.";
+        public const string AidatChargeAmountMustBePositive = "Daire aidat borcu 0'dan büyük olmalıdır.";
+        public const string AidatAllocationChargeIdRequired = "Aidat allocation için AidatChargeId zorunludur.";
+        public const string AidatInvoiceNoCharges = "Aidat tahakkuku en az bir daire borcu içermelidir.";
     }
 }

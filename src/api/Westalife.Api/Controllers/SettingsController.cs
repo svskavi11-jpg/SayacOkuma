@@ -1,3 +1,4 @@
+﻿using Westalife.Application.Features.Settings.InterestSettings;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Westalife.Api.Infrastructure;
@@ -102,4 +103,17 @@ public class SettingsController : ControllerBase
         await _mediator.Send(new RemoveNoticeLogoCommand(side), cancellationToken);
         return NoContent();
     }
+
+    /// <summary>Faz 6.8: gecikme faizi ayarları (açık/kapalı, günlük periyot, yıllık basit faiz oranı).</summary>
+    [HttpGet("interest")]
+    [ProducesResponseType(typeof(InterestSettingsResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetInterestSettings(CancellationToken cancellationToken) =>
+        Ok(await _mediator.Send(new GetInterestSettingsQuery(), cancellationToken));
+
+    [HttpPut("interest")]
+    [ProducesResponseType(typeof(InterestSettingsResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> UpdateInterestSettings(
+        [FromBody] UpdateInterestSettingsCommand command, CancellationToken cancellationToken) =>
+        Ok(await _mediator.Send(command, cancellationToken));
 }

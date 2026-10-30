@@ -21,6 +21,15 @@ public class ApartmentConfiguration : IEntityTypeConfiguration<Apartment>
             .IsRequired()
             .HasMaxLength(DomainConstants.Apartment.TitleMaxLength);
 
+        // Etap 6.8: devir bakiyesi — ANAPARA ve GEÇMİŞ FAİZ olarak ikiye ayrıldı (+ borçlu / - alacaklı).
+        builder.Property(a => a.OpeningBalancePrincipal)
+            .HasPrecision(DomainConstants.MoneyPrecision, DomainConstants.MoneyScale)
+            .HasDefaultValue(0m);
+        builder.Property(a => a.OpeningBalanceInterest)
+            .HasPrecision(DomainConstants.MoneyPrecision, DomainConstants.MoneyScale)
+            .HasDefaultValue(0m);
+        builder.Property(a => a.OpeningBalanceDate);
+
         // Bir binada aynı kapı numarasında iki daire olamaz.
         builder.HasIndex(a => new { a.BuildingId, a.DoorNumber })
             .IsUnique();
@@ -28,6 +37,12 @@ public class ApartmentConfiguration : IEntityTypeConfiguration<Apartment>
         builder.HasOne(a => a.Building)
             .WithMany()
             .HasForeignKey(a => a.BuildingId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Faz 6.9: aidat tarifesı — Restrict: daireye atanmış tarife silinemez.
+        builder.HasOne(a => a.AidatTariff)
+            .WithMany()
+            .HasForeignKey(a => a.AidatTariffId)
             .OnDelete(DeleteBehavior.Restrict);
 
         // SCD Type 2 kayıtları daire silinse de geçmiş denetim için korunamaz;
@@ -58,6 +73,10 @@ public class ApartmentConfiguration : IEntityTypeConfiguration<Apartment>
                 DoorNumber = i.ToString(),
                 Title = $"Daire {i}",
                 IsActive = true,
+                OpeningBalancePrincipal = 0m,
+                OpeningBalanceInterest = 0m,
+                OpeningBalanceDate = (DateOnly?)null,
+                AidatTariffId = (Guid?)null,
                 CreatedOn = seedTimestamp,
                 LastModifiedOn = (DateTimeOffset?)null
             });

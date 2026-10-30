@@ -26,6 +26,12 @@ public sealed class AddGasInvoiceCommandHandler : IRequestHandler<AddGasInvoiceC
                 $"{DomainConstants.ValidationMessages.InvoiceNumberRequired} zaten kayıtlı: {invoiceNumber}");
         }
 
+        // Faz 6.8: vade verilmediyse düzenleme tarihi + Ayarlardaki son ödeme gün sayısı.
+        var dueDateDays = await _db.AppSettings.AsNoTracking()
+            .Select(s => s.DueDateDays).FirstOrDefaultAsync(cancellationToken);
+        var dueDate = request.DueDate
+            ?? DateOnly.FromDateTime(request.IssuedOn.DateTime).AddDays(dueDateDays);
+
         var invoice = new GasInvoice(
             invoiceNumber,
             request.SubscriberNumber,
@@ -41,7 +47,8 @@ public sealed class AddGasInvoiceCommandHandler : IRequestHandler<AddGasInvoiceC
             request.DistributionAmount,
             request.DistributionVat,
             request.TotalAmount,
-            request.Note);
+            request.Note,
+            dueDate);
 
         _db.GasInvoices.Add(invoice);
         await _db.SaveChangesAsync(cancellationToken);

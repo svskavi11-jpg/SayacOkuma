@@ -141,6 +141,7 @@ public static class IndividualNoticePdfDocument
             col.Item().PaddingTop(12).Element(c => ComposePersonalDistribution(c, data, row));
             col.Item().PaddingTop(12).Element(c => ComposeBuildingDistribution(c, data));
             col.Item().PaddingTop(12).Element(c => ComposeReadingValues(c, row));
+            col.Item().PaddingTop(12).Element(c => ComposeDebtBreakdown(c, row));
             col.Item().PaddingTop(12).Element(c => ComposeNotes(c, data));
         });
     }
@@ -160,6 +161,23 @@ public static class IndividualNoticePdfDocument
             });
             r.RelativeItem(5).Column(c =>
             {
+                if (row.Ledger is null)
+                {
+                    // Cari hesap özeti yoksa (test/geriye uyum): eski tek satırlı künye.
+                    c.Item().Element(x => InfoLine(x, "Abone No", data.SubscriberNumber));
+                    c.Item().Element(x => InfoLine(x, "Daire", row.DoorNumber));
+                    c.Item().Element(x => InfoLine(x, "Dönem", $"{data.PeriodFrom:dd.MM.yyyy} - {data.PeriodTo:dd.MM.yyyy}"));
+                    c.Item().Element(x => InfoLine(x, "Ödenen Süre", $"{data.DaysInPeriod} Gün"));
+                    c.Item().Element(x => InfoLine(x, "Oluşturma Tarihi",
+                        data.IssueDate.ToString("dd.MM.yyyy", CultureInfo.GetCultureInfo("tr-TR"))));
+                    c.Item().Element(x => InfoLine(x, "Son Ödeme Tarihi",
+                        data.DueDate.ToString("dd.MM.yyyy", CultureInfo.GetCultureInfo("tr-TR")), bold: true));
+                    c.Item().Element(x => InfoLine(x, "Toplam Ödenecek Tutar", $"{Fmt(payable)} TL", bold: true, large: true));
+                    return;
+                }
+
+                // Etap 6.8: Cari hesap entegre künye — devir bakiyesi (anapara/faiz) + işlemiş faiz + güncel bakiye.
+                var lg = row.Ledger;
                 c.Item().Element(x => InfoLine(x, "Abone No", data.SubscriberNumber));
                 c.Item().Element(x => InfoLine(x, "Daire", row.DoorNumber));
                 c.Item().Element(x => InfoLine(x, "Dönem", $"{data.PeriodFrom:dd.MM.yyyy} - {data.PeriodTo:dd.MM.yyyy}"));
@@ -168,7 +186,13 @@ public static class IndividualNoticePdfDocument
                     data.IssueDate.ToString("dd.MM.yyyy", CultureInfo.GetCultureInfo("tr-TR"))));
                 c.Item().Element(x => InfoLine(x, "Son Ödeme Tarihi",
                     data.DueDate.ToString("dd.MM.yyyy", CultureInfo.GetCultureInfo("tr-TR")), bold: true));
-                c.Item().Element(x => InfoLine(x, "Toplam Ödenecek Tutar", $"{Fmt(payable)} TL", bold: true, large: true));
+                c.Item().Element(x => InfoLine(x, "Önceki Dönemden Devreden Anapara", $"{Fmt(lg.OpeningBalancePrincipalRemaining)} TL"));
+                c.Item().Element(x => InfoLine(x, "Devreden Geçmiş Faiz", $"{Fmt(lg.OpeningBalanceInterestRemaining)} TL"));
+                c.Item().Element(x => InfoLine(x, "Bu Dönem Faturası", $"{Fmt(row.TotalAmount + data.ReadingServiceFeeAmount)} TL"));
+                c.Item().Element(x => InfoLine(x, "İşlemiş Gecikme Faizi", $"{Fmt(lg.InterestAccrued)} TL"));
+                // Güncel bakiye = cari hesap toplamı + bu dönemin okuma hizmet bedeli (ledger dışı tek kalem).
+                var grandTotal = lg.TotalBalance + data.ReadingServiceFeeAmount;
+                c.Item().Element(x => InfoLine(x, "Toplam Ödenecek Tutar (Güncel Bakiye)", $"{Fmt(grandTotal)} TL", bold: true, large: true));
             });
         });
     }
@@ -317,6 +341,63 @@ public static class IndividualNoticePdfDocument
                     t.Span("Toplam Gider: ").Bold();
                     t.Span($"{Fmt(row.ConsumptionKWh, "N3")} kWh").Bold();
                 });
+            });
+        });
+    }
+
+    /// <summary>
+    /// Etap 6.8: "Gecikmiş Borç ve Faiz Dökümü" — dairenin devreden borcu, gecikmiş faizi
+    /// veya toplam bakiyesi varsa Ek Açıklamalar'ın hemen üstünde gösterilir; yoksa üretilmez.
+    /// </summary>
+    private static void ComposeDebtBreakdown(IContainer content, NoticeRow row)
+    {
+        var ledger = row.Ledger;
+        if (ledger is null) return;
+        if (ledger.OpeningBalancePrincipalRemaining == 0m
+            && ledger.OpeningBalanceInterestRemaining == 0m
+            && ledger.TotalBalance <= 0m) return;
+
+        content.Column(col =>
+        {
+            col.Item().SectionHeader("Gecikmiş Borç ve Faiz Dökümü");
+            col.Item().Background(SectionBodyColor).Padding(6).Table(table =>
+            {
+                table.ColumnsDefinition(c =>
+                {
+                    c.RelativeColumn(3);    // Fatura Dönemi
+                    c.RelativeColumn(2);    // Son Ödeme Tarihi
+                    c.RelativeColumn(2);    // Kalan Anapara
+                    c.RelativeColumn(1.4f); // Gecikme (Gün)
+                    c.RelativeColumn(1.6f); // Yıllık Faiz Oranı
+                    c.RelativeColumn(2);    // İşleyen Faiz
+                });
+
+                table.Header(h =>
+                {
+                    h.Cell().Text("Fatura Dönemi").Bold();
+                    h.Cell().Text("Son Ödeme Tarihi").Bold();
+                    h.Cell().AlignRight().Text("Kalan Anapara").Bold();
+                    h.Cell().AlignRight().Text("Gecikme (Gün)").Bold();
+                    h.Cell().AlignRight().Text("Yıllık Faiz Oranı").Bold();
+                    h.Cell().AlignRight().Text("İşleyen Faiz").Bold();
+                });
+
+                var culture = CultureInfo.GetCultureInfo("tr-TR");
+                foreach (var debt in ledger.Debts)
+                {
+                    table.Cell().Text(debt.Period);
+                    table.Cell().Text(debt.DueDate.ToString("dd.MM.yyyy", culture));
+                    table.Cell().AlignRight().Text($"{Fmt(debt.RemainingPrincipal)} TL");
+                    table.Cell().AlignRight().Text(debt.OverdueDays.ToString(culture));
+                    table.Cell().AlignRight().Text($"%{debt.AnnualInterestRate.ToString("0.##", culture)}");
+                    table.Cell().AlignRight().Text($"{Fmt(debt.InterestAccrued)} TL");
+                }
+            });
+
+            col.Item().PaddingTop(4).Text(t =>
+            {
+                t.Span("Faiz tutarları, yıllık oran üzerinden günlük basit faiz (Anapara × Oran × Gün / 365) formülüyle hesaplanmıştır.")
+                    .FontSize(8).FontColor("#555555");
             });
         });
     }

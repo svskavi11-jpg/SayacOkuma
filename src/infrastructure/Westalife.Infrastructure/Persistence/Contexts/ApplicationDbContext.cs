@@ -21,6 +21,11 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<GasInvoice> GasInvoices => Set<GasInvoice>();
     public DbSet<ApartmentInvoice> ApartmentInvoices => Set<ApartmentInvoice>();
     public DbSet<AppSettings> AppSettings => Set<AppSettings>();
+    public DbSet<Payment> Payments => Set<Payment>();
+    public DbSet<PaymentAllocation> PaymentAllocations => Set<PaymentAllocation>();
+    public DbSet<AidatTariff> AidatTariffs => Set<AidatTariff>();
+    public DbSet<AidatInvoice> AidatInvoices => Set<AidatInvoice>();
+    public DbSet<AidatCharge> AidatCharges => Set<AidatCharge>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -30,6 +30,10 @@ export interface ApartmentListItem {
   lastIndexValue: number | null
   /** Etap 6.7: son okuma tarihi */
   lastReadingDateUtc: string | null
+  /** Etap 6.8: devir bakiyesi — anapara ve geçmiş faiz ayrı */
+  openingBalancePrincipal?: number
+  openingBalanceInterest?: number
+  openingBalanceDate?: string | null
   meters: ApartmentMeterItem[]
 }
 
@@ -41,6 +45,12 @@ export interface GasInvoiceListItem {
   totalAmount: number
   hasCalculation: boolean
   isLocked: boolean
+  /** Faz 6.8: son ödeme tarihi (vade) */
+  dueDate: string
+  /** Faz 6.8: doğalgaz firmasına ödendi mi */
+  isPaid: boolean
+  /** Faz 6.8: ödeme tarihi */
+  paidOn: string | null
 }
 
 /** Etap 6.7: fatura düzenleme detayı */
@@ -302,4 +312,105 @@ export interface MeterReadingAuditLogItem {
   reason: string
   changedBy: string
   changedOnUtc: string
+}
+
+export interface InvoiceFinanceResult {
+  invoiceId: string
+  dueDate: string
+  isPaid: boolean
+  paidOn: string | null
+}
+
+/** Faz 6.8: gecikme faizi ayarları (yıllık basit faiz, günlük işletim) */
+export interface InterestSettingsDTO {
+  isInterestEnabled: boolean
+  interestPeriod: string
+  interestRate: number
+}
+
+// ── Faz 6.8: Tahsilat ────────────────────────────────────────────────────────
+
+export interface PaymentListItem {
+  id: string
+  apartmentId: string
+  paymentDate: string       // "yyyy-MM-dd"
+  amount: number
+  description: string | null
+  receivedBy: string
+  isCancelled: boolean
+  cancelledOn: string | null
+  cancellationReason: string | null
+  createdOn: string
+}
+
+export interface RecordPaymentRequest {
+  apartmentId: string
+  paymentDate: string
+  amount: number
+  description?: string | null
+  receivedBy?: string | null
+}
+
+export interface RecordPaymentResult {
+  paymentId: string
+  apartmentId: string
+  paymentDate: string
+  amount: number
+  receivedBy: string
+}
+
+export interface CancelPaymentRequest {
+  reason: string
+}
+
+// ── Faz 6.8: Cari Hesap (Ledger) ─────────────────────────────────────────────
+
+export interface AllocationDetail {
+  paymentId: string
+  paymentDate: string
+  allocatedAmount: number
+  target: 'OpeningBalance' | 'Invoice' | 'Interest'
+}
+
+export interface LedgerLine {
+  type: 'OpeningBalancePrincipal' | 'OpeningBalanceInterest' | 'Invoice'
+  sourceId: string
+  label: string
+  dueDate: string
+  principalAmount: number
+  paidAmount: number
+  remainingPrincipal: number
+  interestAccrued: number
+  lineBalance: number
+  allocations: AllocationDetail[]
+}
+
+export interface LedgerResult {
+  apartmentId: string
+  apartmentTitle: string
+  doorNumber: string
+  lines: LedgerLine[]
+  totalPrincipalDue: number
+  totalInterestAccrued: number
+  totalBalance: number
+  asOfDate: string
+}
+
+// ── Faz 6.8: Nakit Akış Raporu ───────────────────────────────────────────────
+
+export interface CashFlowLine {
+  date: string
+  description: string
+  direction: 'Income' | 'Expense'
+  amount: number
+  reference: string | null
+}
+
+export interface CashFlowResult {
+  dateFrom: string
+  dateTo: string
+  totalExpense: number
+  totalIncome: number
+  netBalance: number
+  lines: CashFlowLine[]
 }

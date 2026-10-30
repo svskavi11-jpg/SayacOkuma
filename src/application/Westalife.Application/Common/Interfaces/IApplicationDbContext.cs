@@ -19,6 +19,12 @@ public interface IApplicationDbContext
     DbSet<GasInvoice> GasInvoices { get; }
     DbSet<ApartmentInvoice> ApartmentInvoices { get; }
     DbSet<AppSettings> AppSettings { get; }
+    DbSet<Payment> Payments { get; }
+    DbSet<PaymentAllocation> PaymentAllocations { get; }
+    DbSet<AidatTariff> AidatTariffs { get; }
+    DbSet<AidatInvoice> AidatInvoices { get; }
+    DbSet<AidatCharge> AidatCharges { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+
 }

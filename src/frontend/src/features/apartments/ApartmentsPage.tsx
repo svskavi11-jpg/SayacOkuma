@@ -5,7 +5,9 @@ import {
   Button,
   Card,
   DatePicker,
+  Dropdown,
   Form,
+  Input,
   InputNumber,
   List,
   Modal,
@@ -17,9 +19,10 @@ import {
   Typography,
   Upload,
 } from 'antd'
-import { DownloadOutlined, EditOutlined, FormOutlined, UploadOutlined } from '@ant-design/icons'
+import { DownloadOutlined, EditOutlined, FormOutlined, MoreOutlined, PlusOutlined, SearchOutlined, UploadOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { apiClient } from '../../api/client'
+import { formatDate } from '../../utils/dateUtils'
 import { downloadFile } from '../../api/download'
 import type {
   AddManualMeterReadingRequest,
@@ -31,7 +34,11 @@ import dayjs, { type Dayjs } from 'dayjs'
 import { AnalysisModal } from './AnalysisModal'
 import { ReadingsModal } from './ReadingsModal'
 import { OwnerEditModal, OwnerHistoryModal } from './OwnerModals'
-import { HistoryOutlined, LineChartOutlined, TableOutlined, UserOutlined } from '@ant-design/icons'
+import { AccountBookOutlined, HistoryOutlined, LineChartOutlined, TableOutlined, UserOutlined } from '@ant-design/icons'
+
+// Türkçe sayı biçimi: binlik ayracı nokta, ondalık ayracı virgül (Intl 'tr-TR')
+const fmtIndex = new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
+const fmtM2 = new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
 /** Excel içe aktarma sonucu: satır bazlı başarı/atlanan/hatalı raporu. */
 function ImportResultModal({
@@ -100,17 +107,77 @@ export function ApartmentsPage() {
   const [editing, setEditing] = useState<ApartmentListItem | null>(null)
   const [form] = Form.useForm<{ squareMeters: number }>()
   const [importResult, setImportResult] = useState<ImportMetersFromExcelResult | null>(null)
+  // Tablo içi arama: Kapı No / Daire adı / Kat Maliki / Sayaç Seri No
+  const [search, setSearch] = useState('')
 
   // Etap 6.6: Manuel okuma girişi (saha arızası B planı).
   const [manualFor, setManualFor] = useState<ApartmentListItem | null>(null)
   const [manualForm] = Form.useForm<{ meterId: string; readingDate: Dayjs; indexValue: number }>()
   const [manualResult, setManualResult] = useState<ManualReadingResult | null>(null)
 
+  // Toplu daire ekleme (sayı girilir; kapı numaraları mevcut sonuncudan devam eder).
+  const [addOpen, setAddOpen] = useState(false)
+  const [addCount, setAddCount] = useState<number | null>(1)
+  const addApartmentsMutation = useMutation({
+    mutationFn: async (count: number) =>
+      (
+        await apiClient.post<{
+          addedCount: number
+          firstDoorNumber: number
+          lastDoorNumber: number
+          totalApartments: number
+        }>('/apartments/bulk', { count })
+      ).data,
+    onSuccess: (res) => {
+      void queryClient.invalidateQueries({ queryKey: ['apartments'] })
+      setAddOpen(false)
+      Modal.success({
+        title: 'Daireler eklendi',
+        content: `${res.addedCount} daire eklendi (Kapı No ${res.firstDoorNumber}–${res.lastDoorNumber}). Toplam: ${res.totalApartments}. Varsayılan m² 100'dür; Excel ile veya satırdaki "m²" / "Malik" butonları yerine satır menüsündeki seçeneklerle güncelleyebilirsiniz.`,
+        okText: 'Tamam',
+      })
+    },
+  })
+
   // Etap 6.7: Analiz / Okumalar / Kat Maliki modalları.
   const [analysisFor, setAnalysisFor] = useState<ApartmentListItem | null>(null)
   const [readingsFor, setReadingsFor] = useState<ApartmentListItem | null>(null)
   const [ownerEditFor, setOwnerEditFor] = useState<ApartmentListItem | null>(null)
   const [ownerHistoryFor, setOwnerHistoryFor] = useState<ApartmentListItem | null>(null)
+
+  // Etap 6.8: Devir bakiyesi girişi (Anapara + Geçmiş Faiz + Devir Tarihi).
+  const [devirFor, setDevirFor] = useState<ApartmentListItem | null>(null)
+  const [devirForm] = Form.useForm<{ principalAmount: number; interestAmount: number; balanceDate: Dayjs }>()
+  const devirMutation = useMutation({
+    mutationFn: async (input: {
+      apartmentId: string
+      principalAmount: number
+      interestAmount: number
+      balanceDate: string
+    }) =>
+      (
+        await apiClient.put(
+          `/apartments/${input.apartmentId}/opening-balance`,
+          {
+            principalAmount: input.principalAmount,
+            interestAmount: input.interestAmount,
+            balanceDate: input.balanceDate,
+          },
+        )
+      ).data as { openingBalancePrincipal: number; openingBalanceInterest: number },
+    onSuccess: (res) => {
+      void queryClient.invalidateQueries({ queryKey: ['apartments'] })
+      setDevirFor(null)
+      Modal.success({
+        title: 'Devir bakiyesi kaydedildi (SCD kaydı güncellendi)',
+        content:
+          `Devreden Anapara: ${res.openingBalancePrincipal.toFixed(2)} TL · ` +
+          `Devreden Faiz: ${res.openingBalanceInterest.toFixed(2)} TL. ` +
+          'Gecikme faizi artık yalnızca anapara kalanından günlük olarak işler; geçmiş faize faiz işlemez.',
+        okText: 'Anladım',
+      })
+    },
+  })
 
   const apartmentsQuery = useQuery({
     queryKey: ['apartments'],
@@ -167,6 +234,18 @@ export function ApartmentsPage() {
     },
   })
 
+  // Arama filtresi: Kapı No, Daire adı, Kat Maliki, Sayaç Seri No
+  const filteredApartments = (apartmentsQuery.data ?? []).filter((a) => {
+    const q = search.trim().toLocaleLowerCase('tr-TR')
+    if (!q) return true
+    return (
+      String(a.doorNumber).toLocaleLowerCase('tr-TR').includes(q) ||
+      (a.title ?? '').toLocaleLowerCase('tr-TR').includes(q) ||
+      (a.ownerName ?? '').toLocaleLowerCase('tr-TR').includes(q) ||
+      a.meters.some((m) => m.serialNumber.toLocaleLowerCase('tr-TR').includes(q))
+    )
+  })
+
   const columns: ColumnsType<ApartmentListItem> = [
     {
       title: 'Kapı No',
@@ -181,27 +260,37 @@ export function ApartmentsPage() {
       title: 'Kat Maliki',
       dataIndex: 'ownerName',
       width: 160,
-      render: (v: string | null) => (v ? v : <Tag>YOK</Tag>),
+      render: (v: string | null) =>
+        v ? <Typography.Text style={{ fontWeight: 500 }}>{v}</Typography.Text> : <Tag>YOK</Tag>,
     },
     {
       title: 'Aktif m² (SCD)',
       dataIndex: 'activeSquareMeters',
       width: 120,
-      render: (v: number | null) => (v === null ? <Tag>YOK</Tag> : `${v.toFixed(2)} m²`),
+      align: 'right',
+      render: (v: number | null) => (v === null ? <Tag>YOK</Tag> : `${fmtM2.format(v)} m²`),
     },
     {
       title: 'Son Endeks (kWh)',
       dataIndex: 'lastIndexValue',
       width: 130,
       align: 'right',
-      render: (v: number | null) => (v === null ? <Tag>Okuma Yok</Tag> : v.toFixed(3)),
+      render: (v: number | null) => (v === null ? <Tag>Okuma Yok</Tag> : fmtIndex.format(v)),
     },
     {
       title: 'Son Okuma Tarihi',
       dataIndex: 'lastReadingDateUtc',
       width: 140,
-      render: (v: string | null) =>
-        v ? dayjs(v).format('DD.MM.YYYY') : <Tag>Okuma Yok</Tag>,
+      render: (v: string | null) => {
+        if (!v) return <Tag>Okuma Yok</Tag>
+        // 30 günden eski okuma kırmızı: yönetici eksik okumayı anında fark etsin.
+        const isStale = dayjs().diff(dayjs(v), 'day') > 30
+        return (
+          <Typography.Text type={isStale ? 'danger' : undefined} strong={isStale}>
+            {formatDate(v)}
+          </Typography.Text>
+        )
+      },
     },
     {
       title: 'Sayaç Seri No',
@@ -212,47 +301,20 @@ export function ApartmentsPage() {
     {
       title: 'M-Bus Adresi',
       width: 130,
+      align: 'right',
       render: (_: unknown, record: ApartmentListItem) =>
         record.meters.length > 0 ? record.meters[0].mbusPrimaryAddress ?? '-' : '-',
     },
     {
       title: 'İşlem',
-      width: 430,
+      width: 220,
       render: (_: unknown, record: ApartmentListItem) => (
-        <Space wrap size={4}>
-          <Tooltip title="m² güncelle (SCD Type 2)">
-            <Button
-              size="small"
-              icon={<EditOutlined />}
-              onClick={() => {
-                setEditing(record)
-                form.setFieldsValue({ squareMeters: record.activeSquareMeters ?? undefined })
-              }}
-            >
-              m²
-            </Button>
-          </Tooltip>
-          <Tooltip title="Kat maliki güncelle (SCD Type 2)">
-            <Button
-              size="small"
-              icon={<UserOutlined />}
-              onClick={() => setOwnerEditFor(record)}
-            >
-              Malik
-            </Button>
-          </Tooltip>
-          <Tooltip title="Kat maliki geçmişi (SCD Type 2)">
-            <Button
-              size="small"
-              icon={<HistoryOutlined />}
-              onClick={() => setOwnerHistoryFor(record)}
-            >
-              Geçmiş
-            </Button>
-          </Tooltip>
+        <Space size={4}>
           <Tooltip title="Manuel okuma gir (M-Bus okunamadığında B planı)">
             <Button
               size="small"
+              type="primary"
+              ghost
               icon={<FormOutlined />}
               disabled={record.meters.filter((m) => m.isActive).length === 0}
               onClick={() => {
@@ -267,25 +329,42 @@ export function ApartmentsPage() {
               Manuel Okuma
             </Button>
           </Tooltip>
-          <Tooltip title="Okumaları görüntüle / düzelt (denetim izli)">
-            <Button
-              size="small"
-              icon={<TableOutlined />}
-              disabled={!record.activeMeterId}
-              onClick={() => setReadingsFor(record)}
-            >
-              Okumalar
-            </Button>
-          </Tooltip>
-          <Tooltip title="Tüketim analizi (yıl / tarih aralığı)">
-            <Button
-              size="small"
-              icon={<LineChartOutlined />}
-              onClick={() => setAnalysisFor(record)}
-            >
-              Analiz
-            </Button>
-          </Tooltip>
+          <Dropdown
+            menu={{
+              items: [
+                { key: 'dimension', icon: <EditOutlined />, label: 'm² Düzenle' },
+                { key: 'owner', icon: <UserOutlined />, label: 'Malik Değiştir' },
+                { key: 'ownerHistory', icon: <HistoryOutlined />, label: 'Malik Geçmişi' },
+                { key: 'openingBalance', icon: <AccountBookOutlined />, label: 'Devir Bakiye Gir' },
+                { key: 'readings', icon: <TableOutlined />, label: 'Okuma Listesi', disabled: !record.activeMeterId },
+                { key: 'analysis', icon: <LineChartOutlined />, label: 'Tüketim Analizi' },
+              ],
+              onClick: ({ key }) => {
+                if (key === 'dimension') {
+                  setEditing(record)
+                  form.setFieldsValue({ squareMeters: record.activeSquareMeters ?? undefined })
+                } else if (key === 'owner') {
+                  setOwnerEditFor(record)
+                } else if (key === 'ownerHistory') {
+                  setOwnerHistoryFor(record)
+                } else if (key === 'openingBalance') {
+                  setDevirFor(record)
+                  devirForm.setFieldsValue({
+                    principalAmount: record.openingBalancePrincipal ?? undefined,
+                    interestAmount: record.openingBalanceInterest ?? undefined,
+                    balanceDate: record.openingBalanceDate ? dayjs(record.openingBalanceDate) : undefined,
+                  })
+                } else if (key === 'readings') {
+                  setReadingsFor(record)
+                } else if (key === 'analysis') {
+                  setAnalysisFor(record)
+                }
+              },
+            }}
+            trigger={['click']}
+          >
+            <Button size="small" icon={<MoreOutlined />} aria-label="Diğer işlemler" />
+          </Dropdown>
         </Space>
       ),
     },
@@ -296,6 +375,18 @@ export function ApartmentsPage() {
       title={`Daireler (${apartmentsQuery.data?.length ?? 0})`}
       extra={
         <Space wrap>
+          <Input
+            allowClear
+            size="small"
+            prefix={<SearchOutlined style={{ color: 'rgba(0,0,0,0.45)' }} />}
+            placeholder="Ara: kapı no, daire, malik, seri no"
+            style={{ width: 240 }}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <Button size="small" type="primary" icon={<PlusOutlined />} onClick={() => { setAddCount(1); setAddOpen(true) }}>
+            Daire Ekle
+          </Button>
           <Button
             size="small"
             icon={<DownloadOutlined />}
@@ -319,11 +410,36 @@ export function ApartmentsPage() {
       <Table
         rowKey="id"
         columns={columns}
-        dataSource={apartmentsQuery.data}
+        dataSource={filteredApartments}
         loading={apartmentsQuery.isLoading}
         size="small"
         pagination={{ pageSize: 15, showSizeChanger: false }}
       />
+
+      <Modal
+        title="Daire Ekle"
+        open={addOpen}
+        onCancel={() => setAddOpen(false)}
+        confirmLoading={addApartmentsMutation.isPending}
+        okText="Ekle"
+        cancelText="İptal"
+        okButtonProps={{ disabled: !addCount || addCount < 1 }}
+        onOk={() => addCount && addApartmentsMutation.mutate(addCount)}
+      >
+        <Typography.Paragraph type="secondary">
+          Kaç daire eklensin? Kapı numaraları mevcut sonuncudan devam eder (boşsa 1'den başlar).
+          Sonrasında bilgileri Excel ile toplu veya satırdaki butonlarla tek tek girebilirsiniz.
+        </Typography.Paragraph>
+        <InputNumber
+          style={{ width: '100%' }}
+          min={1}
+          max={500}
+          precision={0}
+          value={addCount}
+          onChange={(v) => setAddCount(v)}
+          addonAfter="daire"
+        />
+      </Modal>
 
       <ImportResultModal result={importResult} onClose={() => setImportResult(null)} />
 
@@ -332,6 +448,70 @@ export function ApartmentsPage() {
       <ReadingsModal apartment={readingsFor} onClose={() => setReadingsFor(null)} />
       <OwnerEditModal apartment={ownerEditFor} onClose={() => setOwnerEditFor(null)} />
       <OwnerHistoryModal apartment={ownerHistoryFor} onClose={() => setOwnerHistoryFor(null)} />
+
+      {/* Etap 6.8: Devir bakiyesi girişi — Anapara + Geçmiş Faiz + Devir Tarihi */}
+      <Modal
+        title={`Devir Bakiye Gir — Daire ${devirFor?.doorNumber ?? ''}`}
+        open={devirFor !== null}
+        onCancel={() => setDevirFor(null)}
+        confirmLoading={devirMutation.isPending}
+        okText="Devri Kaydet"
+        cancelText="İptal"
+        onOk={() =>
+          devirForm.validateFields().then((values) => {
+            if (devirFor === null) return
+            devirMutation.mutate({
+              apartmentId: devirFor.id,
+              principalAmount: values.principalAmount,
+              interestAmount: values.interestAmount ?? 0,
+              balanceDate: (values.balanceDate as Dayjs).format('YYYY-MM-DD'),
+            })
+          })
+        }
+      >
+        <Typography.Paragraph type="secondary">
+          Devreden tutarlar cari hesaba iki ayrı "Borç" satırı olarak işlenir. Gecikme faizi
+          yalnızca <strong>anapara</strong> kalanından günlük basit faizle işler; geçmiş faize
+          tekrar faiz işlemez. Her iki tutar 0 girilirse devir temizlenir.
+        </Typography.Paragraph>
+        <Form form={devirForm} layout="vertical">
+          <Form.Item
+            name="principalAmount"
+            label="Devreden Anapara (TL)"
+            rules={[
+              { required: true, message: 'Anapara zorunludur (0 girilebilir).' },
+              { type: 'number', message: 'Sayısal bir tutar giriniz.' },
+            ]}
+          >
+            <InputNumber style={{ width: '100%' }} min={-10000000} max={10000000} step={0.01} decimalSeparator="," addonAfter="TL" />
+          </Form.Item>
+          <Form.Item
+            name="interestAmount"
+            label="Devreden Faiz (TL)"
+            rules={[{ type: 'number', message: 'Sayısal bir tutar giriniz.' }]}
+          >
+            <InputNumber style={{ width: '100%' }} min={-10000000} max={10000000} step={0.01} decimalSeparator="," addonAfter="TL" />
+          </Form.Item>
+          <Form.Item
+            name="balanceDate"
+            label="Devir Tarihi"
+            rules={[
+              {
+                validator: (_, value: Dayjs | null | undefined) => {
+                  const p = devirForm.getFieldValue('principalAmount') ?? 0
+                  const i = devirForm.getFieldValue('interestAmount') ?? 0
+                  if ((p !== 0 || i !== 0) && !value) {
+                    return Promise.reject('Devir tarihi zorunludur.')
+                  }
+                  return Promise.resolve()
+                },
+              },
+            ]}
+          >
+            <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" disabledDate={(d) => d.isAfter(dayjs(), 'day')} />
+          </Form.Item>
+        </Form>
+      </Modal>
 
       <Modal
         title={`m² Güncelle — Daire ${editing?.doorNumber ?? ''}`}

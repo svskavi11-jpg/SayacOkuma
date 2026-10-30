@@ -1,3 +1,4 @@
+﻿using Westalife.Application.Features.GasInvoices.Commands.InvoiceFinance;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
@@ -165,4 +166,22 @@ public class GasInvoicesController : ControllerBase
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             $"Borclistesi-{data.PeriodName}.xlsx");
     }
+
+    /// <summary>Faz 6.8: faturanın son ödeme tarihini (vade) günceller. Dönem kilidinden bağımsızdır.</summary>
+    [HttpPut("{id:guid}/due-date")]
+    [ProducesResponseType(typeof(InvoiceFinanceResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> SetDueDate(
+        Guid id, [FromBody] SetInvoiceDueDateCommand command, CancellationToken cancellationToken) =>
+        Ok(await _mediator.Send(command with { InvoiceId = id }, cancellationToken));
+
+    /// <summary>Faz 6.8: faturanın doğalgaz firmasına ödendi bilgisini (ve ödeme tarihini) işaretler.</summary>
+    [HttpPut("{id:guid}/paid")]
+    [ProducesResponseType(typeof(InvoiceFinanceResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> SetPaid(
+        Guid id, [FromBody] SetInvoicePaidCommand command, CancellationToken cancellationToken) =>
+        Ok(await _mediator.Send(command with { InvoiceId = id }, cancellationToken));
 }

@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Westalife.Application.Common;
 using Westalife.Application.Common.Interfaces;
 
 namespace Westalife.Application.Features.GasInvoices.Queries.GetCalculationResult;
@@ -44,11 +45,11 @@ public sealed class GetCalculationResultQueryHandler
             .FirstOrDefaultAsync(i => i.Id == request.GasInvoiceId, cancellationToken)
             ?? throw new Westalife.Domain.Exceptions.NotFoundException("Fatura bulunamadı.");
 
-        var rows = await
+        var rawRows = await
             (from row in _db.ApartmentInvoices
              join apartment in _db.Apartments on row.ApartmentId equals apartment.Id
              where row.GasInvoiceId == invoice.Id && !row.IsSuperseded
-             orderby apartment.DoorNumber
+             // Sıralama bellekte sayısal yapılır (aşağıda).
              select new CalculationRow(
                  row.Id,
                  row.ApartmentId,
@@ -61,6 +62,8 @@ public sealed class GetCalculationResultQueryHandler
                  row.TotalAmount,
                  row.IsMeterReadFailed))
             .ToListAsync(cancellationToken);
+
+        var rows = rawRows.OrderByDoorNumber(r => r.DoorNumber).ToList();
 
         var total = rows.Sum(r => r.TotalAmount);
 

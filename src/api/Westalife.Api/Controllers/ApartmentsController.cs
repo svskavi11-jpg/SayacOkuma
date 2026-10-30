@@ -1,3 +1,5 @@
+using Westalife.Application.Features.Apartments.Commands.AddApartments;
+using Westalife.Application.Features.Apartments.Commands.SetOpeningBalance;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Westalife.Api.Infrastructure;
@@ -130,4 +132,21 @@ public class ApartmentsController : ControllerBase
         var result = await _mediator.Send(new ImportMetersFromExcelCommand(content), cancellationToken);
         return Ok(result);
     }
+
+    /// <summary>Toplu daire ekleme: Count kadar yeni daire, mevcut son kapı numarasından devam eder.</summary>
+    [HttpPost("bulk")]
+    [ProducesResponseType(typeof(AddApartmentsResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> AddApartments(
+        [FromBody] AddApartmentsCommand command, CancellationToken cancellationToken) =>
+        Ok(await _mediator.Send(command, cancellationToken));
+
+    /// <summary>Faz 6.8: devir (açılış) bakiyesi girişi. + borçlu, - alacaklı; 0 = temizle.</summary>
+    [HttpPut("{id:guid}/opening-balance")]
+    [ProducesResponseType(typeof(SetOpeningBalanceResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> SetOpeningBalance(
+        Guid id, [FromBody] SetOpeningBalanceCommand command, CancellationToken cancellationToken) =>
+        Ok(await _mediator.Send(command with { ApartmentId = id }, cancellationToken));
 }

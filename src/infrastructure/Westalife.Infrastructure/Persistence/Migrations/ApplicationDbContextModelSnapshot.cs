@@ -22,10 +22,129 @@ namespace Westalife.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Westalife.Domain.Entities.AidatCharge", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AidatInvoiceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<Guid>("ApartmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("LastModifiedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApartmentId")
+                        .HasDatabaseName("IX_AidatCharges_ApartmentId");
+
+                    b.HasIndex("AidatInvoiceId", "ApartmentId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_AidatCharges_Invoice_Apartment");
+
+                    b.ToTable("AidatCharges", (string)null);
+                });
+
+            modelBuilder.Entity("Westalife.Domain.Entities.AidatInvoice", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("DistributionMethod")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly>("DueDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTimeOffset?>("LastModifiedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateOnly>("PeriodEnd")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly>("PeriodStart")
+                        .HasColumnType("date");
+
+                    b.Property<decimal>("TotalAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DueDate")
+                        .HasDatabaseName("IX_AidatInvoices_DueDate");
+
+                    b.HasIndex("PeriodStart", "PeriodEnd")
+                        .HasDatabaseName("IX_AidatInvoices_Period");
+
+                    b.ToTable("AidatInvoices", (string)null);
+                });
+
+            modelBuilder.Entity("Westalife.Domain.Entities.AidatTariff", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<DateTimeOffset>("CreatedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
+                    b.Property<DateTimeOffset?>("LastModifiedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<decimal>("SquareMeters")
+                        .HasPrecision(9, 2)
+                        .HasColumnType("numeric(9,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique()
+                        .HasDatabaseName("UX_AidatTariffs_Name");
+
+                    b.ToTable("AidatTariffs", (string)null);
+                });
+
             modelBuilder.Entity("Westalife.Domain.Entities.Apartment", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("AidatTariffId")
                         .HasColumnType("uuid");
 
                     b.Property<Guid>("BuildingId")
@@ -45,12 +164,29 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset?>("LastModifiedOn")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<DateOnly?>("OpeningBalanceDate")
+                        .HasColumnType("date");
+
+                    b.Property<decimal>("OpeningBalanceInterest")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<decimal>("OpeningBalancePrincipal")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m);
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AidatTariffId");
 
                     b.HasIndex("BuildingId", "DoorNumber")
                         .IsUnique();
@@ -65,6 +201,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "1",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 1"
                         },
                         new
@@ -74,6 +212,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "2",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 2"
                         },
                         new
@@ -83,6 +223,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "3",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 3"
                         },
                         new
@@ -92,6 +234,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "4",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 4"
                         },
                         new
@@ -101,6 +245,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "5",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 5"
                         },
                         new
@@ -110,6 +256,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "6",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 6"
                         },
                         new
@@ -119,6 +267,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "7",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 7"
                         },
                         new
@@ -128,6 +278,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "8",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 8"
                         },
                         new
@@ -137,6 +289,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "9",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 9"
                         },
                         new
@@ -146,6 +300,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "10",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 10"
                         },
                         new
@@ -155,6 +311,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "11",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 11"
                         },
                         new
@@ -164,6 +322,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "12",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 12"
                         },
                         new
@@ -173,6 +333,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "13",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 13"
                         },
                         new
@@ -182,6 +344,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "14",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 14"
                         },
                         new
@@ -191,6 +355,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "15",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 15"
                         },
                         new
@@ -200,6 +366,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "16",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 16"
                         },
                         new
@@ -209,6 +377,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "17",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 17"
                         },
                         new
@@ -218,6 +388,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "18",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 18"
                         },
                         new
@@ -227,6 +399,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "19",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 19"
                         },
                         new
@@ -236,6 +410,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "20",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 20"
                         },
                         new
@@ -245,6 +421,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "21",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 21"
                         },
                         new
@@ -254,6 +432,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "22",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 22"
                         },
                         new
@@ -263,6 +443,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "23",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 23"
                         },
                         new
@@ -272,6 +454,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "24",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 24"
                         },
                         new
@@ -281,6 +465,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "25",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 25"
                         },
                         new
@@ -290,6 +476,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "26",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 26"
                         },
                         new
@@ -299,6 +487,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "27",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 27"
                         },
                         new
@@ -308,6 +498,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "28",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 28"
                         },
                         new
@@ -317,6 +509,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "29",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 29"
                         },
                         new
@@ -326,6 +520,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "30",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 30"
                         },
                         new
@@ -335,6 +531,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "31",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 31"
                         },
                         new
@@ -344,6 +542,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "32",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 32"
                         },
                         new
@@ -353,6 +553,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "33",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 33"
                         },
                         new
@@ -362,6 +564,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "34",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 34"
                         },
                         new
@@ -371,6 +575,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "35",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 35"
                         },
                         new
@@ -380,6 +586,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "36",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 36"
                         },
                         new
@@ -389,6 +597,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "37",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 37"
                         },
                         new
@@ -398,6 +608,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "38",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 38"
                         },
                         new
@@ -407,6 +619,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "39",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 39"
                         },
                         new
@@ -416,6 +630,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "40",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 40"
                         },
                         new
@@ -425,6 +641,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "41",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 41"
                         },
                         new
@@ -434,6 +652,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "42",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 42"
                         },
                         new
@@ -443,6 +663,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "43",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 43"
                         },
                         new
@@ -452,6 +674,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "44",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 44"
                         },
                         new
@@ -461,6 +685,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "45",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 45"
                         },
                         new
@@ -470,6 +696,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "46",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 46"
                         },
                         new
@@ -479,6 +707,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "47",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 47"
                         },
                         new
@@ -488,6 +718,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "48",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 48"
                         },
                         new
@@ -497,6 +729,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "49",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 49"
                         },
                         new
@@ -506,6 +740,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "50",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 50"
                         },
                         new
@@ -515,6 +751,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "51",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 51"
                         },
                         new
@@ -524,6 +762,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "52",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 52"
                         },
                         new
@@ -533,6 +773,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "53",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 53"
                         },
                         new
@@ -542,6 +784,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "54",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 54"
                         },
                         new
@@ -551,6 +795,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "55",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 55"
                         },
                         new
@@ -560,6 +806,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "56",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 56"
                         },
                         new
@@ -569,6 +817,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "57",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 57"
                         },
                         new
@@ -578,6 +828,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "58",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 58"
                         },
                         new
@@ -587,6 +839,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "59",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 59"
                         },
                         new
@@ -596,6 +850,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "60",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 60"
                         },
                         new
@@ -605,6 +861,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "61",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 61"
                         },
                         new
@@ -614,6 +872,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "62",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 62"
                         },
                         new
@@ -623,6 +883,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "63",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 63"
                         },
                         new
@@ -632,6 +894,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "64",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 64"
                         },
                         new
@@ -641,6 +905,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "65",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 65"
                         },
                         new
@@ -650,6 +916,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "66",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 66"
                         },
                         new
@@ -659,6 +927,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "67",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 67"
                         },
                         new
@@ -668,6 +938,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "68",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 68"
                         },
                         new
@@ -677,6 +949,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "69",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 69"
                         },
                         new
@@ -686,6 +960,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "70",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 70"
                         },
                         new
@@ -695,6 +971,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "71",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 71"
                         },
                         new
@@ -704,6 +982,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DoorNumber = "72",
                             IsActive = true,
+                            OpeningBalanceInterest = 0m,
+                            OpeningBalancePrincipal = 0m,
                             Title = "Daire 72"
                         });
                 });
@@ -1546,6 +1826,24 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                         .HasPrecision(9, 6)
                         .HasColumnType("numeric(9,6)");
 
+                    b.Property<string>("InterestPeriod")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("Daily");
+
+                    b.Property<decimal>("InterestRate")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(9, 4)
+                        .HasColumnType("numeric(9,4)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<bool>("IsInterestEnabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
                     b.Property<DateTimeOffset?>("LastModifiedOn")
                         .HasColumnType("timestamp with time zone");
 
@@ -1617,6 +1915,9 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             DueDateDays = 15,
                             FixedCostRatio = 0.30m,
+                            InterestPeriod = "Daily",
+                            InterestRate = 0m,
+                            IsInterestEnabled = false,
                             LogoLeftHeightMm = 17,
                             LogoRightHeightMm = 17,
                             MeterConnectionType = "Simulator",
@@ -1700,12 +2001,20 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
 
+                    b.Property<DateOnly>("DueDate")
+                        .HasColumnType("date");
+
                     b.Property<string>("InvoiceNumber")
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
                     b.Property<bool>("IsLocked")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<bool>("IsPaid")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
                         .HasDefaultValue(false);
@@ -1727,6 +2036,9 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                     b.Property<string>("Note")
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
+
+                    b.Property<DateOnly?>("PaidOn")
+                        .HasColumnType("date");
 
                     b.Property<decimal>("PressureCorrectionFactor")
                         .HasPrecision(9, 6)
@@ -1759,6 +2071,9 @@ namespace Westalife.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("IsLocked")
                         .HasDatabaseName("IX_GasInvoices_IsLocked");
+
+                    b.HasIndex("PaidOn")
+                        .HasDatabaseName("IX_GasInvoices_PaidOn");
 
                     b.HasIndex("ReadingDateFrom", "ReadingDateTo")
                         .HasDatabaseName("IX_GasInvoices_ReadingPeriod");
@@ -1919,13 +2234,138 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                     b.ToTable("MeterReadingAuditLogs", (string)null);
                 });
 
+            modelBuilder.Entity("Westalife.Domain.Entities.Payment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<Guid>("ApartmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CancellationReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTimeOffset?>("CancelledOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("CreatedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<bool>("IsCancelled")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset?>("LastModifiedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("PaymentDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("ReceivedBy")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PaymentDate")
+                        .HasDatabaseName("IX_Payments_PaymentDate");
+
+                    b.HasIndex("ApartmentId", "IsCancelled")
+                        .HasDatabaseName("IX_Payments_Apartment_Active");
+
+                    b.ToTable("Payments", (string)null);
+                });
+
+            modelBuilder.Entity("Westalife.Domain.Entities.PaymentAllocation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("AidatChargeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("AllocatedAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<Guid?>("ApartmentInvoiceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsVoided")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset?>("LastModifiedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("PaymentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Target")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset?>("VoidedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AidatChargeId");
+
+                    b.HasIndex("ApartmentInvoiceId")
+                        .HasDatabaseName("IX_PaymentAllocations_ApartmentInvoiceId");
+
+                    b.HasIndex("PaymentId")
+                        .HasDatabaseName("IX_PaymentAllocations_PaymentId");
+
+                    b.ToTable("PaymentAllocations", (string)null);
+                });
+
+            modelBuilder.Entity("Westalife.Domain.Entities.AidatCharge", b =>
+                {
+                    b.HasOne("Westalife.Domain.Entities.AidatInvoice", "AidatInvoice")
+                        .WithMany("Charges")
+                        .HasForeignKey("AidatInvoiceId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Westalife.Domain.Entities.Apartment", "Apartment")
+                        .WithMany()
+                        .HasForeignKey("ApartmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("AidatInvoice");
+
+                    b.Navigation("Apartment");
+                });
+
             modelBuilder.Entity("Westalife.Domain.Entities.Apartment", b =>
                 {
+                    b.HasOne("Westalife.Domain.Entities.AidatTariff", "AidatTariff")
+                        .WithMany()
+                        .HasForeignKey("AidatTariffId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("Westalife.Domain.Entities.Building", "Building")
                         .WithMany()
                         .HasForeignKey("BuildingId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.Navigation("AidatTariff");
 
                     b.Navigation("Building");
                 });
@@ -2003,6 +2443,46 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                     b.Navigation("MeterReading");
                 });
 
+            modelBuilder.Entity("Westalife.Domain.Entities.Payment", b =>
+                {
+                    b.HasOne("Westalife.Domain.Entities.Apartment", "Apartment")
+                        .WithMany()
+                        .HasForeignKey("ApartmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Apartment");
+                });
+
+            modelBuilder.Entity("Westalife.Domain.Entities.PaymentAllocation", b =>
+                {
+                    b.HasOne("Westalife.Domain.Entities.AidatCharge", "AidatCharge")
+                        .WithMany()
+                        .HasForeignKey("AidatChargeId");
+
+                    b.HasOne("Westalife.Domain.Entities.ApartmentInvoice", "ApartmentInvoice")
+                        .WithMany()
+                        .HasForeignKey("ApartmentInvoiceId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Westalife.Domain.Entities.Payment", "Payment")
+                        .WithMany("Allocations")
+                        .HasForeignKey("PaymentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AidatCharge");
+
+                    b.Navigation("ApartmentInvoice");
+
+                    b.Navigation("Payment");
+                });
+
+            modelBuilder.Entity("Westalife.Domain.Entities.AidatInvoice", b =>
+                {
+                    b.Navigation("Charges");
+                });
+
             modelBuilder.Entity("Westalife.Domain.Entities.Apartment", b =>
                 {
                     b.Navigation("Dimensions");
@@ -2015,6 +2495,11 @@ namespace Westalife.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("Westalife.Domain.Entities.Meter", b =>
                 {
                     b.Navigation("Readings");
+                });
+
+            modelBuilder.Entity("Westalife.Domain.Entities.Payment", b =>
+                {
+                    b.Navigation("Allocations");
                 });
 #pragma warning restore 612, 618
         }

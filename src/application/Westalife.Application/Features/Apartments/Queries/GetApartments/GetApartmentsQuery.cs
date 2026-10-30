@@ -1,5 +1,6 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Westalife.Application.Common;
 using Westalife.Application.Common.Interfaces;
 
 namespace Westalife.Application.Features.Apartments.Queries.GetApartments;
@@ -16,7 +17,10 @@ public sealed record ApartmentListItem(
     Guid? ActiveMeterId,
     decimal? LastIndexValue,
     DateTimeOffset? LastReadingDateUtc,
-    IReadOnlyList<ApartmentMeterItem> Meters);
+    IReadOnlyList<ApartmentMeterItem> Meters,
+    decimal OpeningBalancePrincipal = 0m,
+    decimal OpeningBalanceInterest = 0m,
+    DateOnly? OpeningBalanceDate = null);
 
 public sealed record ApartmentMeterItem(Guid Id, string SerialNumber, string MeterType, int? MbusPrimaryAddress, bool IsActive);
 
@@ -34,12 +38,15 @@ public sealed class GetApartmentsQueryHandler : IRequestHandler<GetApartmentsQue
     {
         var apartments = await _db.Apartments
             .Where(a => a.IsActive)
-            .OrderBy(a => a.DoorNumber)
+            // Not: kapı numarası metin olduğundan sıralama bellekte sayısal yapılır (1, 2, ... 10).
             .Select(a => new
             {
                 a.Id,
                 a.DoorNumber,
                 a.Title,
+                a.OpeningBalancePrincipal,
+                a.OpeningBalanceInterest,
+                a.OpeningBalanceDate,
                 ActiveSquareMeters = a.Dimensions
                     .Where(d => d.ValidTo == null)
                     .Select(d => (decimal?)d.SquareMeters)
@@ -80,9 +87,11 @@ public sealed class GetApartmentsQueryHandler : IRequestHandler<GetApartmentsQue
             .ToListAsync(cancellationToken);
 
         return apartments
+            .OrderByDoorNumber(a => a.DoorNumber)
             .Select(a => new ApartmentListItem(
                 a.Id, a.DoorNumber, a.Title, a.ActiveSquareMeters, a.OwnerName,
-                a.ActiveMeter?.Id, a.ActiveMeter?.LastIndex, a.ActiveMeter?.LastDate, a.Meters))
+                a.ActiveMeter?.Id, a.ActiveMeter?.LastIndex, a.ActiveMeter?.LastDate, a.Meters,
+                a.OpeningBalancePrincipal, a.OpeningBalanceInterest, a.OpeningBalanceDate))
             .ToList();
     }
 }

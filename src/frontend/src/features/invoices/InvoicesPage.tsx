@@ -39,6 +39,7 @@ import type {
   GasInvoiceDetail,
   GasInvoiceListItem,
   ImportReadingsResult,
+  InvoiceFinanceResult,
   UpdateGasInvoiceResult,
 } from '../../types/api'
 
@@ -54,6 +55,9 @@ export function InvoicesPage() {
   const [importResult, setImportResult] = useState<ImportReadingsResult | null>(null)
   // Etap 6.7: Fatura düzenleme (null = yeni fatura modu)
   const [editingId, setEditingId] = useState<string | null>(null)
+  // Faz 6.8: Vade tarihi düzenleme
+  const [dueDateEditId, setDueDateEditId] = useState<string | null>(null)
+  const [dueDateValue, setDueDateValue] = useState<Dayjs | null>(null)
 
   // Etap 6.6: Excel okuma içe aktarma (Source=Import; kısmi başarı modeli).
   const importReadingsMutation = useMutation({
@@ -91,6 +95,32 @@ export function InvoicesPage() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['gas-invoices'] })
       message.success('Dönem kilidi açıldı.')
+    },
+  })
+
+  // Faz 6.8: Vade tarihi güncelleme
+  const setDueDateMutation = useMutation({
+    mutationFn: async ({ id, dueDate }: { id: string; dueDate: string }) =>
+      (await apiClient.put<InvoiceFinanceResult>(`/gas-invoices/${id}/due-date`, { dueDate })).data,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['gas-invoices'] })
+      setDueDateEditId(null)
+      message.success('Vade tarihi güncellendi.')
+    },
+  })
+
+  // Faz 6.8: Ödendi / Ödenmedi işaretleme
+  const setPaidMutation = useMutation({
+    mutationFn: async ({ id, isPaid, paidOn }: { id: string; isPaid: boolean; paidOn?: string }) =>
+      (
+        await apiClient.put<InvoiceFinanceResult>(`/gas-invoices/${id}/paid`, {
+          isPaid,
+          paidOn: paidOn ?? null,
+        })
+      ).data,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['gas-invoices'] })
+      message.success('Ödeme durumu güncellendi.')
     },
   })
 
@@ -218,6 +248,73 @@ export function InvoicesPage() {
             <Tag color="red" icon={<LockOutlined />}>
               Kilitli
             </Tag>
+          )}
+        </Space>
+      ),
+    },
+    {
+      title: 'Vade / Ödeme',
+      width: 210,
+      render: (_: unknown, r: GasInvoiceListItem) => (
+        <Space direction="vertical" size={2}>
+          <Space size={4}>
+            <Typography.Text style={{ fontSize: 12 }}>Vade:</Typography.Text>
+            <Button
+              type="link"
+              size="small"
+              style={{ padding: 0, fontSize: 12 }}
+              onClick={() => { setDueDateEditId(r.id); setDueDateValue(dayjs(r.dueDate)) }}
+            >
+              {dayjs(r.dueDate).format('DD.MM.YYYY')}
+            </Button>
+          </Space>
+          {r.isPaid ? (
+            <Tag
+              color="green"
+              style={{ cursor: 'pointer', fontSize: 11 }}
+              onClick={() =>
+                Modal.confirm({
+                  title: 'Ödeme kaydı kaldırılsın mı?',
+                  content: `${r.invoiceNumber} faturasının ödeme kaydı silinecek.`,
+                  okText: 'Evet',
+                  cancelText: 'Hayır',
+                  onOk: () => setPaidMutation.mutateAsync({ id: r.id, isPaid: false }),
+                })
+              }
+            >
+              ✓ Ödendi ({r.paidOn ? dayjs(r.paidOn).format('DD.MM.YYYY') : '—'})
+            </Tag>
+          ) : (
+            <Button
+              size="small"
+              type="dashed"
+              style={{ fontSize: 11, height: 20, padding: '0 6px' }}
+              onClick={() =>
+                Modal.confirm({
+                  title: `${r.invoiceNumber} faturası ödendi olarak işaretlensin mi?`,
+                  content: (
+                    <>
+                      <Typography.Text>Ödeme tarihi (boş bırakırsanız bugün kaydedilir):</Typography.Text>
+                      <DatePicker
+                        format="DD.MM.YYYY"
+                        style={{ marginTop: 8, width: '100%' }}
+                        onChange={(d) => setDueDateValue(d)}
+                      />
+                    </>
+                  ),
+                  okText: 'Ödendi İşaretle',
+                  cancelText: 'Vazgeç',
+                  onOk: () =>
+                    setPaidMutation.mutateAsync({
+                      id: r.id,
+                      isPaid: true,
+                      paidOn: (dueDateValue ?? dayjs()).format('YYYY-MM-DD'),
+                    }),
+                })
+              }
+            >
+              Ödendi İşaretle
+            </Button>
           )}
         </Space>
       ),
@@ -441,12 +538,12 @@ export function InvoicesPage() {
               </Form.Item>
             </Col>
             <Col span={6}>
-              <Form.Item name="distributionAmount" label="Geçişme Bedeli" rules={[{ required: true }]}>
+              <Form.Item name="distributionAmount" label="Gecikme Bedeli" rules={[{ required: true }]}>
                 <InputNumber style={{ width: '100%' }} min={0} decimalSeparator="," />
               </Form.Item>
             </Col>
             <Col span={6}>
-              <Form.Item name="distributionVat" label="Geçişme KDV" rules={[{ required: true }]}>
+              <Form.Item name="distributionVat" label="Gecikme KDV" rules={[{ required: true }]}>
                 <InputNumber style={{ width: '100%' }} min={0} decimalSeparator="," />
               </Form.Item>
             </Col>
@@ -459,7 +556,7 @@ export function InvoicesPage() {
             <InputNumber style={{ width: '100%' }} min={0.01} decimalSeparator="," addonAfter="TL" />
           </Form.Item>
           <Typography.Text type="secondary">
-            Not: Geçişme bedeli KDV dahil brüt gösterilebilir — kalem toplamı ile G.Toplam
+            Not: Gecikme bedeli KDV dahil brüt gösterilebilir — kalem toplamı ile G.Toplam
             eşleşmese bile dağıtım G.Toplam üzerinden yapılır (kuruşu kuruşuna mutabakat garantili).
           </Typography.Text>
           <Form.Item name="note" label='Duyuru — PDF "Ek Açıklamalar" kutusuna basılır'>
@@ -588,6 +685,26 @@ export function InvoicesPage() {
             )}
           </>
         )}
+      </Modal>
+      {/* Faz 6.8: Vade Tarihi Düzenleme Modal */}
+      <Modal
+        title="Vade Tarihini Güncelle"
+        open={!!dueDateEditId}
+        onCancel={() => setDueDateEditId(null)}
+        confirmLoading={setDueDateMutation.isPending}
+        okText="Kaydet"
+        cancelText="İptal"
+        onOk={() => {
+          if (!dueDateValue) { void message.warning('Lütfen tarih seçin.'); return }
+          setDueDateMutation.mutate({ id: dueDateEditId!, dueDate: dueDateValue.format('YYYY-MM-DD') })
+        }}
+      >
+        <DatePicker
+          style={{ width: '100%' }}
+          format="DD.MM.YYYY"
+          value={dueDateValue}
+          onChange={(d) => setDueDateValue(d)}
+        />
       </Modal>
     </Card>
   )
