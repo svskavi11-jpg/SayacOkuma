@@ -31,10 +31,11 @@ public static class LedgerService
         IEnumerable<ApartmentInvoice> invoices,
         IEnumerable<Payment> payments,
         decimal annualInterestRate,
-        DateOnly asOfDate)
+        DateOnly asOfDate,
+        IEnumerable<AidatCharge>? aidatCharges = null)
     {
         // ── 1. Borç satırlarını hazırla (kronolojik sıra) ─────────────────────
-        var debts = BuildDebtList(apartment, invoices);
+        var debts = BuildDebtList(apartment, invoices, aidatCharges);
 
         // ── 2. Aktif ödemeleri FIFO sıralamasıyla işle ────────────────────────
         var activePayments = payments
@@ -137,7 +138,8 @@ public static class LedgerService
 
     private static List<LedgerDebt> BuildDebtList(
         Apartment apartment,
-        IEnumerable<ApartmentInvoice> invoices)
+        IEnumerable<ApartmentInvoice> invoices,
+        IEnumerable<AidatCharge>? aidatCharges)
     {
         var debts = new List<LedgerDebt>();
 
@@ -164,7 +166,8 @@ public static class LedgerService
                 Label: "Devir Anapara"));
         }
 
-        // Fatura satırları — vade tarihine göre kronolojik
+        // Fatura ve aidat borçları tek kronolojik sırada FIFO kuyruğuna girer.
+        // LINQ OrderBy stabil olduğundan aynı vadede önce fatura, sonra aidat korunur.
         var invoiceDebts = invoices
             .Where(i => !i.IsSuperseded)
             .OrderBy(i => i.GasInvoice?.DueDate ?? DateOnly.MinValue)
@@ -174,9 +177,20 @@ public static class LedgerService
                 SourceId: i.Id.ToString(),
                 DueDate: i.GasInvoice?.DueDate ?? DateOnly.FromDateTime(i.CalculatedOnUtc.DateTime),
                 PrincipalAmount: i.TotalAmount,
-                Label: BuildInvoiceLabel(i)));
+                Label: BuildInvoiceLabel(i)))
+            .ToList();
 
-        debts.AddRange(invoiceDebts);
+        var aidatDebts = (aidatCharges ?? Enumerable.Empty<AidatCharge>())
+            .Where(c => c.Amount > 0m)
+            .Select(c => new LedgerDebt(
+                Type: LedgerDebtType.Aidat,
+                SourceId: c.Id.ToString(),
+                DueDate: c.AidatInvoice?.DueDate ?? DateOnly.FromDateTime(c.CreatedOn.UtcDateTime),
+                PrincipalAmount: c.Amount,
+                Label: BuildAidatLabel(c)))
+            .ToList();
+
+        debts.AddRange(invoiceDebts.Concat(aidatDebts).OrderBy(d => d.DueDate));
         return debts;
     }
 
@@ -189,6 +203,22 @@ public static class LedgerService
         var from = invoice.GasInvoice.ReadingDateFrom.ToString("MMM yyyy", culture);
         var to = invoice.GasInvoice.ReadingDateTo.ToString("MMM yyyy", culture);
         return from == to ? from : $"{from} – {to}";
+    }
+
+    /// <summary>
+    /// Aidat satır etiketi — cari hesap ve PDF dökümünde fatura etiketleriyle tutarlı görünüm.
+    /// Örnek: "Aidat Oca 2026" / "Aidat Oca 2026 – Şub 2026".
+    /// </summary>
+    private static string BuildAidatLabel(AidatCharge charge)
+    {
+        var invoice = charge.AidatInvoice;
+        if (invoice is null) return "Aidat";
+
+        // Türkçe ay kısaltmaları (Nis 2026).
+        var culture = CultureInfo.GetCultureInfo("tr-TR");
+        var from = invoice.PeriodStart.ToString("MMM yyyy", culture);
+        var to = invoice.PeriodEnd.ToString("MMM yyyy", culture);
+        return from == to ? $"Aidat {from}" : $"Aidat {from} – {to}";
     }
 
     /// <summary>

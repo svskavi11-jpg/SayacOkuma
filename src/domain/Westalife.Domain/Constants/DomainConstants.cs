@@ -99,6 +99,10 @@ public static class DomainConstants
     public static class AidatInvoice
     {
         public const int NoteMaxLength = 500;
+
+        /// <summary>Tahakkuk sonucunda atlanan daireler için rapor gerekçeleri.</summary>
+        public const string SkipReasonNoTariff = "Aidat tarifesı atanmamış.";
+        public const string SkipReasonNoDimension = "Aktif m² kaydı bulunamadı.";
     }
 
     public static class GasInvoice
@@ -307,5 +311,8 @@ public static class DomainConstants
         public const string AidatChargeAmountMustBePositive = "Daire aidat borcu 0'dan büyük olmalıdır.";
         public const string AidatAllocationChargeIdRequired = "Aidat allocation için AidatChargeId zorunludur.";
         public const string AidatInvoiceNoCharges = "Aidat tahakkuku en az bir daire borcu içermelidir.";
+        public const string AidatTariffNameAlreadyExists = "Bu ada sahip bir aidat tarifesı zaten kayıtlı.";
+        public const string AidatPeriodOverlap = "Aidat dönemleri çakışıyor: seçilen dönem, mevcut bir aidat tahakkuku dönemine denk geliyor.";
+        public const string AidatEqualAmountRequired = "Eşit dağıtımda daire başına tutar (EqualAmount) sıfırdan büyük olmalıdır.";
     }
 }

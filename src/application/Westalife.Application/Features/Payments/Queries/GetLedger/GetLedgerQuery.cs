@@ -45,6 +45,13 @@ public sealed class GetLedgerQueryHandler : IRequestHandler<GetLedgerQuery, Ledg
             .Where(p => p.ApartmentId == request.ApartmentId)
             .ToListAsync(cancellationToken);
 
+        // Faz 6.9: Aidat borç satırları (dönem vadesi AidatInvoice üzerinden)
+        var aidatCharges = await _db.AidatCharges
+            .AsNoTracking()
+            .Include(c => c.AidatInvoice)
+            .Where(c => c.ApartmentId == request.ApartmentId)
+            .ToListAsync(cancellationToken);
+
         // Faiz oranını ayarlardan oku
         var settings = await _db.AppSettings
             .AsNoTracking()
@@ -53,6 +60,6 @@ public sealed class GetLedgerQueryHandler : IRequestHandler<GetLedgerQuery, Ledg
 
         var annualRate = settings?.InterestRate ?? 0m;
 
-        return LedgerService.Calculate(apartment, invoices, payments, annualRate, asOf);
+        return LedgerService.Calculate(apartment, invoices, payments, annualRate, asOf, aidatCharges);
     }
 }
