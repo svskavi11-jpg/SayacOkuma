@@ -52,11 +52,11 @@ function translatePeriodLabel(label: string): string {
   return label.replace(/\b[A-Z][a-z]{2}\b/g, (m) => EN_TO_TR_MONTHS[m] ?? m)
 }
 
-// Cari hesap hareket satırı (Devir Anapara / Devir Faiz / Fatura / Faiz / Tahsilat)
+// Cari hesap hareket satırı (Devir Anapara / Devir Faiz / Fatura / Aidat / Faiz / Tahsilat)
 interface MovementRow {
   key: string
   date: string
-  type: 'Devir Anapara' | 'Devir Faiz' | 'Fatura' | 'Faiz' | 'Tahsilat'
+  type: 'Devir Anapara' | 'Devir Faiz' | 'Fatura' | 'Aidat' | 'Faiz' | 'Tahsilat'
   description: string
   debit: number
   credit: number
@@ -373,7 +373,16 @@ function LedgerTab() {
         }
         continue
       }
-      movements.push({ key: `fatura-${l.sourceId}`, date: l.dueDate, type: 'Fatura', description: translatePeriodLabel(l.label), debit: l.principalAmount, credit: 0, interestDays: null })
+      // Faz 6.9: Aidat satırları kendi tipiyle (mor etiket) gösterilir.
+      movements.push({
+        key: `${l.type === 'Aidat' ? 'aidat' : 'fatura'}-${l.sourceId}`,
+        date: l.dueDate,
+        type: l.type === 'Aidat' ? 'Aidat' : 'Fatura',
+        description: translatePeriodLabel(l.label),
+        debit: l.principalAmount,
+        credit: 0,
+        interestDays: null,
+      })
       if (l.interestAccrued > 0) {
         const days = Math.max(0, dayjs(ledger.asOfDate).diff(dayjs(l.dueDate), 'day'))
         movements.push({ key: `faiz-${l.sourceId}`, date: ledger.asOfDate, type: 'Faiz', description: `${translatePeriodLabel(l.label)} — Gecikme Faizi`, debit: l.interestAccrued, credit: 0, interestDays: days })
@@ -402,7 +411,12 @@ function LedgerTab() {
         .filter((l) => l.type === 'OpeningBalancePrincipal' || l.type === 'OpeningBalanceInterest')
         .reduce((s, l) => s + l.lineBalance, 0)
     : 0
-  const periodAccrual = ledger ? ledger.lines.filter((l) => l.type === 'Invoice').reduce((s, l) => s + l.principalAmount + l.interestAccrued, 0) : 0
+  // Faz 6.9: Aidat tahakkukları da dönem tahakkuk özetine dahil.
+  const periodAccrual = ledger
+    ? ledger.lines
+        .filter((l) => l.type === 'Invoice' || l.type === 'Aidat')
+        .reduce((s, l) => s + l.principalAmount + l.interestAccrued, 0)
+    : 0
   const totalCollected = ledger ? ledger.lines.reduce((s, l) => s + l.allocations.reduce((a, al) => a + al.allocatedAmount, 0), 0) : 0
 
   const apartmentOptions =
@@ -452,7 +466,7 @@ function LedgerTab() {
             <Col span={6}>
               <Card size="small">
                 <Statistic
-                  title="Bu Dönem Tahakkuk (Fatura + Faiz)"
+                  title="Bu Dönem Tahakkuk (Fatura + Aidat + Faiz)"
                   value={periodAccrual}
                   precision={2}
                   suffix="TL"
@@ -502,6 +516,7 @@ function LedgerTab() {
                   v === 'Devir Anapara' ? <Tag color="purple">Devir Anapara</Tag>
                   : v === 'Devir Faiz' ? <Tag color="volcano">Devir Faiz</Tag>
                   : v === 'Fatura' ? <Tag color="blue">Fatura</Tag>
+                  : v === 'Aidat' ? <Tag color="purple">Aidat</Tag>
                   : v === 'Faiz' ? <Tag color="orange">Faiz</Tag>
                   : <Tag color="green">Tahsilat</Tag>,
               },

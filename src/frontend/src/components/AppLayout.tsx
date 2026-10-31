@@ -8,18 +8,28 @@ import {
   FileTextOutlined,
   BarChartOutlined,
   SettingOutlined,
+  MoneyCollectOutlined,
 } from '@ant-design/icons'
 import { registerNotifier } from '../api/notifier'
 
 const { Sider, Content, Header } = Layout
 
 const menuItems = [
-  { key: '/',          icon: <DashboardOutlined />, label: 'Panel' },
-  { key: '/apartments', icon: <HomeOutlined />,      label: 'Daireler' },
-  { key: '/invoices',   icon: <FileTextOutlined />,  label: 'Faturalar' },
-  { key: '/payments',   icon: <DollarOutlined />,    label: 'Tahsilat' },
-  { key: '/reports',    icon: <BarChartOutlined />,  label: 'Raporlar' },
-  { key: '/settings',   icon: <SettingOutlined />,   label: 'Ayarlar' },
+  { key: '/',          icon: <DashboardOutlined />,    label: 'Panel' },
+  { key: '/apartments', icon: <HomeOutlined />,        label: 'Daireler' },
+  { key: '/invoices',   icon: <FileTextOutlined />,    label: 'Faturalar' },
+  { key: '/payments',   icon: <DollarOutlined />,      label: 'Tahsilat' },
+  {
+    key: '/aidat',
+    icon: <MoneyCollectOutlined />,
+    label: 'Aidat Yönetimi',
+    children: [
+      { key: '/aidat/tariffs',  label: 'Aidat Tarifeleri' },
+      { key: '/aidat/invoices', label: 'Aidat Tahakkukları' },
+    ],
+  },
+  { key: '/reports',    icon: <BarChartOutlined />,    label: 'Raporlar' },
+  { key: '/settings',   icon: <SettingOutlined />,     label: 'Ayarlar' },
 ]
 
 export function AppLayout() {

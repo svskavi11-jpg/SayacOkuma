@@ -369,11 +369,11 @@ export interface AllocationDetail {
   paymentId: string
   paymentDate: string
   allocatedAmount: number
-  target: 'OpeningBalance' | 'Invoice' | 'Interest'
+  target: 'OpeningBalance' | 'Invoice' | 'Interest' | 'Aidat'
 }
 
 export interface LedgerLine {
-  type: 'OpeningBalancePrincipal' | 'OpeningBalanceInterest' | 'Invoice'
+  type: 'OpeningBalancePrincipal' | 'OpeningBalanceInterest' | 'Invoice' | 'Aidat'
   sourceId: string
   label: string
   dueDate: string
@@ -413,4 +413,86 @@ export interface CashFlowResult {
   totalIncome: number
   netBalance: number
   lines: CashFlowLine[]
+}
+
+// ── Faz 6.9: Aidat (Ortak Gider) ─────────────────────────────────────────────
+
+export type AidatDistributionMethod = 'TarifeBazli' | 'Metrekare' | 'Esit'
+
+export const AIDAT_DISTRIBUTION_LABELS: Record<AidatDistributionMethod, string> = {
+  TarifeBazli: 'Tarife Bazlı',
+  Metrekare: 'm² Bazlı',
+  Esit: 'Eşit',
+}
+
+export interface AidatTariffItem {
+  id: string
+  name: string
+  squareMeters: number
+  amount: number
+  isActive: boolean
+  apartmentCount: number
+}
+
+export interface CreateAidatTariffRequest {
+  name: string
+  squareMeters: number
+  amount: number
+}
+
+export interface AidatInvoiceListItem {
+  id: string
+  periodStart: string
+  periodEnd: string
+  dueDate: string
+  distributionMethod: AidatDistributionMethod
+  chargeCount: number
+  totalAmount: number
+  paidAmount: number
+  remainingAmount: number
+  /** 0–100 arası yüzde */
+  collectionRatio: number
+  createdOn: string
+}
+
+export interface CreateAidatInvoiceRequest {
+  periodStart: string
+  periodEnd: string
+  dueDate: string
+  distributionMethod: AidatDistributionMethod
+  equalAmount?: number | null
+  note?: string | null
+}
+
+export interface AidatSkippedApartment {
+  doorNumber: string
+  reason: string
+}
+
+export interface CreateAidatInvoiceResult {
+  aidatInvoiceId: string
+  periodStart: string
+  periodEnd: string
+  dueDate: string
+  distributionMethod: AidatDistributionMethod
+  chargeCount: number
+  skippedCount: number
+  totalAmount: number
+  skippedApartments: AidatSkippedApartment[]
+}
+
+export interface AidatPreviewRow {
+  doorNumber: string
+  apartmentTitle: string
+  tariffName: string | null
+  squareMeters: number | null
+  amount: number
+  skipReason: string | null
+}
+
+export interface AidatPreviewResult {
+  chargeCount: number
+  skippedCount: number
+  totalAmount: number
+  rows: AidatPreviewRow[]
 }
