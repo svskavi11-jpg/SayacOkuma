@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Westalife.Api.Infrastructure;
 using Westalife.Application;
 using Westalife.Infrastructure;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,7 +22,11 @@ builder.Services.AddInfrastructure(builder.Configuration.GetConnectionString("De
 // Application: CQRS (MediatR) + FluentValidation pipeline.
 builder.Services.AddApplication();
 
-builder.Services.AddControllers();
+// Faz 6.9: enum'lar JSON'da string olarak serileştirilir/okunur (örn: "TarifeBazli", "Aidat").
+// Girdi: frontend string enum gönderir; Çıktı: LedgerLine.Type gibi alanlar string döner.
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+        options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
 // CORS: dev ortamında Vite geliştirme sunucusuna izin ver (prod'da nginx aynı origin'den sunar — CORS gerekmez).
 builder.Services.AddCors(options =>

@@ -33,14 +33,19 @@ export function AidatInvoicesPage() {
     queryFn: async () => (await apiClient.get<AidatInvoiceListItem[]>('/aidat/invoices')).data,
   })
 
-  const buildRequest = (values: Record<string, unknown>): CreateAidatInvoiceRequest => ({
-    periodStart: (values.periodStart as { format: (f: string) => string }).format('YYYY-MM-DD'),
-    periodEnd: (values.periodEnd as { format: (f: string) => string }).format('YYYY-MM-DD'),
-    dueDate: (values.dueDate as { format: (f: string) => string }).format('YYYY-MM-DD'),
-    distributionMethod: values.distributionMethod as AidatDistributionMethod,
-    equalAmount: values.distributionMethod === 'Esit' ? (values.equalAmount as number) : null,
-    note: (values.note as string) || null,
-  })
+  const buildRequest = (values: Record<string, unknown>): CreateAidatInvoiceRequest => {
+    const req: CreateAidatInvoiceRequest = {
+      periodStart: (values.periodStart as { format: (f: string) => string }).format('YYYY-MM-DD'),
+      periodEnd: (values.periodEnd as { format: (f: string) => string }).format('YYYY-MM-DD'),
+      dueDate: (values.dueDate as { format: (f: string) => string }).format('YYYY-MM-DD'),
+      distributionMethod: values.distributionMethod as AidatDistributionMethod,
+      equalAmount: values.distributionMethod === 'Esit' ? (values.equalAmount as number) : null,
+      note: (values.note as string) || null,
+    }
+    // Hata ayıklama: backend'e giden payload'ı konsolda göster (enum/string tip kontrolü).
+    console.log('[Aidat] Tahakkuk payload:', JSON.stringify(req, null, 2))
+    return req
+  }
 
   const previewMutation = useMutation({
     mutationFn: async (req: CreateAidatInvoiceRequest) =>
