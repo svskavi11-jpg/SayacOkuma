@@ -1,5 +1,6 @@
 using Westalife.Domain.Common;
 using Westalife.Domain.Constants;
+using Westalife.Domain.Enums;
 
 namespace Westalife.Domain.Entities;
 
@@ -103,8 +104,24 @@ public class Apartment : BaseEntity
     /// Kat malikini günceller — SCD Type 2 (Etap 6.7): mevcut aktif malik kaydının ValidTo'su
     /// kapatılır ve yeni kayıt açılır. Eski malik ASLA silinmez, geçmiş sorgulanabilir kalır.
     /// Ad değişmediyse mevcut kayıt dokunulmadan döner (no-op).
+    /// Faz 7.1: EvSahibi türü için <see cref="UpdateResident"/> delegasyonu.
     /// </summary>
-    public ApartmentOwner UpdateOwner(string ownerName, DateTimeOffset validFrom)
+    public ApartmentOwner UpdateOwner(string ownerName, DateTimeOffset validFrom) =>
+        UpdateResident(ResidentType.EvSahibi, ownerName, null, null, null, null, validFrom);
+
+    /// <summary>
+    /// Faz 7.1: Sakin ekler/günceller (Ev Sahibi veya Kiracı — SCD Type 2, tür bazlı ayrı akış).
+    /// Aynı türde aktif kaydın adı değişmediyse dokunulmaz (no-op); değişirse kapatılır ve
+    /// iletişim bilgileriyle yeni kayıt açılır. Eski sakin kayıtları ASLA silinmez.
+    /// </summary>
+    public ApartmentOwner UpdateResident(
+        ResidentType residentType,
+        string ownerName,
+        string? phoneNumber,
+        string? email,
+        string? identityNumber,
+        string? notes,
+        DateTimeOffset validFrom)
     {
         if (string.IsNullOrWhiteSpace(ownerName))
         {
@@ -112,9 +129,9 @@ public class Apartment : BaseEntity
         }
 
         var trimmed = ownerName.Trim();
-        var current = _owners.FirstOrDefault(o => o.ValidTo is null);
+        var current = _owners.FirstOrDefault(o => o.ResidentType == residentType && o.ValidTo is null);
 
-        // No-op: aynı malik zaten aktif — yeni kayıt açılmaz (geçmiş gereksiz şişmez).
+        // No-op: aynı türde aynı isimli sakin zaten aktif — yeni kayıt açılmaz (geçmiş gereksiz şişmez).
         if (current is not null && current.OwnerName.Equals(trimmed, StringComparison.OrdinalIgnoreCase))
         {
             return current;
@@ -122,11 +139,24 @@ public class Apartment : BaseEntity
 
         current?.Close(validFrom);
 
-        var owner = new ApartmentOwner(Id, trimmed, validFrom);
-        _owners.Add(owner);
+        var resident = new ApartmentOwner(Id, trimmed, validFrom, residentType, phoneNumber, email, identityNumber, notes);
+        _owners.Add(resident);
         LastModifiedOn = DateTimeOffset.UtcNow;
-        return owner;
+        return resident;
     }
+
+    /// <summary>Verilen anda aktif sakin (tür bazlı) — yoksa null.</summary>
+    public ApartmentOwner? GetActiveResident(ResidentType residentType, DateTimeOffset moment) =>
+        _owners.LastOrDefault(o => o.ResidentType == residentType && o.IsValidAt(moment));
+
+    /// <summary>
+    /// Hibrit Model (KMK m.22): borç sahibi çözümlemesi. O anda kiracı varsa borç kiracıya,
+    /// yoksa ev sahibine yazılır. Ev sahibi her durumda müteselsil sorumlu olarak
+    /// borç satırına ayrıca kaydedilir (LegalResponsibleOwnerId — Application katmanı).
+    /// </summary>
+    public ApartmentOwner? ResolveDebtOwner(DateTimeOffset moment) =>
+        GetActiveResident(ResidentType.Kiraci, moment)
+        ?? GetActiveResident(ResidentType.EvSahibi, moment);
 
     /// <summary>
     /// Devir bakiyesini ANAPARA + GEÇMİŞ FAİZ olarak ayarlar. Her ikisi 0 verilirse devir temizlenir.

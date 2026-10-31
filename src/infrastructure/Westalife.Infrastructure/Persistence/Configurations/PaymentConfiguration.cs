@@ -31,6 +31,22 @@ public class PaymentConfiguration : IEntityTypeConfiguration<Payment>
             .HasForeignKey(p => p.ApartmentId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        // Faz 7.1: Hedefli tahsilat + Hibrit Model sahiplik.
+        builder.Property(p => p.TargetDebtType);
+
+        builder.HasOne(p => p.ApartmentOwner)
+            .WithMany()
+            .HasForeignKey(p => p.ApartmentOwnerId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(p => p.LegalResponsibleOwner!)
+            .WithMany()
+            .HasForeignKey(p => p.LegalResponsibleOwnerId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(p => p.ApartmentOwnerId)
+            .HasDatabaseName("IX_Payments_ApartmentOwnerId");
+
         builder.HasMany(p => p.Allocations)
             .WithOne(a => a.Payment)
             .HasForeignKey(a => a.PaymentId)

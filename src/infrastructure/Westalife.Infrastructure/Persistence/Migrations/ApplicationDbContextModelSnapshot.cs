@@ -38,16 +38,27 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("ApartmentId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("ApartmentOwnerId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTimeOffset>("CreatedOn")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<DateTimeOffset?>("LastModifiedOn")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid?>("LegalResponsibleOwnerId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ApartmentId")
                         .HasDatabaseName("IX_AidatCharges_ApartmentId");
+
+                    b.HasIndex("ApartmentOwnerId")
+                        .HasDatabaseName("IX_AidatCharges_ApartmentOwnerId");
+
+                    b.HasIndex("LegalResponsibleOwnerId");
 
                     b.HasIndex("AidatInvoiceId", "ApartmentId")
                         .IsUnique()
@@ -1690,6 +1701,9 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("ApartmentId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("ApartmentOwnerId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTimeOffset>("CalculatedOnUtc")
                         .HasColumnType("timestamp with time zone");
 
@@ -1720,6 +1734,9 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset?>("LastModifiedOn")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid?>("LegalResponsibleOwnerId")
+                        .HasColumnType("uuid");
+
                     b.Property<decimal>("SquareMetersUsed")
                         .HasPrecision(9, 6)
                         .HasColumnType("numeric(9,6)");
@@ -1732,11 +1749,16 @@ namespace Westalife.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ApartmentId");
 
+                    b.HasIndex("ApartmentOwnerId")
+                        .HasDatabaseName("IX_ApartmentInvoices_ApartmentOwnerId");
+
                     b.HasIndex("GasInvoiceId")
                         .HasDatabaseName("IX_ApartmentInvoices_GasInvoiceId");
 
                     b.HasIndex("IsSuperseded")
                         .HasDatabaseName("IX_ApartmentInvoices_IsSuperseded");
+
+                    b.HasIndex("LegalResponsibleOwnerId");
 
                     b.HasIndex("GasInvoiceId", "ApartmentId")
                         .IsUnique()
@@ -1758,13 +1780,34 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("CreatedOn")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("Email")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("IdentityNumber")
+                        .HasMaxLength(11)
+                        .HasColumnType("character varying(11)");
+
                     b.Property<DateTimeOffset?>("LastModifiedOn")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
 
                     b.Property<string>("OwnerName")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
+
+                    b.Property<string>("PhoneNumber")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<int>("ResidentType")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1);
 
                     b.Property<DateTimeOffset>("ValidFrom")
                         .HasColumnType("timestamp with time zone");
@@ -2247,6 +2290,9 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("ApartmentId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("ApartmentOwnerId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("CancellationReason")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
@@ -2267,6 +2313,9 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset?>("LastModifiedOn")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid?>("LegalResponsibleOwnerId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateOnly>("PaymentDate")
                         .HasColumnType("date");
 
@@ -2275,7 +2324,15 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<int?>("TargetDebtType")
+                        .HasColumnType("integer");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("ApartmentOwnerId")
+                        .HasDatabaseName("IX_Payments_ApartmentOwnerId");
+
+                    b.HasIndex("LegalResponsibleOwnerId");
 
                     b.HasIndex("PaymentDate")
                         .HasDatabaseName("IX_Payments_PaymentDate");
@@ -2347,9 +2404,23 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("Westalife.Domain.Entities.ApartmentOwner", "ApartmentOwner")
+                        .WithMany()
+                        .HasForeignKey("ApartmentOwnerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Westalife.Domain.Entities.ApartmentOwner", "LegalResponsibleOwner")
+                        .WithMany()
+                        .HasForeignKey("LegalResponsibleOwnerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("AidatInvoice");
 
                     b.Navigation("Apartment");
+
+                    b.Navigation("ApartmentOwner");
+
+                    b.Navigation("LegalResponsibleOwner");
                 });
 
             modelBuilder.Entity("Westalife.Domain.Entities.Apartment", b =>
@@ -2389,15 +2460,29 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("Westalife.Domain.Entities.ApartmentOwner", "ApartmentOwner")
+                        .WithMany()
+                        .HasForeignKey("ApartmentOwnerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("Westalife.Domain.Entities.GasInvoice", "GasInvoice")
                         .WithMany()
                         .HasForeignKey("GasInvoiceId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("Westalife.Domain.Entities.ApartmentOwner", "LegalResponsibleOwner")
+                        .WithMany()
+                        .HasForeignKey("LegalResponsibleOwnerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("Apartment");
 
+                    b.Navigation("ApartmentOwner");
+
                     b.Navigation("GasInvoice");
+
+                    b.Navigation("LegalResponsibleOwner");
                 });
 
             modelBuilder.Entity("Westalife.Domain.Entities.ApartmentOwner", b =>
@@ -2451,7 +2536,21 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("Westalife.Domain.Entities.ApartmentOwner", "ApartmentOwner")
+                        .WithMany()
+                        .HasForeignKey("ApartmentOwnerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Westalife.Domain.Entities.ApartmentOwner", "LegalResponsibleOwner")
+                        .WithMany()
+                        .HasForeignKey("LegalResponsibleOwnerId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.Navigation("Apartment");
+
+                    b.Navigation("ApartmentOwner");
+
+                    b.Navigation("LegalResponsibleOwner");
                 });
 
             modelBuilder.Entity("Westalife.Domain.Entities.PaymentAllocation", b =>

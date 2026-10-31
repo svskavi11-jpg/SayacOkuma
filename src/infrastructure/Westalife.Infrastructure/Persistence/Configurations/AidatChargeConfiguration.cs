@@ -33,5 +33,19 @@ public class AidatChargeConfiguration : IEntityTypeConfiguration<AidatCharge>
             .WithMany()
             .HasForeignKey(c => c.ApartmentId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        // Faz 7.1: Hibrit Model borç sahipliği — borç sahibi sakin + müteselsil ev sahibi.
+        builder.HasOne(c => c.ApartmentOwner)
+            .WithMany()
+            .HasForeignKey(c => c.ApartmentOwnerId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(c => c.LegalResponsibleOwner!)
+            .WithMany()
+            .HasForeignKey(c => c.LegalResponsibleOwnerId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(c => c.ApartmentOwnerId)
+            .HasDatabaseName("IX_AidatCharges_ApartmentOwnerId");
     }
 }

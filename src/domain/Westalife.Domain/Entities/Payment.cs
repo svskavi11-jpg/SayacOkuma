@@ -1,6 +1,7 @@
 using Westalife.Domain.Common;
 using Westalife.Domain.Constants;
 using Westalife.Domain.Exceptions;
+using Westalife.Domain.Services.Ledger;
 
 namespace Westalife.Domain.Entities;
 
@@ -32,6 +33,23 @@ public class Payment : BaseEntity
     /// <summary>Tahsilatı giren görevli. Faz 7'de JWT claim'den okunacak.</summary>
     public string ReceivedBy { get; private set; } = string.Empty;
 
+    // ── Faz 7.1: Hedefli tahsilat + Hibrit Model sahiplik ────────────────────
+    /// <summary>Ödemeyi yapan sakin (SCD çözümü — kiracı varsa kiracı, yoksa ev sahibi). Opsiyonel.</summary>
+    public Guid? ApartmentOwnerId { get; private set; }
+
+    public ApartmentOwner? ApartmentOwner { get; private set; }
+
+    /// <summary>Müteselsil sorumlu ev sahibi (KMK m.22 — yapan kiracıysa doldurulur). Opsiyonel.</summary>
+    public Guid? LegalResponsibleOwnerId { get; private set; }
+
+    public ApartmentOwner? LegalResponsibleOwner { get; private set; }
+
+    /// <summary>
+    /// Hedef borç türü (Aidat/Invoice/OpeningBalancePrincipal) — belirtilirse FIFO tahsilatı
+    /// yalnızca bu türdeki borçlara düşer; null ise tüm borçlara normal FIFO uygulanır.
+    /// </summary>
+    public LedgerDebtType? TargetDebtType { get; private set; }
+
     // ── İptal alanları (soft-delete) ──────────────────────────────────────────
     public bool IsCancelled { get; private set; }
 
@@ -52,7 +70,10 @@ public class Payment : BaseEntity
         DateOnly paymentDate,
         decimal amount,
         string? description,
-        string? receivedBy)
+        string? receivedBy,
+        Guid? apartmentOwnerId = null,
+        Guid? legalResponsibleOwnerId = null,
+        LedgerDebtType? targetDebtType = null)
     {
         if (apartmentId == Guid.Empty)
             throw new ArgumentException("Daire kimliği (apartmentId) zorunludur.", nameof(apartmentId));
@@ -73,6 +94,9 @@ public class Payment : BaseEntity
         ReceivedBy = string.IsNullOrWhiteSpace(receivedBy)
             ? DomainConstants.Payment.DefaultReceivedBy
             : receivedBy.Trim();
+        ApartmentOwnerId = apartmentOwnerId;
+        LegalResponsibleOwnerId = legalResponsibleOwnerId;
+        TargetDebtType = targetDebtType;
     }
 
     /// <summary>

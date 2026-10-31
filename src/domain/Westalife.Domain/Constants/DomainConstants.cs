@@ -64,10 +64,14 @@ public static class DomainConstants
         public const decimal MaxPeriodConsumptionKWh = 100_000m;
     }
 
-    /// <summary>Kat maliki SCD Type 2 kayıt kuralları (Etap 6.7).</summary>
+    /// <summary>Kat maliki/sakin SCD Type 2 kayıt kuralları (Etap 6.7 + Faz 7.1).</summary>
     public static class ApartmentOwner
     {
         public const int OwnerNameMaxLength = 100;
+        public const int PhoneMaxLength = 20;
+        public const int EmailMaxLength = 100;
+        public const int IdentityNumberLength = 11;
+        public const int NotesMaxLength = 500;
     }
 
     /// <summary>Okuma düzeltme denetim izi kuralları (Etap 6.7).</summary>
@@ -289,6 +293,11 @@ public static class DomainConstants
             "Dönem kilitli: fatura düzenlenemez. Önce fatura listesinden kilidi açın.";
 
         public const string OwnerNameRequired = "Kat maliki adı soyadı zorunludur.";
+
+        /// <summary>Faz 7.1: Sakin iletişim doğrulama kuralları.</summary>
+        public const string SakinPhoneInvalid = "Telefon en fazla 20 karakter olabilir; yalnızca rakam ve ' ()+-' karakterleri kullanılabilir.";
+        public const string SakinEmailInvalid = "Geçersiz e-posta adresi.";
+        public const string SakinIdentityNumberInvalid = "TCKN girildiyse 11 haneli ve yalnızca rakamlardan oluşmalıdır.";
 
         public const string ReadingNotFound = "Okuma kaydı bulunamadı.";
 

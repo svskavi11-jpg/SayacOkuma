@@ -24,6 +24,23 @@ public class ApartmentOwnerConfiguration : IEntityTypeConfiguration<ApartmentOwn
             .IsRequired()
             .HasMaxLength(DomainConstants.ApartmentOwner.OwnerNameMaxLength);
 
+        // Faz 7.1: Sakin iletişim bilgileri (Ev Sahibi + Kiracı).
+        builder.Property(o => o.ResidentType)
+            .IsRequired()
+            .HasDefaultValue(Westalife.Domain.Enums.ResidentType.EvSahibi);
+
+        builder.Property(o => o.PhoneNumber)
+            .HasMaxLength(DomainConstants.ApartmentOwner.PhoneMaxLength);
+
+        builder.Property(o => o.Email)
+            .HasMaxLength(DomainConstants.ApartmentOwner.EmailMaxLength);
+
+        builder.Property(o => o.IdentityNumber)
+            .HasMaxLength(DomainConstants.ApartmentOwner.IdentityNumberLength);
+
+        builder.Property(o => o.Notes)
+            .HasMaxLength(DomainConstants.ApartmentOwner.NotesMaxLength);
+
         builder.HasIndex(o => new { o.ApartmentId, o.ValidFrom })
             .HasDatabaseName("IX_ApartmentOwners_ApartmentId_ValidFrom");
 

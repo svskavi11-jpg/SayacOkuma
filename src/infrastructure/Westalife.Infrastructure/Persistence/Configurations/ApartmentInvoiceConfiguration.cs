@@ -38,6 +38,20 @@ public class ApartmentInvoiceConfiguration : IEntityTypeConfiguration<ApartmentI
             .HasForeignKey(i => i.ApartmentId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        // Faz 7.1: Hibrit Model borç sahipliği — borç sahibi sakin + müteselsil ev sahibi.
+        builder.HasOne(i => i.ApartmentOwner)
+            .WithMany()
+            .HasForeignKey(i => i.ApartmentOwnerId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(i => i.LegalResponsibleOwner!)
+            .WithMany()
+            .HasForeignKey(i => i.LegalResponsibleOwnerId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(i => i.ApartmentOwnerId)
+            .HasDatabaseName("IX_ApartmentInvoices_ApartmentOwnerId");
+
         // Bir fatura için bir dairenin en fazla 1 GEÇERLİ satırı olabilir;
         // superseded satırlar ayrık tutulur (audit trail).
         builder.HasIndex(i => new { i.GasInvoiceId, i.ApartmentId })

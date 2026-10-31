@@ -41,6 +41,17 @@ public class ApartmentInvoice : BaseEntity
     /// <summary>Yeniden hesaplamada eski satır pasifleşir; fiziksel silme YASAKTIR.</summary>
     public bool IsSuperseded { get; private set; }
 
+    // ── Faz 7.1: Hibrit Model borç sahipliği (KMK m.22) ──────────────────────
+    /// <summary>Borç sahibi sakin (kiracı varsa kiracı, yoksa ev sahibi — hesaplama anındaki SCD çözümü).</summary>
+    public Guid? ApartmentOwnerId { get; private set; }
+
+    public ApartmentOwner? ApartmentOwner { get; private set; }
+
+    /// <summary>Müteselsil sorumlu ev sahibi (KMK m.22 — borç kiracıya yazıldıysa doldurulur).</summary>
+    public Guid? LegalResponsibleOwnerId { get; private set; }
+
+    public ApartmentOwner? LegalResponsibleOwner { get; private set; }
+
     private ApartmentInvoice() { } // EF Core
 
     public ApartmentInvoice(
@@ -75,6 +86,17 @@ public class ApartmentInvoice : BaseEntity
     public void Supersede()
     {
         IsSuperseded = true;
+        LastModifiedOn = DateTimeOffset.UtcNow;
+    }
+
+    /// <summary>
+    /// Faz 7.1: Borç sahipliğini atar (Hibrit Model). Primary = kiracı (varsa) / ev sahibi;
+    /// LegalResponsible = müteselsil sorumlu ev sahibi (KMK m.22).
+    /// </summary>
+    internal void AssignOwner(Guid? apartmentOwnerId, Guid? legalResponsibleOwnerId)
+    {
+        ApartmentOwnerId = apartmentOwnerId;
+        LegalResponsibleOwnerId = legalResponsibleOwnerId;
         LastModifiedOn = DateTimeOffset.UtcNow;
     }
 }
