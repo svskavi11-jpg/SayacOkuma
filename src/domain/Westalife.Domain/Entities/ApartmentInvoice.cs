@@ -91,9 +91,9 @@ public class ApartmentInvoice : BaseEntity
 
     /// <summary>
     /// Faz 7.1: Borç sahipliğini atar (Hibrit Model). Primary = kiracı (varsa) / ev sahibi;
-    /// LegalResponsible = müteselsil sorumlu ev sahibi (KMK m.22).
+    /// LegalResponsible = müteselsil sorumlu ev sahibi (KMK m.22). Application katmanından çağrılır.
     /// </summary>
-    internal void AssignOwner(Guid? apartmentOwnerId, Guid? legalResponsibleOwnerId)
+    public void AssignOwner(Guid? apartmentOwnerId, Guid? legalResponsibleOwnerId)
     {
         ApartmentOwnerId = apartmentOwnerId;
         LegalResponsibleOwnerId = legalResponsibleOwnerId;

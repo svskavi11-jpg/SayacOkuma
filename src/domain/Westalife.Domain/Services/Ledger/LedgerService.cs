@@ -54,8 +54,17 @@ public static class LedgerService
         {
             var availableAmount = payment.Amount;
 
+            // Faz 7.1 — Hedefli tahsilat: Payment hedef tür/sakin taşıyorsa FIFO yalnızca
+            // o türdeki ve o sakinin borçlarına mahsup edilir; diğer borçlara dokunulmaz.
+            var eligibleDebts = payment.TargetDebtType is null && payment.TargetOwnerId is null
+                ? debts
+                : debts
+                    .Where(d => payment.TargetDebtType is null || d.Type == payment.TargetDebtType.Value)
+                    .Where(d => payment.TargetOwnerId is null || d.OwnerId == payment.TargetOwnerId)
+                    .ToList();
+
             // FIFO: en eski borçtan başla
-            foreach (var debt in debts)
+            foreach (var debt in eligibleDebts)
             {
                 if (availableAmount <= 0m) break;
 
@@ -116,12 +125,22 @@ public static class LedgerService
                 RemainingPrincipal: remaining,
                 InterestAccrued: interest,
                 LineBalance: remaining + interest,
-                Allocations: allocationMap[debt.SourceId].AsReadOnly()));
+                Allocations: allocationMap[debt.SourceId].AsReadOnly(),
+                OwnerId: debt.OwnerId));
         }
 
         var totalPrincipalDue = lines.Sum(l => Math.Max(0m, l.RemainingPrincipal));
         var totalInterest = lines.Sum(l => l.InterestAccrued);
         var totalBalance = lines.Sum(l => l.LineBalance);
+
+        // ── 4. Özet: borç türü bazında kalan anapara + faiz (Faz 7.1) ─────────
+        var summary = new LedgerSummary(
+            AidatPrincipalDue: lines.Where(l => l.Type == LedgerDebtType.Aidat).Sum(l => Math.Max(0m, l.RemainingPrincipal)),
+            AidatInterestAccrued: lines.Where(l => l.Type == LedgerDebtType.Aidat).Sum(l => l.InterestAccrued),
+            InvoicePrincipalDue: lines.Where(l => l.Type == LedgerDebtType.Invoice).Sum(l => Math.Max(0m, l.RemainingPrincipal)),
+            InvoiceInterestAccrued: lines.Where(l => l.Type == LedgerDebtType.Invoice).Sum(l => l.InterestAccrued),
+            OpeningBalancePrincipalDue: lines.Where(l => l.Type == LedgerDebtType.OpeningBalancePrincipal).Sum(l => Math.Max(0m, l.RemainingPrincipal)),
+            OpeningBalanceInterestDue: lines.Where(l => l.Type == LedgerDebtType.OpeningBalanceInterest).Sum(l => Math.Max(0m, l.RemainingPrincipal)));
 
         return new LedgerResult(
             ApartmentId: apartment.Id,
@@ -131,7 +150,8 @@ public static class LedgerService
             TotalPrincipalDue: totalPrincipalDue,
             TotalInterestAccrued: totalInterest,
             TotalBalance: totalBalance,
-            AsOfDate: asOfDate);
+            AsOfDate: asOfDate,
+            Summary: summary);
     }
 
     // ── Yardımcı metodlar ─────────────────────────────────────────────────────
@@ -177,7 +197,8 @@ public static class LedgerService
                 SourceId: i.Id.ToString(),
                 DueDate: i.GasInvoice?.DueDate ?? DateOnly.FromDateTime(i.CalculatedOnUtc.DateTime),
                 PrincipalAmount: i.TotalAmount,
-                Label: BuildInvoiceLabel(i)))
+                Label: BuildInvoiceLabel(i),
+                OwnerId: i.ApartmentOwnerId))
             .ToList();
 
         var aidatDebts = (aidatCharges ?? Enumerable.Empty<AidatCharge>())
@@ -187,7 +208,8 @@ public static class LedgerService
                 SourceId: c.Id.ToString(),
                 DueDate: c.AidatInvoice?.DueDate ?? DateOnly.FromDateTime(c.CreatedOn.UtcDateTime),
                 PrincipalAmount: c.Amount,
-                Label: BuildAidatLabel(c)))
+                Label: BuildAidatLabel(c),
+                OwnerId: c.ApartmentOwnerId))
             .ToList();
 
         debts.AddRange(invoiceDebts.Concat(aidatDebts).OrderBy(d => d.DueDate));

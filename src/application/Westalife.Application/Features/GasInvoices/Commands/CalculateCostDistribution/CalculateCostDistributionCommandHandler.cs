@@ -4,6 +4,7 @@ using Westalife.Application.Common;
 using Westalife.Application.Common.Interfaces;
 using Westalife.Domain.Constants;
 using Westalife.Domain.Entities;
+using Westalife.Domain.Enums;
 using Westalife.Domain.Exceptions;
 using Westalife.Domain.Services.CostDistribution;
 
@@ -118,9 +119,18 @@ public sealed class CalculateCostDistributionCommandHandler
         }
 
         var calculatedOn = DateTimeOffset.UtcNow;
+
+        // Faz 7.1 — Hibrit Model (KMK m.22): her borç satırı, hesaplama anında oturan
+        // kiracıya (varsa) / ev sahibine yazılır; ev sahibi müteselsil sorumlu olarak ayrıca
+        // kayıt altına alınır. Eski kiracının borcu yeni kiracıya asla geçmez.
+        var apartmentIds = apartmentsWithDimensions.Select(a => a.Id).ToList();
+        var residentRows = await _db.ApartmentOwners
+            .Where(o => apartmentIds.Contains(o.ApartmentId))
+            .ToListAsync(cancellationToken);
+
         foreach (var share in shares)
         {
-            _db.ApartmentInvoices.Add(new ApartmentInvoice(
+            var row = new ApartmentInvoice(
                 invoice.Id,
                 share.ApartmentId,
                 share.SquareMetersUsed,
@@ -128,7 +138,21 @@ public sealed class CalculateCostDistributionCommandHandler
                 share.FixedAmountKurus,
                 share.ConsumptionAmountKurus,
                 share.IsMeterReadFailed,
-                calculatedOn));
+                calculatedOn);
+
+            var kiraci = residentRows.LastOrDefault(o =>
+                o.ApartmentId == share.ApartmentId &&
+                o.ResidentType == ResidentType.Kiraci &&
+                o.IsValidAt(calculatedOn));
+
+            var evSahibi = residentRows.LastOrDefault(o =>
+                o.ApartmentId == share.ApartmentId &&
+                o.ResidentType == ResidentType.EvSahibi &&
+                o.IsValidAt(calculatedOn));
+
+            row.AssignOwner((kiraci ?? evSahibi)?.Id, evSahibi?.Id);
+
+            _db.ApartmentInvoices.Add(row);
         }
 
         await _db.SaveChangesAsync(cancellationToken);

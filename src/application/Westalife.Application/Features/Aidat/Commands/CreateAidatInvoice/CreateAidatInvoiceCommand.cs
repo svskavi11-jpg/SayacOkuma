@@ -5,6 +5,7 @@ using Westalife.Application.Common;
 using Westalife.Application.Common.Interfaces;
 using Westalife.Domain.Constants;
 using Westalife.Domain.Entities;
+using Westalife.Domain.Enums;
 using Westalife.Domain.Exceptions;
 
 namespace Westalife.Application.Features.Aidat.Commands.CreateAidatInvoice;
@@ -95,11 +96,12 @@ public sealed class CreateAidatInvoiceCommandHandler : IRequestHandler<CreateAid
             throw new DomainException(DomainConstants.ValidationMessages.AidatEqualAmountRequired);
         }
 
-        // 3. Aktif daireler — tarife ve SCD m² kayıtlarıyla.
+        // 3. Aktif daireler — tarife, SCD m² kayıtları ve sakinler (SCD Type 2) ile.
         var apartments = await _db.Apartments
             .AsNoTracking()
             .Include(a => a.AidatTariff)
             .Include(a => a.Dimensions)
+            .Include(a => a.Owners)
             .Where(a => a.IsActive)
             .ToListAsync(cancellationToken);
 
@@ -125,7 +127,7 @@ public sealed class CreateAidatInvoiceCommandHandler : IRequestHandler<CreateAid
                         continue;
                     }
 
-                    invoice.AddCharge(apartment.Id, apartment.AidatTariff.Amount);
+                    AssignHibritOwner(apartment, invoice.AddCharge(apartment.Id, apartment.AidatTariff.Amount));
                     break;
 
                 case AidatDistributionMethod.Metrekare:
@@ -146,11 +148,12 @@ public sealed class CreateAidatInvoiceCommandHandler : IRequestHandler<CreateAid
 
                     // Birim m² fiyatı tarifenin tutarından türetilir: tarife tutarı / tarife m².
                     var unitPrice = apartment.AidatTariff.Amount / apartment.AidatTariff.SquareMeters;
-                    invoice.AddCharge(apartment.Id, decimal.Round(activeDimension.SquareMeters * unitPrice, 2));
+                    AssignHibritOwner(apartment, invoice.AddCharge(
+                        apartment.Id, decimal.Round(activeDimension.SquareMeters * unitPrice, 2)));
                     break;
 
                 case AidatDistributionMethod.Esit:
-                    invoice.AddCharge(apartment.Id, request.EqualAmount!.Value);
+                    AssignHibritOwner(apartment, invoice.AddCharge(apartment.Id, request.EqualAmount!.Value));
                     break;
             }
         }
@@ -174,5 +177,18 @@ public sealed class CreateAidatInvoiceCommandHandler : IRequestHandler<CreateAid
             skipped.Count,
             invoice.TotalAmount,
             skipped);
+    }
+
+    /// <summary>
+    /// Faz 7.1 — Hibrit Model (KMK m.22): borç, tahakkuk anında kiracıya (varsa) / ev sahibine
+    /// yazılır; ev sahibi müteselsil sorumlu olarak ayrıca kayıt altına alınır.
+    /// Böylece eski kiracının borcu yeni kiracıya asla geçmez.
+    /// </summary>
+    private static void AssignHibritOwner(Apartment apartment, AidatCharge charge)
+    {
+        var now = DateTimeOffset.UtcNow;
+        charge.AssignOwner(
+            apartment.ResolveDebtOwner(now)?.Id,
+            apartment.GetActiveResident(ResidentType.EvSahibi, now)?.Id);
     }
 }

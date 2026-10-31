@@ -24,7 +24,10 @@ public record LedgerResult(
     decimal TotalBalance,
 
     /// <summary>Hesaplamanın yapıldığı tarih.</summary>
-    DateOnly AsOfDate
+    DateOnly AsOfDate,
+
+    /// <summary>Borç türü bazlı özet (Faz 7.1) — cari hesap ekranındaki özet kartlarının kaynağı.</summary>
+    LedgerSummary? Summary = null
 );
 
 /// <summary>Cari hesap tek satırı.</summary>
@@ -57,8 +60,34 @@ public record LedgerLine(
     decimal LineBalance,
 
     /// <summary>Bu borca ait allocation detayları.</summary>
-    IReadOnlyList<AllocationDetail> Allocations
+    IReadOnlyList<AllocationDetail> Allocations,
+
+    /// <summary>Borç sahibi sakin (Faz 7.1 — Hibrit Model). Devir bakiyesinde NULL.</summary>
+    Guid? OwnerId = null
 );
+
+/// <summary>
+/// Cari hesap özeti — borç türü bazında anapara + faiz ayrımı (Faz 7.1).
+/// UI özet kartları ve Geçmiş Sakinler ekranı bu yapıyı kullanır.
+/// </summary>
+public record LedgerSummary(
+    /// <summary>Aidat kalan anapara.</summary>
+    decimal AidatPrincipalDue,
+
+    /// <summary>Aidat birikmiş gecikme faizi.</summary>
+    decimal AidatInterestAccrued,
+
+    /// <summary>Isınma (doğalgaz faturası) kalan anapara.</summary>
+    decimal InvoicePrincipalDue,
+
+    /// <summary>Isınma birikmiş gecikme faizi.</summary>
+    decimal InvoiceInterestAccrued,
+
+    /// <summary>Devir anapara kalanı.</summary>
+    decimal OpeningBalancePrincipalDue,
+
+    /// <summary>Devir ile gelen geçmiş faiz kalanı (faiz işlemez).</summary>
+    decimal OpeningBalanceInterestDue);
 
 public record AllocationDetail(
     Guid PaymentId,

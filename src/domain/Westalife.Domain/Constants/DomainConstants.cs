@@ -298,6 +298,7 @@ public static class DomainConstants
         public const string SakinPhoneInvalid = "Telefon en fazla 20 karakter olabilir; yalnızca rakam ve ' ()+-' karakterleri kullanılabilir.";
         public const string SakinEmailInvalid = "Geçersiz e-posta adresi.";
         public const string SakinIdentityNumberInvalid = "TCKN girildiyse 11 haneli ve yalnızca rakamlardan oluşmalıdır.";
+        public const string SakinRucuWarning = "Kiracı borcunu ödemeden ayrıldı — bu borç için ev sahibine de rücu edilebilir (KMK m.22: müteselsil sorumluluk).";
 
         public const string ReadingNotFound = "Okuma kaydı bulunamadı.";
 

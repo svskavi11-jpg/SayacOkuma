@@ -22,7 +22,13 @@ public record LedgerDebt(
     decimal PrincipalAmount,
 
     /// <summary>Dönem açıklaması (örn: "Ocak 2026 - Şubat 2026")</summary>
-    string? Label = null
+    string? Label = null,
+
+    /// <summary>
+    /// Borcun sahibi sakin (Faz 7.1 — Hibrit Model: kiracı varsa kiracı, yoksa ev sahibi).
+    /// Devir bakiyesi daire düzeyinde olduğundan NULL'dur. Hedefli tahsilat bu alanla eşleşir.
+    /// </summary>
+    Guid? OwnerId = null
 );
 
 /// <summary>

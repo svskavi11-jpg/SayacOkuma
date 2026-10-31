@@ -50,6 +50,12 @@ public class Payment : BaseEntity
     /// </summary>
     public LedgerDebtType? TargetDebtType { get; private set; }
 
+    /// <summary>
+    /// Hedef sakin (Faz 7.1) — tahsilatın mahsup edileceği sakin. Verildiyse FIFO yalnızca
+    /// bu sakinin borçlarına düşer; null ise sahiplik kısıtı olmadan tür filtresi uygulanır.
+    /// </summary>
+    public Guid? TargetOwnerId { get; private set; }
+
     // ── İptal alanları (soft-delete) ──────────────────────────────────────────
     public bool IsCancelled { get; private set; }
 
@@ -73,7 +79,8 @@ public class Payment : BaseEntity
         string? receivedBy,
         Guid? apartmentOwnerId = null,
         Guid? legalResponsibleOwnerId = null,
-        LedgerDebtType? targetDebtType = null)
+        LedgerDebtType? targetDebtType = null,
+        Guid? targetOwnerId = null)
     {
         if (apartmentId == Guid.Empty)
             throw new ArgumentException("Daire kimliği (apartmentId) zorunludur.", nameof(apartmentId));
@@ -97,6 +104,7 @@ public class Payment : BaseEntity
         ApartmentOwnerId = apartmentOwnerId;
         LegalResponsibleOwnerId = legalResponsibleOwnerId;
         TargetDebtType = targetDebtType;
+        TargetOwnerId = targetOwnerId;
     }
 
     /// <summary>

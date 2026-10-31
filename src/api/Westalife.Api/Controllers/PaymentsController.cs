@@ -46,7 +46,9 @@ public class PaymentsController : ControllerBase
             request.PaymentDate,
             request.Amount,
             request.Description,
-            request.ReceivedBy);
+            request.ReceivedBy,
+            request.TargetDebtType,
+            request.TargetOwnerId);
 
         var result = await _mediator.Send(command, ct);
         return CreatedAtAction(nameof(GetPayments), new { apartmentId = result.ApartmentId }, result);
@@ -108,6 +110,8 @@ public sealed record RecordPaymentRequest(
     DateOnly PaymentDate,
     decimal Amount,
     string? Description,
-    string? ReceivedBy);
+    string? ReceivedBy,
+    LedgerDebtType? TargetDebtType = null,
+    Guid? TargetOwnerId = null);
 
 public sealed record CancelPaymentRequest(string Reason);

@@ -2327,6 +2327,9 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                     b.Property<int?>("TargetDebtType")
                         .HasColumnType("integer");
 
+                    b.Property<Guid?>("TargetOwnerId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ApartmentOwnerId")
