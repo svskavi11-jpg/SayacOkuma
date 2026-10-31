@@ -1,12 +1,17 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Button, Card, Form, Input, InputNumber, Modal, Space, Table, Tag, Typography, message } from 'antd'
-import { EditOutlined, PlusOutlined } from '@ant-design/icons'
+import { Alert, Button, Card, Form, Input, InputNumber, Modal, Space, Table, Tag, Typography, message } from 'antd'
+import { EditOutlined, MoneyCollectOutlined, PlusOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { apiClient } from '../../api/client'
-import type { AidatTariffItem, CreateAidatTariffRequest } from '../../types/api'
+import type {
+  AidatTariffItem,
+  AssignTariffBySquareMetersResult,
+  CreateAidatTariffRequest,
+} from '../../types/api'
 
 const tl = (v: number) => v.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })
+const fmtOne = (v: number) => v.toLocaleString('tr-TR', { minimumFractionDigits: 1 })
 
 /** Faz 6.9: Aidat tarife tanımlama ekranı ("1+1 C" → 32,1 m² → 2.000,00 TL/ay). */
 export function AidatTariffsPage() {
@@ -14,6 +19,34 @@ export function AidatTariffsPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<AidatTariffItem | null>(null)
   const [form] = Form.useForm()
+
+  // Faz 6.9: Toplu tarife atama — m²'si eşleşen tüm dairelere.
+  const [assignFor, setAssignFor] = useState<AidatTariffItem | null>(null)
+  const [assignForm] = Form.useForm<{ squareMeters: number }>()
+  const assignMutation = useMutation({
+    mutationFn: async (input: { tariffId: string; squareMeters: number }) =>
+      (await apiClient.post<AssignTariffBySquareMetersResult>(
+        `/aidat/tariffs/${input.tariffId}/assign-by-square-meters`,
+        { squareMeters: input.squareMeters },
+      )).data,
+    onSuccess: (res) => {
+      void queryClient.invalidateQueries({ queryKey: ['aidat-tariffs'] })
+      void queryClient.invalidateQueries({ queryKey: ['apartments'] })
+      setAssignFor(null)
+      const doors = res.doorNumbers.length > 0
+        ? ` Atanan daireler: ${res.doorNumbers.slice(0, 12).join(', ')}${res.doorNumbers.length > 12 ? ', …' : ''}`
+        : ''
+      Modal.success({
+        title: 'Toplu tarife atama tamamlandı',
+        content:
+          `${res.assignedCount} daireye atandı.` +
+          (res.alreadyAssignedCount > 0 ? ` ${res.alreadyAssignedCount} daire zaten bu tarifedeydi.` : '') +
+          (res.noMatchCount > 0 ? ` ${res.noMatchCount} dairenin m²'si eşleşmedi.` : '') +
+          doors,
+        okText: 'Tamam',
+      })
+    },
+  })
 
   const tariffsQuery = useQuery({
     queryKey: ['aidat-tariffs'],
@@ -56,9 +89,23 @@ export function AidatTariffsPage() {
     },
     { title: 'Atanmış Daire', dataIndex: 'apartmentCount', width: 120, align: 'right' },
     {
-      title: 'İşlem', width: 100,
+      title: 'İşlem',
+      width: 220,
       render: (_: unknown, r: AidatTariffItem) => (
-        <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)}>Düzenle</Button>
+        <Space size={4}>
+          <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)}>Düzenle</Button>
+          <Button
+            size="small"
+            icon={<MoneyCollectOutlined />}
+            disabled={!r.isActive}
+            onClick={() => {
+              setAssignFor(r)
+              assignForm.setFieldsValue({ squareMeters: r.squareMeters })
+            }}
+          >
+            Daireleri Ata
+          </Button>
+        </Space>
       ),
     },
   ]
@@ -128,7 +175,39 @@ export function AidatTariffsPage() {
           </Typography.Text>
         </Form>
       </Modal>
-      <Space />
+
+      {/* Faz 6.9: Toplu tarife atama — m²'si eşleşen tüm dairelere */}
+      <Modal
+        title={`Daireleri Ata — ${assignFor?.name ?? ''}`}
+        open={assignFor !== null}
+        onCancel={() => setAssignFor(null)}
+        confirmLoading={assignMutation.isPending}
+        okText="Daireleri Ata"
+        cancelText="Vazgeç"
+        onOk={() =>
+          assignForm.validateFields().then((values) => {
+            if (assignFor === null) return
+            assignMutation.mutate({ tariffId: assignFor.id, squareMeters: values.squareMeters })
+          })
+        }
+      >
+        <Alert
+          type="info"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message={`m²'si ${assignFor ? fmtOne(assignFor.squareMeters) : ''} olan tüm aktif daireler (SCD aktif kaydı) bu tarifeye atanacak.`}
+          description="Zaten bu tarifeye atanmış daireler tekrar dokunulmaz. m² eşleştirmesi kuruş hassasiyetiyle yapılır (47,4 ≡ 47,40)."
+        />
+        <Form form={assignForm} layout="vertical">
+          <Form.Item
+            name="squareMeters"
+            label="Eşleştirilecek m²"
+            rules={[{ required: true, message: 'm² değeri zorunludur.' }]}
+          >
+            <InputNumber style={{ width: '100%' }} min={0.1} max={1000} precision={2} decimalSeparator="," addonAfter="m²" />
+          </Form.Item>
+        </Form>
+      </Modal>
     </Card>
   )
 }

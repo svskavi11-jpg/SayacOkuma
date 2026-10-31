@@ -20,7 +20,9 @@ public sealed record ApartmentListItem(
     IReadOnlyList<ApartmentMeterItem> Meters,
     decimal OpeningBalancePrincipal = 0m,
     decimal OpeningBalanceInterest = 0m,
-    DateOnly? OpeningBalanceDate = null);
+    DateOnly? OpeningBalanceDate = null,
+    Guid? AidatTariffId = null,
+    string? AidatTariffName = null);
 
 public sealed record ApartmentMeterItem(Guid Id, string SerialNumber, string MeterType, int? MbusPrimaryAddress, bool IsActive);
 
@@ -47,6 +49,8 @@ public sealed class GetApartmentsQueryHandler : IRequestHandler<GetApartmentsQue
                 a.OpeningBalancePrincipal,
                 a.OpeningBalanceInterest,
                 a.OpeningBalanceDate,
+                AidatTariffId = (Guid?)a.AidatTariffId,
+                AidatTariffName = a.AidatTariff != null ? a.AidatTariff.Name : null,
                 ActiveSquareMeters = a.Dimensions
                     .Where(d => d.ValidTo == null)
                     .Select(d => (decimal?)d.SquareMeters)
@@ -91,7 +95,8 @@ public sealed class GetApartmentsQueryHandler : IRequestHandler<GetApartmentsQue
             .Select(a => new ApartmentListItem(
                 a.Id, a.DoorNumber, a.Title, a.ActiveSquareMeters, a.OwnerName,
                 a.ActiveMeter?.Id, a.ActiveMeter?.LastIndex, a.ActiveMeter?.LastDate, a.Meters,
-                a.OpeningBalancePrincipal, a.OpeningBalanceInterest, a.OpeningBalanceDate))
+                a.OpeningBalancePrincipal, a.OpeningBalanceInterest, a.OpeningBalanceDate,
+                a.AidatTariffId, a.AidatTariffName))
             .ToList();
     }
 }

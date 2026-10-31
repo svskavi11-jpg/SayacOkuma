@@ -10,6 +10,7 @@ import {
   Input,
   InputNumber,
   List,
+  message,
   Modal,
   Select,
   Space,
@@ -26,19 +27,23 @@ import { formatDate } from '../../utils/dateUtils'
 import { downloadFile } from '../../api/download'
 import type {
   AddManualMeterReadingRequest,
+  AidatTariffItem,
   ApartmentListItem,
   ImportMetersFromExcelResult,
   ManualReadingResult,
+  SetApartmentTariffResult,
 } from '../../types/api'
 import dayjs, { type Dayjs } from 'dayjs'
 import { AnalysisModal } from './AnalysisModal'
 import { ReadingsModal } from './ReadingsModal'
 import { OwnerEditModal, OwnerHistoryModal } from './OwnerModals'
-import { AccountBookOutlined, HistoryOutlined, LineChartOutlined, TableOutlined, UserOutlined } from '@ant-design/icons'
+import { AccountBookOutlined, HistoryOutlined, LineChartOutlined, MoneyCollectOutlined, TableOutlined, UserOutlined } from '@ant-design/icons'
 
 // Türkçe sayı biçimi: binlik ayracı nokta, ondalık ayracı virgül (Intl 'tr-TR')
 const fmtIndex = new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
 const fmtM2 = new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+const tl = (v: number) => v.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })
+const fmtM2One = (v: number) => v.toLocaleString('tr-TR', { minimumFractionDigits: 1 })
 
 /** Excel içe aktarma sonucu: satır bazlı başarı/atlanan/hatalı raporu. */
 function ImportResultModal({
@@ -234,6 +239,27 @@ export function ApartmentsPage() {
     },
   })
 
+  // Faz 6.9: Aidat tarife atama (tekli) — aktif tarifeler + mutasyon.
+  const [tariffFor, setTariffFor] = useState<ApartmentListItem | null>(null)
+  const [tariffForm] = Form.useForm<{ tariffId?: string }>()
+  const tariffsQuery = useQuery({
+    queryKey: ['aidat-tariffs'],
+    queryFn: async () => (await apiClient.get<AidatTariffItem[]>('/aidat/tariffs?isActive=true')).data,
+  })
+  const tariffMutation = useMutation({
+    mutationFn: async (input: { apartmentId: string; tariffId: string | null }) =>
+      (await apiClient.put<SetApartmentTariffResult>(
+        `/aidat/apartments/${input.apartmentId}/tariff`,
+        { tariffId: input.tariffId },
+      )).data,
+    onSuccess: (res) => {
+      void queryClient.invalidateQueries({ queryKey: ['apartments'] })
+      void queryClient.invalidateQueries({ queryKey: ['aidat-tariffs'] })
+      setTariffFor(null)
+      message.success(res.tariffId ? `Tarife atandı: ${res.tariffName}` : 'Tarife kaldırıldı (daire artık tarifesiz).')
+    },
+  })
+
   // Arama filtresi: Kapı No, Daire adı, Kat Maliki, Sayaç Seri No
   const filteredApartments = (apartmentsQuery.data ?? []).filter((a) => {
     const q = search.trim().toLocaleLowerCase('tr-TR')
@@ -269,6 +295,12 @@ export function ApartmentsPage() {
       width: 120,
       align: 'right',
       render: (v: number | null) => (v === null ? <Tag>YOK</Tag> : `${fmtM2.format(v)} m²`),
+    },
+    {
+      title: 'Aidat Tarifesi',
+      dataIndex: 'aidatTariffName',
+      width: 150,
+      render: (v: string | null) => (v ? <Tag color="purple">{v}</Tag> : <Tag>Tarifesiz</Tag>),
     },
     {
       title: 'Son Endeks (kWh)',
@@ -333,6 +365,7 @@ export function ApartmentsPage() {
             menu={{
               items: [
                 { key: 'dimension', icon: <EditOutlined />, label: 'm² Düzenle' },
+                { key: 'tariff', icon: <MoneyCollectOutlined />, label: 'Tarife Ata' },
                 { key: 'owner', icon: <UserOutlined />, label: 'Malik Değiştir' },
                 { key: 'ownerHistory', icon: <HistoryOutlined />, label: 'Malik Geçmişi' },
                 { key: 'openingBalance', icon: <AccountBookOutlined />, label: 'Devir Bakiye Gir' },
@@ -343,6 +376,9 @@ export function ApartmentsPage() {
                 if (key === 'dimension') {
                   setEditing(record)
                   form.setFieldsValue({ squareMeters: record.activeSquareMeters ?? undefined })
+                } else if (key === 'tariff') {
+                  setTariffFor(record)
+                  tariffForm.setFieldsValue({ tariffId: record.aidatTariffId ?? '__none__' })
                 } else if (key === 'owner') {
                   setOwnerEditFor(record)
                 } else if (key === 'ownerHistory') {
@@ -548,6 +584,49 @@ export function ApartmentsPage() {
             </Typography.Text>
           </Space>
         )}
+      </Modal>
+
+      {/* Faz 6.9: Aidat tarife atama (tekli) */}
+      <Modal
+        title={`Aidat Tarife Ata — Daire ${tariffFor?.doorNumber ?? ''}`}
+        open={tariffFor !== null}
+        onCancel={() => setTariffFor(null)}
+        confirmLoading={tariffMutation.isPending}
+        okText="Kaydet"
+        cancelText="İptal"
+        onOk={() =>
+          tariffForm.validateFields().then((values) => {
+            if (tariffFor === null) return
+            tariffMutation.mutate({
+              apartmentId: tariffFor.id,
+              tariffId: values.tariffId === '__none__' ? null : (values.tariffId as string),
+            })
+          })
+        }
+      >
+        <Form form={tariffForm} layout="vertical">
+          <Form.Item
+            name="tariffId"
+            label="Aidat Tarifesi"
+            rules={[{ required: true, message: 'Tarife seçin veya Tarifesız bırak seçeneğini kullanın.' }]}
+          >
+            <Select
+              placeholder="Tarife seçin…"
+              options={[
+                { value: '__none__', label: 'Tarifesız bırak' },
+                ...(tariffsQuery.data ?? []).map((t) => ({
+                  value: t.id,
+                  label: `${t.name} — ${fmtM2One(t.squareMeters)} m² — ${tl(t.amount)}`,
+                })),
+              ]}
+            />
+          </Form.Item>
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            Tarife-bazlı aidat dağıtımında dairenin borcu, atanmış tarifenin aylık tutarı kadardır.
+            Tarifeyi tüm benzer dairelere toplu atamak için Aidat Yönetimi → Tarifeler ekranındaki
+            Daireleri Ata butonunu kullanın.
+          </Typography.Text>
+        </Form>
       </Modal>
 
       {/* Etap 6.6: Manuel okuma girişi */}

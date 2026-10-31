@@ -34,6 +34,9 @@ export interface ApartmentListItem {
   openingBalancePrincipal?: number
   openingBalanceInterest?: number
   openingBalanceDate?: string | null
+  /** Faz 6.9: daireye atanmış aidat tarifesı */
+  aidatTariffId?: string | null
+  aidatTariffName?: string | null
   meters: ApartmentMeterItem[]
 }
 
@@ -496,3 +499,21 @@ export interface AidatPreviewResult {
   totalAmount: number
   rows: AidatPreviewRow[]
 }
+
+export interface SetApartmentTariffRequest {
+  tariffId: string | null
+}
+
+export interface SetApartmentTariffResult {
+  apartmentId: string
+  tariffId: string | null
+  tariffName: string | null
+}
+
+export interface AssignTariffBySquareMetersResult {
+  assignedCount: number
+  alreadyAssignedCount: number
+  noMatchCount: number
+  doorNumbers: string[]
+}
+

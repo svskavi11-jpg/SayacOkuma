@@ -1,8 +1,10 @@
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Westalife.Api.Infrastructure;
+using Westalife.Application.Features.Aidat.Commands.AssignTariffBySquareMeters;
 using Westalife.Application.Features.Aidat.Commands.CreateAidatInvoice;
 using Westalife.Application.Features.Aidat.Commands.CreateAidatTariff;
+using Westalife.Application.Features.Aidat.Commands.SetApartmentTariff;
 using Westalife.Application.Features.Aidat.Commands.UpdateAidatTariff;
 using Westalife.Application.Features.Aidat.Queries.GetAidatInvoicePreview;
 using Westalife.Application.Features.Aidat.Queries.GetAidatInvoices;
@@ -57,6 +59,34 @@ public class AidatController : ControllerBase
         var tariffId = await _mediator.Send(
             new UpdateAidatTariffCommand(id, request.Name, request.SquareMeters, request.Amount), ct);
         return Ok(tariffId);
+    }
+
+    /// <summary>Tekli tarife atama — daireye aktif tarife atanır veya null ile temizlenir.</summary>
+    [HttpPut("apartments/{apartmentId:guid}/tariff")]
+    [ProducesResponseType(typeof(SetApartmentTariffResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> SetApartmentTariff(
+        Guid apartmentId, [FromBody] SetApartmentTariffRequest request, CancellationToken ct)
+    {
+        var result = await _mediator.Send(new SetApartmentTariffCommand(apartmentId, request.TariffId), ct);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Toplu tarife atama — aktif SCD m² kaydı verilen değere eşit (kuruş hassasiyeti)
+    /// olan tüm dairelere tarife atanır. Zaten atanmışlar dokunulmaz.
+    /// </summary>
+    [HttpPost("tariffs/{tariffId:guid}/assign-by-square-meters")]
+    [ProducesResponseType(typeof(AssignTariffBySquareMetersResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> AssignBySquareMeters(
+        Guid tariffId, [FromBody] AssignTariffBySquareMetersRequest request, CancellationToken ct)
+    {
+        var result = await _mediator.Send(
+            new AssignTariffBySquareMetersCommand(tariffId, request.SquareMeters), ct);
+        return Ok(result);
     }
 
     // ── Aidat Tahakkukları ────────────────────────────────────────────────────
@@ -132,3 +162,7 @@ public sealed record CreateAidatInvoiceRequest(
     AidatDistributionMethod DistributionMethod,
     decimal? EqualAmount = null,
     string? Note = null);
+
+public sealed record SetApartmentTariffRequest(Guid? TariffId);
+
+public sealed record AssignTariffBySquareMetersRequest(decimal SquareMeters);

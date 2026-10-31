@@ -314,5 +314,6 @@ public static class DomainConstants
         public const string AidatTariffNameAlreadyExists = "Bu ada sahip bir aidat tarifesı zaten kayıtlı.";
         public const string AidatPeriodOverlap = "Aidat dönemleri çakışıyor: seçilen dönem, mevcut bir aidat tahakkuku dönemine denk geliyor.";
         public const string AidatEqualAmountRequired = "Eşit dağıtımda daire başına tutar (EqualAmount) sıfırdan büyük olmalıdır.";
+        public const string AidatTariffNotActive = "Pasif durumdaki tarife daireye atanamaz — önce tarifeyi aktif edin.";
     }
 }
