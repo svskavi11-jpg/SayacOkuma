@@ -6,6 +6,7 @@ import { InvoicesPage } from './features/invoices/InvoicesPage'
 import { PaymentsPage } from './features/payments/PaymentsPage'
 import { AidatTariffsPage } from './features/aidat/AidatTariffsPage'
 import { AidatInvoicesPage } from './features/aidat/AidatInvoicesPage'
+import { FormerResidentsPage } from './features/residents/FormerResidentsPage'
 import { ReportsPage } from './features/reports/ReportsPage'
 import { SettingsPage } from './features/settings/SettingsPage'
 
@@ -19,6 +20,7 @@ export default function App() {
         <Route path="/payments" element={<PaymentsPage />} />
         <Route path="/aidat/tariffs" element={<AidatTariffsPage />} />
         <Route path="/aidat/invoices" element={<AidatInvoicesPage />} />
+        <Route path="/former-residents" element={<FormerResidentsPage />} />
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>

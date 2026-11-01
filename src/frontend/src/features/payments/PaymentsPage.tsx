@@ -12,6 +12,7 @@ import {
   InputNumber,
   Modal,
   Row,
+  Segmented,
   Select,
   Statistic,
   Table,
@@ -40,6 +41,18 @@ import type {
 } from '../../types/api'
 
 const tl = (v: number) => v.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })
+
+/**
+ * Faz 7.1: Daire seçici etiketi — sakin adı ve rolüyle birlikte.
+ * Örnek: "1 — Daire 1 (Ahmet Yılmaz · Kiracı)" / "2 — Daire 2 (Ayşe Kaya · Ev Sahibi)".
+ */
+function apartmentLabel(a: ApartmentListItem): string {
+  const person = a.kiraciName ?? a.ownerName
+  const role = a.kiraciName ? 'Kiracı' : a.ownerName ? 'Ev Sahibi' : null
+  return person && role
+    ? `${a.doorNumber} — ${a.title} (${person} · ${role})`
+    : `${a.doorNumber} — ${a.title}`
+}
 
 // Backend'den gelen fatura dönem etiketi ("Apr 2026 - May 2026") Türkçe aylara çevrilir.
 const EN_TO_TR_MONTHS: Record<string, string> = {
@@ -143,7 +156,7 @@ function PaymentsTab() {
   const apartmentOptions =
     apartmentsQuery.data?.map((a) => ({
       value: a.id,
-      label: `${a.doorNumber} — ${a.title}`,
+      label: apartmentLabel(a),
     })) ?? []
 
   const columns: ColumnsType<PaymentListItem> = [
@@ -360,7 +373,12 @@ function LedgerTab() {
   // Devir FAİZ satırı kapalı borçtur — ona faiz işlemez ve hesap notu konmaz.
   const movements: MovementRow[] = []
   if (ledger) {
-    for (const l of ledger.lines) {
+    // Faz 7.1: Sakin + borç türü filtreleri satır bazında uygulanır (Faiz/Tahsilat alt
+    // satırları kendi borç satırlarıyla birlikte filtrelenir).
+    const filteredLines = ledger.lines.filter(
+      (l) => typeMatches(l.type) && (!activeResidentFilter || l.ownerId === activeResidentFilter),
+    )
+    for (const l of filteredLines) {
       if (l.type === 'OpeningBalanceInterest') {
         movements.push({ key: l.sourceId, date: l.dueDate, type: 'Devir Faiz', description: 'Devreden Geçmiş Faiz', debit: l.principalAmount, credit: 0, interestDays: null })
         continue
@@ -419,16 +437,44 @@ function LedgerTab() {
     : 0
   const totalCollected = ledger ? ledger.lines.reduce((s, l) => s + l.allocations.reduce((a, al) => a + al.allocatedAmount, 0), 0) : 0
 
+  // Faz 7.1: Sakin seçici + borç türü filtresi + tür bazlı özet kartları.
+  const [residentFilter, setResidentFilter] = useState<string | null>(null)
+  const [typeFilter, setTypeFilter] = useState<'all' | 'isinma' | 'aidat' | 'devir'>('all')
+
+  const residentOptions = ledger
+    ? [
+        { value: '__all__', label: 'Tüm Sakinler' },
+        ...Array.from(
+          new Map(
+            ledger.lines
+              .filter((l) => l.ownerId)
+              .map((l) => [l.ownerId as string, l.ownerName ?? 'Sakin']),
+          ).entries(),
+        ).map(([id, name]) => ({ value: id, label: name })),
+      ]
+    : [{ value: '__all__', label: 'Tüm Sakinler' }]
+
+  const activeResidentFilter = residentFilter && residentFilter !== '__all__' ? residentFilter : null
+
+  const typeMatches = (t: LedgerResult['lines'][number]['type']) =>
+    typeFilter === 'all'
+      ? true
+      : typeFilter === 'isinma'
+        ? t === 'Invoice'
+        : typeFilter === 'aidat'
+          ? t === 'Aidat'
+          : t === 'OpeningBalancePrincipal' || t === 'OpeningBalanceInterest'
+
   const apartmentOptions =
     apartmentsQuery.data?.map((a) => ({
       value: a.id,
-      label: `${a.doorNumber} — ${a.title}`,
+      label: apartmentLabel(a),
     })) ?? []
 
   return (
     <>
       <Row gutter={12} style={{ marginBottom: 16 }}>
-        <Col span={12}>
+        <Col span={10}>
           <Select
             style={{ width: '100%' }}
             placeholder="Daire seçin…"
@@ -436,10 +482,14 @@ function LedgerTab() {
             optionFilterProp="label"
             options={apartmentOptions}
             loading={apartmentsQuery.isLoading}
-            onChange={(v: string) => setSelectedApartmentId(v)}
+            onChange={(v: string) => {
+              setSelectedApartmentId(v)
+              setResidentFilter(null)
+              setTypeFilter('all')
+            }}
           />
         </Col>
-        <Col span={8}>
+        <Col span={5}>
           <DatePicker
             style={{ width: '100%' }}
             format="DD.MM.YYYY"
@@ -447,10 +497,70 @@ function LedgerTab() {
             onChange={(d) => setAsOfDate(d)}
           />
         </Col>
+        <Col span={5}>
+          <Select
+            value={residentFilter ?? '__all__'}
+            options={residentOptions}
+            onChange={(v: string) => setResidentFilter(v)}
+            placeholder="Sakin seçici"
+            disabled={!ledger}
+          />
+        </Col>
+        <Col span={4}>
+          <Segmented
+            block
+            value={typeFilter}
+            onChange={(v) => setTypeFilter(v as typeof typeFilter)}
+            options={[
+              { label: 'Tümü', value: 'all' },
+              { label: 'Isınma', value: 'isinma' },
+              { label: 'Aidat', value: 'aidat' },
+              { label: 'Devir', value: 'devir' },
+            ]}
+            disabled={!ledger}
+          />
+        </Col>
       </Row>
 
       {ledger && (
         <>
+          {/* Faz 7.1: Tür bazlı özet kartları (LedgerResult.Summary) */}
+          <Row gutter={16} style={{ marginBottom: 16 }}>
+            <Col span={8}>
+              <Card size="small">
+                <Statistic
+                  title="Aidat Borcu (Anapara + Faiz)"
+                  value={(ledger.summary?.aidatPrincipalDue ?? 0) + (ledger.summary?.aidatInterestAccrued ?? 0)}
+                  precision={2}
+                  suffix="TL"
+                  valueStyle={{ color: '#722ed1' }}
+                />
+              </Card>
+            </Col>
+            <Col span={8}>
+              <Card size="small">
+                <Statistic
+                  title="Isınma Borcu (Anapara + Faiz)"
+                  value={(ledger.summary?.invoicePrincipalDue ?? 0) + (ledger.summary?.invoiceInterestAccrued ?? 0)}
+                  precision={2}
+                  suffix="TL"
+                  valueStyle={{ color: '#cf1322' }}
+                />
+              </Card>
+            </Col>
+            <Col span={8}>
+              <Card size="small">
+                <Statistic
+                  title="Devir Bakiyesi (Anapara + Faiz)"
+                  value={(ledger.summary?.openingBalancePrincipalDue ?? 0) + (ledger.summary?.openingBalanceInterestDue ?? 0)}
+                  precision={2}
+                  suffix="TL"
+                  valueStyle={{ color: '#d46b08' }}
+                />
+              </Card>
+            </Col>
+          </Row>
+
           <Row gutter={16} style={{ marginBottom: 16 }}>
             <Col span={6}>
               <Card size="small">

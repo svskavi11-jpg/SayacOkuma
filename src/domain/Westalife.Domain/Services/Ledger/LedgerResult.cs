@@ -63,7 +63,10 @@ public record LedgerLine(
     IReadOnlyList<AllocationDetail> Allocations,
 
     /// <summary>Borç sahibi sakin (Faz 7.1 — Hibrit Model). Devir bakiyesinde NULL.</summary>
-    Guid? OwnerId = null
+    Guid? OwnerId = null,
+
+    /// <summary>Borç sahibi sakinin adı (UI Sakin Seçici/etiketleri için).</summary>
+    string? OwnerName = null
 );
 
 /// <summary>

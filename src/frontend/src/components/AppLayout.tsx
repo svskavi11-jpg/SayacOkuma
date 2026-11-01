@@ -9,6 +9,7 @@ import {
   BarChartOutlined,
   SettingOutlined,
   MoneyCollectOutlined,
+  TeamOutlined,
 } from '@ant-design/icons'
 import { registerNotifier } from '../api/notifier'
 
@@ -28,6 +29,7 @@ const menuItems = [
       { key: '/aidat/invoices', label: 'Aidat Tahakkukları' },
     ],
   },
+  { key: '/former-residents', icon: <TeamOutlined />, label: 'Geçmiş Sakinler' },
   { key: '/reports',    icon: <BarChartOutlined />,    label: 'Raporlar' },
   { key: '/settings',   icon: <SettingOutlined />,     label: 'Ayarlar' },
 ]

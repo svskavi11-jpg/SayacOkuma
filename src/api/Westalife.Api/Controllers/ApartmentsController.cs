@@ -8,6 +8,7 @@ using Westalife.Application.Features.Apartments.Queries.GetApartmentConsumptionA
 using Westalife.Application.Features.Apartments.Queries.GetApartmentOwnerHistory;
 using Westalife.Application.Features.Apartments.Commands.UpdateApartmentDimension;
 using Westalife.Application.Features.Apartments.Commands.UpdateApartmentOwner;
+using Westalife.Application.Features.Residents.Commands.UpdateResident;
 using Westalife.Application.Features.Apartments.Commands.ImportMetersFromExcel;
 using Westalife.Infrastructure.Reporting.Excel;
 
@@ -31,6 +32,21 @@ public class ApartmentsController : ControllerBase
     public async Task<IActionResult> GetApartments(CancellationToken cancellationToken)
     {
         var result = await _mediator.Send(new GetApartmentsQuery(), cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Faz 7.1: Sakin yönetimi — Ev Sahibi ve/veya Kiracı bilgilerini günceller
+    /// (SCD Type 2, tür bazlı ayrı akış; telefon/e-posta/TCKN Domain'de doğrulanır).
+    /// </summary>
+    [HttpPut("{id:guid}/residents")]
+    [ProducesResponseType(typeof(UpdateResidentResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateResidents(
+        Guid id, [FromBody] UpdateResidentCommand command, CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(command with { ApartmentId = id }, cancellationToken);
         return Ok(result);
     }
 

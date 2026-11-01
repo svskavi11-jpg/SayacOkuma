@@ -126,7 +126,8 @@ public static class LedgerService
                 InterestAccrued: interest,
                 LineBalance: remaining + interest,
                 Allocations: allocationMap[debt.SourceId].AsReadOnly(),
-                OwnerId: debt.OwnerId));
+                OwnerId: debt.OwnerId,
+                OwnerName: debt.OwnerName));
         }
 
         var totalPrincipalDue = lines.Sum(l => Math.Max(0m, l.RemainingPrincipal));
@@ -198,7 +199,8 @@ public static class LedgerService
                 DueDate: i.GasInvoice?.DueDate ?? DateOnly.FromDateTime(i.CalculatedOnUtc.DateTime),
                 PrincipalAmount: i.TotalAmount,
                 Label: BuildInvoiceLabel(i),
-                OwnerId: i.ApartmentOwnerId))
+                OwnerId: i.ApartmentOwnerId,
+                OwnerName: i.ApartmentOwner?.OwnerName))
             .ToList();
 
         var aidatDebts = (aidatCharges ?? Enumerable.Empty<AidatCharge>())
@@ -209,7 +211,8 @@ public static class LedgerService
                 DueDate: c.AidatInvoice?.DueDate ?? DateOnly.FromDateTime(c.CreatedOn.UtcDateTime),
                 PrincipalAmount: c.Amount,
                 Label: BuildAidatLabel(c),
-                OwnerId: c.ApartmentOwnerId))
+                OwnerId: c.ApartmentOwnerId,
+                OwnerName: c.ApartmentOwner?.OwnerName))
             .ToList();
 
         debts.AddRange(invoiceDebts.Concat(aidatDebts).OrderBy(d => d.DueDate));

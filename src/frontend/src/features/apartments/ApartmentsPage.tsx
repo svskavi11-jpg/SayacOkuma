@@ -12,9 +12,12 @@ import {
   List,
   message,
   Modal,
+  Row,
+  Col,
   Select,
   Space,
   Table,
+  Tabs,
   Tag,
   Tooltip,
   Typography,
@@ -32,12 +35,13 @@ import type {
   ImportMetersFromExcelResult,
   ManualReadingResult,
   SetApartmentTariffResult,
+  UpdateResidentsResult,
 } from '../../types/api'
 import dayjs, { type Dayjs } from 'dayjs'
 import { AnalysisModal } from './AnalysisModal'
 import { ReadingsModal } from './ReadingsModal'
 import { OwnerEditModal, OwnerHistoryModal } from './OwnerModals'
-import { AccountBookOutlined, HistoryOutlined, LineChartOutlined, MoneyCollectOutlined, TableOutlined, UserOutlined } from '@ant-design/icons'
+import { AccountBookOutlined, HistoryOutlined, LineChartOutlined, MoneyCollectOutlined, TableOutlined, TeamOutlined, UserOutlined } from '@ant-design/icons'
 
 // Türkçe sayı biçimi: binlik ayracı nokta, ondalık ayracı virgül (Intl 'tr-TR')
 const fmtIndex = new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
@@ -260,6 +264,27 @@ export function ApartmentsPage() {
     },
   })
 
+  // Faz 7.1: Sakin yönetimi (Ev Sahibi + Kiracı) — tekli modal.
+  const [residentsFor, setResidentsFor] = useState<ApartmentListItem | null>(null)
+  const [residentsForm] = Form.useForm<{
+    evName: string; evPhone?: string; evEmail?: string; evTckn?: string; evNotes?: string
+    kiName?: string; kiPhone?: string; kiEmail?: string; kiTckn?: string; kiNotes?: string
+  }>()
+  const residentsMutation = useMutation({
+    mutationFn: async (input: { apartmentId: string; body: Record<string, unknown> }) =>
+      (await apiClient.put<UpdateResidentsResult>(
+        `/apartments/${input.apartmentId}/residents`,
+        input.body,
+      )).data,
+    onSuccess: (res) => {
+      void queryClient.invalidateQueries({ queryKey: ['apartments'] })
+      setResidentsFor(null)
+      message.success(
+        `Sakinler kaydedildi — Ev Sahibi: ${res.evSahibiName ?? '—'} · Kiracı: ${res.kiraciName ?? '—'}`,
+      )
+    },
+  })
+
   // Arama filtresi: Kapı No, Daire adı, Kat Maliki, Sayaç Seri No
   const filteredApartments = (apartmentsQuery.data ?? []).filter((a) => {
     const q = search.trim().toLocaleLowerCase('tr-TR')
@@ -366,6 +391,7 @@ export function ApartmentsPage() {
               items: [
                 { key: 'dimension', icon: <EditOutlined />, label: 'm² Düzenle' },
                 { key: 'tariff', icon: <MoneyCollectOutlined />, label: 'Tarife Ata' },
+                { key: 'residents', icon: <TeamOutlined />, label: 'Sakin Yönetimi' },
                 { key: 'owner', icon: <UserOutlined />, label: 'Malik Değiştir' },
                 { key: 'ownerHistory', icon: <HistoryOutlined />, label: 'Malik Geçmişi' },
                 { key: 'openingBalance', icon: <AccountBookOutlined />, label: 'Devir Bakiye Gir' },
@@ -379,6 +405,14 @@ export function ApartmentsPage() {
                 } else if (key === 'tariff') {
                   setTariffFor(record)
                   tariffForm.setFieldsValue({ tariffId: record.aidatTariffId ?? '__none__' })
+                } else if (key === 'residents') {
+                  setResidentsFor(record)
+                  residentsForm.setFieldsValue({
+                    evName: record.ownerName ?? undefined,
+                    evPhone: record.evSahibiPhoneNumber ?? undefined,
+                    kiName: record.kiraciName ?? undefined,
+                    kiPhone: record.kiraciPhoneNumber ?? undefined,
+                  })
                 } else if (key === 'owner') {
                   setOwnerEditFor(record)
                 } else if (key === 'ownerHistory') {
@@ -584,6 +618,127 @@ export function ApartmentsPage() {
             </Typography.Text>
           </Space>
         )}
+      </Modal>
+
+      {/* Faz 7.1: Sakin yönetimi — Ev Sahibi + Kiracı sekmeleri */}
+      <Modal
+        title={`Sakin Yönetimi — Daire ${residentsFor?.doorNumber ?? ''}`}
+        open={residentsFor !== null}
+        onCancel={() => setResidentsFor(null)}
+        confirmLoading={residentsMutation.isPending}
+        okText="Kaydet"
+        cancelText="İptal"
+        width={640}
+        onOk={() =>
+          residentsForm.validateFields().then((values) => {
+            if (residentsFor === null) return
+            const ev = values.evName
+              ? {
+                  name: values.evName as string,
+                  phoneNumber: (values.evPhone as string) || null,
+                  email: (values.evEmail as string) || null,
+                  identityNumber: (values.evTckn as string) || null,
+                  notes: (values.evNotes as string) || null,
+                }
+              : null
+            const ki = values.kiName
+              ? {
+                  name: values.kiName as string,
+                  phoneNumber: (values.kiPhone as string) || null,
+                  email: (values.kiEmail as string) || null,
+                  identityNumber: (values.kiTckn as string) || null,
+                  notes: (values.kiNotes as string) || null,
+                }
+              : null
+            residentsMutation.mutate({
+              apartmentId: residentsFor.id,
+              body: { validFrom: dayjs().format('YYYY-MM-DD'), evSahibi: ev, kiraci: ki },
+            })
+          })
+        }
+      >
+        <Form form={residentsForm} layout="vertical">
+          <Tabs
+            items={[
+              {
+                key: 'ev',
+                label: '🏠 Ev Sahibi',
+                forceRender: true,
+                children: (
+                  <>
+                    <Form.Item name="evName" label="Ad Soyad" rules={[{ required: true, message: 'Ev sahibi adı zorunludur.' }]}>
+                      <Input maxLength={100} placeholder="örn: Ahmet Yılmaz" />
+                    </Form.Item>
+                    <Row gutter={12}>
+                      <Col span={12}>
+                        <Form.Item name="evPhone" label="Telefon">
+                          <Input maxLength={20} placeholder="örn: 0532 123 45 67" />
+                        </Form.Item>
+                      </Col>
+                      <Col span={12}>
+                        <Form.Item name="evEmail" label="E-posta">
+                          <Input maxLength={100} placeholder="örn: ahmet@ornek.com" />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                    <Row gutter={12}>
+                      <Col span={12}>
+                        <Form.Item name="evTckn" label="TCKN (opsiyonel)">
+                          <Input maxLength={11} placeholder="11 hane" />
+                        </Form.Item>
+                      </Col>
+                      <Col span={12}>
+                        <Form.Item name="evNotes" label="Notlar">
+                          <Input maxLength={500} />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                  </>
+                ),
+              },
+              {
+                key: 'kiraci',
+                label: '🔑 Kiracı',
+                forceRender: true,
+                children: (
+                  <>
+                    <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 12 }}>
+                      Kiracı adı boş bırakılırsa kiracı kaydı güncellenmez. Aidat/Isınma borçları
+                      kiracı varsa kiracıya yazılır; ev sahibi müteselsil sorumlu tutulur (KMK m.22).
+                    </Typography.Text>
+                    <Form.Item name="kiName" label="Ad Soyad">
+                      <Input maxLength={100} placeholder="örn: Ayşe Demir (boş = kiracı yok)" />
+                    </Form.Item>
+                    <Row gutter={12}>
+                      <Col span={12}>
+                        <Form.Item name="kiPhone" label="Telefon">
+                          <Input maxLength={20} placeholder="örn: 0533 987 65 43" />
+                        </Form.Item>
+                      </Col>
+                      <Col span={12}>
+                        <Form.Item name="kiEmail" label="E-posta">
+                          <Input maxLength={100} />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                    <Row gutter={12}>
+                      <Col span={12}>
+                        <Form.Item name="kiTckn" label="TCKN (opsiyonel)">
+                          <Input maxLength={11} placeholder="11 hane" />
+                        </Form.Item>
+                      </Col>
+                      <Col span={12}>
+                        <Form.Item name="kiNotes" label="Notlar">
+                          <Input maxLength={500} />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                  </>
+                ),
+              },
+            ]}
+          />
+        </Form>
       </Modal>
 
       {/* Faz 6.9: Aidat tarife atama (tekli) */}

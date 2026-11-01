@@ -22,7 +22,10 @@ public sealed record ApartmentListItem(
     decimal OpeningBalanceInterest = 0m,
     DateOnly? OpeningBalanceDate = null,
     Guid? AidatTariffId = null,
-    string? AidatTariffName = null);
+    string? AidatTariffName = null,
+    string? KiraciName = null,
+    string? EvSahibiPhoneNumber = null,
+    string? KiraciPhoneNumber = null);
 
 public sealed record ApartmentMeterItem(Guid Id, string SerialNumber, string MeterType, int? MbusPrimaryAddress, bool IsActive);
 
@@ -38,6 +41,8 @@ public sealed class GetApartmentsQueryHandler : IRequestHandler<GetApartmentsQue
     public async Task<IReadOnlyList<ApartmentListItem>> Handle(
         GetApartmentsQuery request, CancellationToken cancellationToken)
     {
+        var now = DateTimeOffset.UtcNow;
+
         var apartments = await _db.Apartments
             .Where(a => a.IsActive)
             // Not: kapı numarası metin olduğundan sıralama bellekte sayısal yapılır (1, 2, ... 10).
@@ -59,6 +64,27 @@ public sealed class GetApartmentsQueryHandler : IRequestHandler<GetApartmentsQue
                 OwnerName = a.Owners
                     .Where(o => o.ValidTo == null)
                     .Select(o => (string?)o.OwnerName)
+                    .FirstOrDefault(),
+                // Faz 7.1: aktif sakin bilgileri (dropdown etiketleri + iletişim).
+                EvSahibiName = a.Owners
+                    .Where(o => o.ResidentType == Domain.Enums.ResidentType.EvSahibi &&
+                                o.ValidFrom <= now && (o.ValidTo == null || o.ValidTo > now))
+                    .Select(o => (string?)o.OwnerName)
+                    .FirstOrDefault(),
+                EvSahibiPhoneNumber = a.Owners
+                    .Where(o => o.ResidentType == Domain.Enums.ResidentType.EvSahibi &&
+                                o.ValidFrom <= now && (o.ValidTo == null || o.ValidTo > now))
+                    .Select(o => o.PhoneNumber)
+                    .FirstOrDefault(),
+                KiraciName = a.Owners
+                    .Where(o => o.ResidentType == Domain.Enums.ResidentType.Kiraci &&
+                                o.ValidFrom <= now && (o.ValidTo == null || o.ValidTo > now))
+                    .Select(o => (string?)o.OwnerName)
+                    .FirstOrDefault(),
+                KiraciPhoneNumber = a.Owners
+                    .Where(o => o.ResidentType == Domain.Enums.ResidentType.Kiraci &&
+                                o.ValidFrom <= now && (o.ValidTo == null || o.ValidTo > now))
+                    .Select(o => o.PhoneNumber)
                     .FirstOrDefault(),
                 // Etap 6.7: aktif kalorimetre (en yeni CreatedOn — ImportReadings ile aynı deterministik
                 // seçim) ve SADECE BU SAYACIN son okuması. Okumalar seçilen sayaca bağlı çözülür ki
@@ -96,7 +122,8 @@ public sealed class GetApartmentsQueryHandler : IRequestHandler<GetApartmentsQue
                 a.Id, a.DoorNumber, a.Title, a.ActiveSquareMeters, a.OwnerName,
                 a.ActiveMeter?.Id, a.ActiveMeter?.LastIndex, a.ActiveMeter?.LastDate, a.Meters,
                 a.OpeningBalancePrincipal, a.OpeningBalanceInterest, a.OpeningBalanceDate,
-                a.AidatTariffId, a.AidatTariffName))
+                a.AidatTariffId, a.AidatTariffName,
+                a.KiraciName, a.EvSahibiPhoneNumber, a.KiraciPhoneNumber))
             .ToList();
     }
 }

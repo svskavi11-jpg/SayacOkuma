@@ -31,10 +31,11 @@ public sealed class GetLedgerQueryHandler : IRequestHandler<GetLedgerQuery, Ledg
             .FirstOrDefaultAsync(a => a.Id == request.ApartmentId, cancellationToken)
             ?? throw new NotFoundException("Daire bulunamadı.");
 
-        // Aktif ApartmentInvoice satırları — GasInvoice navigation ile (DueDate için)
+        // Aktif ApartmentInvoice satırları — GasInvoice + borç sahibi sakin navigation'ları ile
         var invoices = await _db.ApartmentInvoices
             .AsNoTracking()
             .Include(i => i.GasInvoice)
+            .Include(i => i.ApartmentOwner)
             .Where(i => i.ApartmentId == request.ApartmentId && !i.IsSuperseded)
             .ToListAsync(cancellationToken);
 
@@ -45,10 +46,11 @@ public sealed class GetLedgerQueryHandler : IRequestHandler<GetLedgerQuery, Ledg
             .Where(p => p.ApartmentId == request.ApartmentId)
             .ToListAsync(cancellationToken);
 
-        // Faz 6.9: Aidat borç satırları (dönem vadesi AidatInvoice üzerinden)
+        // Faz 7.1: Aidat borç satırları (dönem vadesi + borç sahibi sakin ile)
         var aidatCharges = await _db.AidatCharges
             .AsNoTracking()
             .Include(c => c.AidatInvoice)
+            .Include(c => c.ApartmentOwner)
             .Where(c => c.ApartmentId == request.ApartmentId)
             .ToListAsync(cancellationToken);
 

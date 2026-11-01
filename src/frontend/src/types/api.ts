@@ -37,6 +37,10 @@ export interface ApartmentListItem {
   /** Faz 6.9: daireye atanmış aidat tarifesı */
   aidatTariffId?: string | null
   aidatTariffName?: string | null
+  /** Faz 7.1: aktif sakin bilgileri (dropdown etiketleri + iletişim) */
+  kiraciName?: string | null
+  evSahibiPhoneNumber?: string | null
+  kiraciPhoneNumber?: string | null
   meters: ApartmentMeterItem[]
 }
 
@@ -352,6 +356,10 @@ export interface RecordPaymentRequest {
   amount: number
   description?: string | null
   receivedBy?: string | null
+  /** Faz 7.1: Hedefli tahsilat — 'Aidat' | 'Invoice' | 'OpeningBalancePrincipal' */
+  targetDebtType?: string | null
+  /** Faz 7.1: Hedef sakin (eski kiracı borcu için) */
+  targetOwnerId?: string | null
 }
 
 export interface RecordPaymentResult {
@@ -386,6 +394,19 @@ export interface LedgerLine {
   interestAccrued: number
   lineBalance: number
   allocations: AllocationDetail[]
+  /** Faz 7.1: borç sahibi sakin (Hibrit Model) — devir bakiyesinde null */
+  ownerId?: string | null
+  ownerName?: string | null
+}
+
+/** Faz 7.1: borç türü bazlı özet (anapara + faiz) */
+export interface LedgerSummary {
+  aidatPrincipalDue: number
+  aidatInterestAccrued: number
+  invoicePrincipalDue: number
+  invoiceInterestAccrued: number
+  openingBalancePrincipalDue: number
+  openingBalanceInterestDue: number
 }
 
 export interface LedgerResult {
@@ -397,6 +418,7 @@ export interface LedgerResult {
   totalInterestAccrued: number
   totalBalance: number
   asOfDate: string
+  summary?: LedgerSummary | null
 }
 
 // ── Faz 6.8: Nakit Akış Raporu ───────────────────────────────────────────────
@@ -515,5 +537,43 @@ export interface AssignTariffBySquareMetersResult {
   alreadyAssignedCount: number
   noMatchCount: number
   doorNumbers: string[]
+}
+
+// ── Faz 7.1: Sakinler (Ev Sahibi + Kiracı) ───────────────────────────────────
+
+export interface ResidentInfoInput {
+  name: string
+  phoneNumber?: string | null
+  email?: string | null
+  identityNumber?: string | null
+  notes?: string | null
+}
+
+export interface UpdateResidentsRequest {
+  validFrom: string
+  evSahibi?: ResidentInfoInput | null
+  kiraci?: ResidentInfoInput | null
+}
+
+export interface UpdateResidentsResult {
+  apartmentId: string
+  evSahibiName: string | null
+  kiraciName: string | null
+}
+
+export interface FormerResidentDebtItem {
+  apartmentId: string
+  doorNumber: string
+  apartmentTitle: string
+  ownerId: string
+  ownerName: string
+  residentTypeLabel: string
+  phoneNumber: string | null
+  leftOn: string | null
+  principalDue: number
+  interestAccrued: number
+  balance: number
+  evSahibiName: string | null
+  rucuPossible: boolean
 }
 

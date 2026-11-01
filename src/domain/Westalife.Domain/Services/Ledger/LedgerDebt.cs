@@ -28,7 +28,10 @@ public record LedgerDebt(
     /// Borcun sahibi sakin (Faz 7.1 — Hibrit Model: kiracı varsa kiracı, yoksa ev sahibi).
     /// Devir bakiyesi daire düzeyinde olduğundan NULL'dur. Hedefli tahsilat bu alanla eşleşir.
     /// </summary>
-    Guid? OwnerId = null
+    Guid? OwnerId = null,
+
+    /// <summary>Borç sahibi sakinin adı (UI etiketleri için — owner ile birlikte taşınır).</summary>
+    string? OwnerName = null
 );
 
 /// <summary>
