@@ -1,7 +1,11 @@
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Westalife.Api.Infrastructure;
+using Westalife.Application.Features.Residents.Documents;
 using Westalife.Application.Features.Residents.Queries.GetFormerResidentsWithDebt;
+using Westalife.Application.Features.Residents.Queries.GetResidentHistory;
+using Westalife.Domain.Constants;
+using Westalife.Domain.Enums;
 
 namespace Westalife.Api.Controllers;
 
@@ -28,5 +32,63 @@ public class ResidentsController : ControllerBase
     {
         var result = await _mediator.Send(new GetFormerResidentsWithDebtQuery(), ct);
         return Ok(result);
+    }
+
+    /// <summary>
+    /// Daire sakinlerinin tamamı: oturmakta olanlar ve çıkmış olanlar.
+    /// Tarih filtresi, oturma aralığının seçilen günlerle kesişmesine bakar.
+    /// </summary>
+    [HttpGet("history")]
+    [ProducesResponseType(typeof(IReadOnlyList<ResidentHistoryItem>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetHistory(
+        [FromQuery] string? doorNumber,
+        [FromQuery] string? name,
+        [FromQuery] ResidentType? residentType,
+        [FromQuery] DateOnly? from,
+        [FromQuery] DateOnly? to,
+        CancellationToken ct)
+    {
+        var result = await _mediator.Send(
+            new GetResidentHistoryQuery(doorNumber, name, residentType, from, to), ct);
+        return Ok(result);
+    }
+
+    [HttpGet("documents")]
+    [ProducesResponseType(typeof(IReadOnlyList<ResidentDocumentItem>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetDocuments([FromQuery] Guid apartmentId, CancellationToken ct) =>
+        Ok(await _mediator.Send(new GetResidentDocumentsQuery(apartmentId), ct));
+
+    [HttpPost("{ownerId:guid}/documents")]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(DomainConstants.ResidentDocument.MaxBytes)]
+    [ProducesResponseType(typeof(ResidentDocumentItem), StatusCodes.Status200OK)]
+    public async Task<IActionResult> Upload(
+        Guid ownerId, IFormFile file, [FromForm] ResidentDocumentType documentType, CancellationToken ct)
+    {
+        if (file is null || file.Length == 0)
+        {
+            return BadRequest();
+        }
+
+        using var memory = new MemoryStream();
+        await file.CopyToAsync(memory, ct);
+        var result = await _mediator.Send(
+            new UploadResidentDocumentCommand(ownerId, documentType, file.FileName, memory.ToArray()), ct);
+        return Ok(result);
+    }
+
+    [HttpGet("documents/{id:guid}/file")]
+    public async Task<IActionResult> Download(Guid id, CancellationToken ct)
+    {
+        var file = await _mediator.Send(new OpenResidentDocumentQuery(id), ct);
+        return File(file.Content, file.ContentType, file.FileName);
+    }
+
+    [HttpDelete("documents/{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> DeleteDocument(Guid id, CancellationToken ct)
+    {
+        await _mediator.Send(new DeleteResidentDocumentCommand(id), ct);
+        return NoContent();
     }
 }

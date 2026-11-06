@@ -34,13 +34,28 @@ export interface ApartmentListItem {
   openingBalancePrincipal?: number
   openingBalanceInterest?: number
   openingBalanceDate?: string | null
+  openingBalanceOwnerId?: string | null
   /** Faz 6.9: daireye atanmış aidat tarifesı */
   aidatTariffId?: string | null
   aidatTariffName?: string | null
   /** Faz 7.1: aktif sakin bilgileri (dropdown etiketleri + iletişim) */
   kiraciName?: string | null
   evSahibiPhoneNumber?: string | null
+  evSahibiEmail?: string | null
+  evSahibiIdentityNumber?: string | null
+  evSahibiNotes?: string | null
   kiraciPhoneNumber?: string | null
+  kiraciEmail?: string | null
+  kiraciIdentityNumber?: string | null
+  kiraciNotes?: string | null
+  /** Güncel cari bakiye. Pozitif borç, negatif alacak. */
+  currentBalance: number
+  /** Borçlu, Alacaklı veya Borcu Yok */
+  balanceStatus: string
+  /** Kalan aidat borcu (anapara + faiz). */
+  aidatDebt: number
+  /** Kalan ısınma borcu (anapara + faiz). */
+  heatingDebt: number
   meters: ApartmentMeterItem[]
 }
 
@@ -215,6 +230,32 @@ export interface ImportMetersFromExcelResult {
   rowErrors: string[]
 }
 
+export interface BankDashboardAccount {
+  id: string
+  bankName: string
+  accountName: string
+  openingBalance: number
+  moneyIn: number
+  moneyOut: number
+  currentBalance: number
+}
+
+export interface BankDashboardMonth {
+  month: number
+  moneyIn: number
+  moneyOut: number
+}
+
+export interface BankDashboard {
+  year: number
+  totalOpeningBalance: number
+  totalMoneyIn: number
+  totalMoneyOut: number
+  totalCurrentBalance: number
+  accounts: BankDashboardAccount[]
+  months: BankDashboardMonth[]
+}
+
 export interface DashboardSummary {
   buildingName: string
   apartmentCount: number
@@ -235,6 +276,10 @@ export interface ApartmentOwnerHistoryItem {
   ownerName: string
   validFrom: string
   validTo: string | null
+  residentType: 'EvSahibi' | 'Kiraci'
+  phoneNumber: string | null
+  leaseStartDate: string | null
+  leaseEndDate: string | null
 }
 
 export interface UpdateApartmentOwnerRequest {
@@ -348,7 +393,18 @@ export interface PaymentListItem {
   cancelledOn: string | null
   cancellationReason: string | null
   createdOn: string
+  /** Boşsa tahsilat genel FIFO ile mahsup edilmiştir. */
+  targetDebtType?: PaymentTargetDebtType | null
+  bankAccountId?: string | null
+  bankAccountLabel?: string | null
 }
+
+/** Backend LedgerDebtType (JSON enum adı). Otomatik FIFO için alan gönderilmez. */
+export type PaymentTargetDebtType =
+  | 'Aidat'
+  | 'Invoice'
+  | 'OpeningBalancePrincipal'
+  | 'OpeningBalanceInterest'
 
 export interface RecordPaymentRequest {
   apartmentId: string
@@ -356,10 +412,20 @@ export interface RecordPaymentRequest {
   amount: number
   description?: string | null
   receivedBy?: string | null
-  /** Faz 7.1: Hedefli tahsilat — 'Aidat' | 'Invoice' | 'OpeningBalancePrincipal' */
-  targetDebtType?: string | null
+  /** Hedefli tahsilat. Boşsa en eski borçtan başlayan genel FIFO uygulanır. */
+  targetDebtType?: PaymentTargetDebtType | null
   /** Faz 7.1: Hedef sakin (eski kiracı borcu için) */
   targetOwnerId?: string | null
+  bankAccountId?: string | null
+}
+
+export interface UpdatePaymentRequest {
+  paymentDate: string
+  amount: number
+  description?: string | null
+  receivedBy?: string | null
+  targetDebtType?: PaymentTargetDebtType | null
+  bankAccountId?: string | null
 }
 
 export interface RecordPaymentResult {
@@ -383,11 +449,54 @@ export interface AllocationDetail {
   target: 'OpeningBalance' | 'Invoice' | 'Interest' | 'Aidat'
 }
 
+export type RoleType = 'Yonetici' | 'Denetci'
+export type RolePaymentType = 'Oran' | 'SabitTutar'
+export type RolePeriodType = 'Aylik' | 'Yillik'
+
+export interface RoleFeeBudgetItemOption {
+  id: string
+  year: number
+  category: string
+  estimatedAmount: number
+}
+
+export interface RoleFeeSettingsDTO {
+  managerPaymentType: RolePaymentType
+  managerExemptionRate: number
+  managerFixedAmount: number
+  managerPeriodType: RolePeriodType
+  auditorPaymentType: RolePaymentType
+  auditorExemptionRate: number
+  auditorFixedAmount: number
+  auditorPeriodType: RolePeriodType
+  managementExpenseBudgetItemId: string | null
+  availableBudgetItems: RoleFeeBudgetItemOption[]
+}
+
+export interface RoleAssignmentListItem {
+  id: string
+  apartmentId: string
+  personName: string
+  roleType: RoleType
+  startDate: string
+  endDate: string | null
+  exemptionRate: number
+  boardDecisionDate: string | null
+  isOpen: boolean
+  isCancelled?: boolean
+  cancelledAt?: string | null
+  paymentType?: RolePaymentType
+  fixedAmount?: number | null
+  periodType?: RolePeriodType | null
+}
+
 export interface LedgerLine {
-  type: 'OpeningBalancePrincipal' | 'OpeningBalanceInterest' | 'Invoice' | 'Aidat'
+  type: 'OpeningBalancePrincipal' | 'OpeningBalanceInterest' | 'Invoice' | 'Aidat' | 'WaiverOffset'
   sourceId: string
   label: string
   dueDate: string
+  /** Aidat dönem başlangıcı. Cari hesap tarih sütunu bunu gösterir. */
+  periodStart?: string | null
   principalAmount: number
   paidAmount: number
   remainingPrincipal: number
@@ -397,6 +506,10 @@ export interface LedgerLine {
   /** Faz 7.1: borç sahibi sakin (Hibrit Model) — devir bakiyesinde null */
   ownerId?: string | null
   ownerName?: string | null
+  /** İptal edilmiş tahakkuk satırı mı? (Denetim izi: tutar 0'a düşürülmüştür) */
+  isCancelled?: boolean
+  /** İptal edilmiş satırın orijinal tahakkuk tutarı */
+  originalPrincipalAmount?: number | null
 }
 
 /** Faz 7.1: borç türü bazlı özet (anapara + faiz) */
@@ -409,6 +522,13 @@ export interface LedgerSummary {
   openingBalanceInterestDue: number
 }
 
+export interface LedgerCredit {
+  paymentId: string
+  paymentDate: string
+  amount: number
+  targetDebtType: 'OpeningBalancePrincipal' | 'Invoice' | 'OpeningBalanceInterest' | 'Aidat' | null
+}
+
 export interface LedgerResult {
   apartmentId: string
   apartmentTitle: string
@@ -419,6 +539,8 @@ export interface LedgerResult {
   totalBalance: number
   asOfDate: string
   summary?: LedgerSummary | null
+  /** Borca mahsup edilemeyen tahsilat. Bakiyeyi alacağa çeker. */
+  credits?: LedgerCredit[] | null
 }
 
 // ── Faz 6.8: Nakit Akış Raporu ───────────────────────────────────────────────
@@ -443,6 +565,13 @@ export interface CashFlowResult {
 // ── Faz 6.9: Aidat (Ortak Gider) ─────────────────────────────────────────────
 
 export type AidatDistributionMethod = 'TarifeBazli' | 'Metrekare' | 'Esit'
+
+export type AidatChargeType = 'StandartAidat' | 'OzelToplama'
+
+export const AIDAT_CHARGE_TYPE_LABELS: Record<AidatChargeType, string> = {
+  StandartAidat: 'Standart Aidat',
+  OzelToplama: 'Özel Toplama',
+}
 
 export const AIDAT_DISTRIBUTION_LABELS: Record<AidatDistributionMethod, string> = {
   TarifeBazli: 'Tarife Bazlı',
@@ -478,6 +607,14 @@ export interface AidatInvoiceListItem {
   /** 0–100 arası yüzde */
   collectionRatio: number
   createdOn: string
+  chargeType: AidatChargeType
+  title: string | null
+  targetAmount: number | null
+  fundSpent: number
+  fundBalance: number
+  isCancelled?: boolean
+  cancelledAt?: string | null
+  isLocked?: boolean
 }
 
 export interface CreateAidatInvoiceRequest {
@@ -487,6 +624,9 @@ export interface CreateAidatInvoiceRequest {
   distributionMethod: AidatDistributionMethod
   equalAmount?: number | null
   note?: string | null
+  chargeType?: AidatChargeType
+  title?: string | null
+  targetAmount?: number | null
 }
 
 export interface AidatSkippedApartment {
@@ -547,6 +687,10 @@ export interface ResidentInfoInput {
   email?: string | null
   identityNumber?: string | null
   notes?: string | null
+  leaseStartDate?: string | null
+  leaseEndDate?: string | null
+  validFrom?: string | null
+  validTo?: string | null
 }
 
 export interface UpdateResidentsRequest {
@@ -559,6 +703,35 @@ export interface UpdateResidentsResult {
   apartmentId: string
   evSahibiName: string | null
   kiraciName: string | null
+  evSahibiId: string | null
+  kiraciId: string | null
+}
+
+export type ResidentDocumentType = 'KiraSozlesmesi' | 'Tapu' | 'Diger'
+
+export interface ResidentDocumentItem {
+  id: string
+  apartmentOwnerId: string
+  ownerName: string
+  residentType: 'EvSahibi' | 'Kiraci'
+  documentType: ResidentDocumentType
+  fileName: string
+  uploadedOn: string
+}
+
+export type ResidentType = 'EvSahibi' | 'Kiraci'
+
+export interface ResidentHistoryItem {
+  id: string
+  apartmentId: string
+  doorNumber: string
+  ownerName: string
+  residentType: ResidentType
+  validFrom: string
+  validTo: string | null
+  phoneNumber: string | null
+  leaseStartDate: string | null
+  leaseEndDate: string | null
 }
 
 export interface FormerResidentDebtItem {
@@ -577,3 +750,286 @@ export interface FormerResidentDebtItem {
   rucuPossible: boolean
 }
 
+// -- Faz 6.10: Bütçe ve Gider Takibi --
+
+export interface BudgetSettingsDTO {
+  isBudgetTrackingEnabled: boolean
+}
+
+export interface BudgetRealizationRow {
+  budgetItemId: string
+  year: number
+  category: string
+  estimatedAmount: number
+  actualAmount: number
+  remainingAmount: number
+  utilizationPercent: number
+  transferIn: number
+  transferOut: number
+}
+
+export interface BudgetRealizationReport {
+  year: number
+  buildingName: string
+  totalEstimated: number
+  totalActual: number
+  totalRemaining: number
+  utilizationPercent: number
+  rows: BudgetRealizationRow[]
+  totalEstimatedIncome: number
+  balance: number
+  isLocked: boolean
+}
+
+export interface IncomeItem {
+  id: string
+  year: number
+  category: string
+  estimatedAmount: number
+}
+
+export interface BudgetPeriodStatus {
+  year: number
+  isLocked: boolean
+  lockedOn: string | null
+}
+
+export interface BudgetTransferItem {
+  id: string
+  transferDate: string
+  amount: number
+  note: string | null
+  fromBudgetItemId: string
+  toBudgetItemId: string
+  fromCategory: string
+  toCategory: string
+}
+
+export interface ExpenseListItem {
+  id: string
+  expenseDate: string
+  amount: number
+  description: string | null
+  displayType: string
+  budgetItemId: string | null
+  documentNumber: string | null
+  fundAidatInvoiceId: string | null
+  fundTitle: string | null
+  bankAccountId?: string | null
+  bankAccountLabel?: string | null
+}
+
+export interface BankAccountListItem {
+  id: string
+  bankName: string
+  accountName: string
+  accountNumber: string
+  iban: string | null
+  openingBalance: number
+  openingDate: string
+  moneyIn: number
+  moneyOut: number
+  currentBalance: number
+  isActive: boolean
+}
+
+export type BankTransactionType = 'BankInterest' | 'BankFee' | 'TransferOut' | 'TransferIn'
+
+export interface BankTransactionListItem {
+  id: string
+  bankAccountId: string
+  bankLabel: string
+  type: BankTransactionType
+  amount: number
+  transactionDate: string
+  description: string | null
+  targetBankAccountId: string | null
+  targetLabel: string | null
+  transferGroupId: string | null
+}
+
+export interface CreateExpenseResult {
+  id: string
+  budgetWarning: boolean
+  utilizationPercent: number | null
+  warningMessage: string | null
+}
+
+export interface AuditExpenseRow {
+  category: string
+  estimated: number
+  expenseAmount: number
+  waiverAmount: number
+  actual: number
+  remaining: number
+}
+
+export interface AuditIncomeRow {
+  title: string
+  amount: number
+}
+
+export interface AuditBankRow {
+  bankAccountId: string
+  label: string
+  opening: number
+  moneyIn: number
+  moneyOut: number
+  closing: number
+}
+
+export interface AuditIncomeExpenseReport {
+  year: number
+  buildingName: string
+  expenses: AuditExpenseRow[]
+  totalEstimated: number
+  totalActual: number
+  totalRemaining: number
+  income: AuditIncomeRow[]
+  totalIncome: number
+  net: number
+  banks: AuditBankRow[]
+  from?: string | null
+  to?: string | null
+}
+
+export interface ManagementPeriodSettingsDTO {
+  startDate: string
+  endDate: string
+}
+
+export interface GeneralAssemblyMonthColumn {
+  key: string
+  year: number
+  month: number
+  label: string
+}
+
+export interface GeneralAssemblyMonthlySummaryRow {
+  rowTitle: string
+  monthValues: Record<string, number>
+  total: number
+}
+
+export interface GeneralAssemblyApartmentMatrixRow {
+  apartmentId: string
+  doorNumber: string
+  title: string
+  openingBalance: number
+  monthlyAccruals: Record<string, number>
+  monthlyCollections: Record<string, number>
+  totalAccrual: number
+  totalCollected: number
+  totalWaiver: number
+  totalInterest: number
+  closingBalance: number
+}
+
+export interface GeneralAssemblyBoardMember {
+  roleTitle: string
+  personName: string
+  doorNumber: string
+  startDate: string
+  endDate: string | null
+}
+
+export interface GeneralAssemblyReport {
+  from: string
+  to: string
+  buildingName: string
+  companyName: string
+  totalIncome: number
+  totalCashExpense: number
+  totalWaiverExpense: number
+  totalActualExpense: number
+  totalEstimatedExpense: number
+  totalRemainingBudget: number
+  netIncomeExpense: number
+  totalReceivables: number
+  totalResidentCredits: number
+  totalBankOpeningBalance: number
+  totalBankClosingBalance: number
+  reconciled: boolean
+  incomeRows: AuditIncomeRow[]
+  expenseRows: AuditExpenseRow[]
+  banks: AuditBankRow[]
+  apartmentRows: ApartmentTrackingRow[]
+  apartmentTotals: ApartmentTrackingRow
+  monthColumns: GeneralAssemblyMonthColumn[]
+  monthlySummaryRows: GeneralAssemblyMonthlySummaryRow[]
+  apartmentMatrixRows: GeneralAssemblyApartmentMatrixRow[]
+  boardMembers: GeneralAssemblyBoardMember[]
+}
+
+export interface ApartmentTrackingRow {
+  apartmentId: string
+  doorNumber: string
+  title: string
+  devir: number
+  extraAidat: number
+  aidatAccrual: number
+  fuelAccrual: number
+  aidatCollected: number
+  fuelCollected: number
+  waiver: number
+  interest: number
+  net: number
+  ledgerBalance: number
+}
+
+export interface ApartmentTrackingReport {
+  from: string
+  to: string
+  buildingName: string
+  rows: ApartmentTrackingRow[]
+  totals: ApartmentTrackingRow
+  reconciled: boolean
+  periodOpening: number
+  openingEntered: number
+  openingCollected: number
+  unallocated: number
+}
+
+export interface FuelBreakdownRow {
+  gasInvoiceId: string
+  invoiceNumber: string
+  periodFrom: string
+  periodTo: string
+  doorNumber: string
+  title: string
+  squareMeters: number
+  consumptionKWh: number
+  fixedAmount: number
+  consumptionAmount: number
+  totalAmount: number
+}
+
+export interface FuelBreakdownReport {
+  from: string
+  to: string
+  gasInvoiceId: string | null
+  total: number
+  apartmentTrackingFuel: number
+  reconciled: boolean
+  rows: FuelBreakdownRow[]
+}
+
+export interface BankMovementRow {
+  date: string
+  kind: string
+  description: string
+  moneyIn: number
+  moneyOut: number
+}
+
+export interface BankReconciliationReport {
+  bankAccountId: string
+  label: string
+  from: string
+  to: string
+  opening: number
+  moneyIn: number
+  moneyOut: number
+  closing: number
+  movements: BankMovementRow[]
+}

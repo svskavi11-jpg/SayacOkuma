@@ -1,4 +1,7 @@
-﻿using Westalife.Application.Features.Settings.InterestSettings;
+using Westalife.Application.Features.Settings.BudgetSettings;
+using Westalife.Application.Features.Settings.InterestSettings;
+using Westalife.Application.Features.Settings.ManagementPeriodSettings;
+using Westalife.Application.Features.Settings.RoleFeeSettings;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Westalife.Api.Infrastructure;
@@ -115,5 +118,44 @@ public class SettingsController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> UpdateInterestSettings(
         [FromBody] UpdateInterestSettingsCommand command, CancellationToken cancellationToken) =>
+        Ok(await _mediator.Send(command, cancellationToken));
+
+    /// <summary>Faz 6.10: bütçe takibi anahtarı. Kapalıyken gider serbest tür ile girilir.</summary>
+    [HttpGet("budget")]
+    [ProducesResponseType(typeof(BudgetSettingsResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetBudgetSettings(CancellationToken cancellationToken) =>
+        Ok(await _mediator.Send(new GetBudgetSettingsQuery(), cancellationToken));
+
+    [HttpPut("budget")]
+    [ProducesResponseType(typeof(BudgetSettingsResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> UpdateBudgetSettings(
+        [FromBody] UpdateBudgetSettingsCommand command, CancellationToken cancellationToken) =>
+        Ok(await _mediator.Send(command, cancellationToken));
+
+    /// <summary>Aktif yönetim dönemi (başlangıç ve bitiş tarihi) ayarları.</summary>
+    [HttpGet("management-period")]
+    [ProducesResponseType(typeof(ManagementPeriodSettingsResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetManagementPeriodSettings(CancellationToken cancellationToken) =>
+        Ok(await _mediator.Send(new GetManagementPeriodSettingsQuery(), cancellationToken));
+
+    [HttpPut("management-period")]
+    [ProducesResponseType(typeof(ManagementPeriodSettingsResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> UpdateManagementPeriodSettings(
+        [FromBody] UpdateManagementPeriodSettingsCommand command, CancellationToken cancellationToken) =>
+        Ok(await _mediator.Send(command, cancellationToken));
+
+    /// <summary>Varsayılan görev ücretleri (Yönetici ve Denetçi için Oran veya Sabit Tutar / Huzur Hakkı).</summary>
+    [HttpGet("role-fees")]
+    [ProducesResponseType(typeof(RoleFeeSettingsResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetRoleFeeSettings(CancellationToken cancellationToken) =>
+        Ok(await _mediator.Send(new GetRoleFeeSettingsQuery(), cancellationToken));
+
+    [HttpPut("role-fees")]
+    [ProducesResponseType(typeof(RoleFeeSettingsResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> UpdateRoleFeeSettings(
+        [FromBody] UpdateRoleFeeSettingsCommand command, CancellationToken cancellationToken) =>
         Ok(await _mediator.Send(command, cancellationToken));
 }

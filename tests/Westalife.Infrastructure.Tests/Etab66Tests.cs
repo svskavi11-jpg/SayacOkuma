@@ -275,7 +275,7 @@ public class Etab66Tests
             $"E66UNC{Random.Shared.Next(100000, 999999)}", from, to));
 
         var ex = await Assert.ThrowsAsync<DomainException>(() =>
-            mediator.Send(new LockPeriodCommand(invoiceId)));
+            mediator.Send(new LockPeriodCommand(invoiceId, DateOnly.FromDateTime(DateTime.Today), DateOnly.FromDateTime(DateTime.Today).AddDays(15))));
 
         Assert.Contains(DomainConstants.GasInvoice.LockRequiresCalculation, ex.Message);
     }
@@ -297,7 +297,7 @@ public class Etab66Tests
         var calc = await mediator.Send(new CalculateCostDistributionCommand(invoiceId));
         Assert.True(calc.Reconciled);
 
-        var lockResult = await mediator.Send(new LockPeriodCommand(invoiceId));
+        var lockResult = await mediator.Send(new LockPeriodCommand(invoiceId, DateOnly.FromDateTime(DateTime.Today), DateOnly.FromDateTime(DateTime.Today).AddDays(15)));
         Assert.True(lockResult.IsLocked);
         Assert.NotNull(lockResult.LockedOn);
 

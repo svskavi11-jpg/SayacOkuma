@@ -58,5 +58,13 @@ public class PaymentConfiguration : IEntityTypeConfiguration<Payment>
 
         builder.HasIndex(p => p.PaymentDate)
             .HasDatabaseName("IX_Payments_PaymentDate");
+
+        builder.HasOne(p => p.BankAccount)
+            .WithMany()
+            .HasForeignKey(p => p.BankAccountId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(p => p.BankAccountId)
+            .HasDatabaseName("IX_Payments_BankAccountId");
     }
 }

@@ -10,6 +10,7 @@ import {
   InputNumber,
   Modal,
   Table,
+  Tabs,
   Tag,
   Tooltip,
   Typography,
@@ -21,6 +22,7 @@ import dayjs, { type Dayjs } from 'dayjs'
 import { apiClient } from '../../api/client'
 import { formatDate as dateFmt } from '../../utils/dateUtils'
 import type { FormerResidentDebtItem, RecordPaymentRequest } from '../../types/api'
+import { ResidentHistoryTab } from './ResidentHistoryTab'
 
 const tl = (v: number) => v.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })
 
@@ -121,7 +123,14 @@ export function FormerResidentsPage() {
   ]
 
   return (
-    <Card title="Geçmiş Sakinler (Eski Borçlular)">
+    <Card title="Sakin Geçmişi">
+      <Tabs
+        items={[
+          {
+            key: 'debt',
+            label: 'Borçlu Eski Sakinler',
+            children: (
+      <>
       <Alert
         type="info"
         showIcon
@@ -137,6 +146,16 @@ export function FormerResidentsPage() {
         loading={formerQuery.isLoading}
         pagination={{ pageSize: 15 }}
         locale={{ emptyText: 'Borcu olan eski sakin yok. 🎉' }}
+      />
+      </>
+            ),
+          },
+          {
+            key: 'history',
+            label: 'Tüm Değişim Geçmişi',
+            children: <ResidentHistoryTab />,
+          },
+        ]}
       />
 
       <Modal

@@ -26,6 +26,16 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<AidatTariff> AidatTariffs => Set<AidatTariff>();
     public DbSet<AidatInvoice> AidatInvoices => Set<AidatInvoice>();
     public DbSet<AidatCharge> AidatCharges => Set<AidatCharge>();
+    public DbSet<BudgetItem> BudgetItems => Set<BudgetItem>();
+    public DbSet<Expense> Expenses => Set<Expense>();
+    public DbSet<IncomeItem> IncomeItems => Set<IncomeItem>();
+    public DbSet<BudgetPeriod> BudgetPeriods => Set<BudgetPeriod>();
+    public DbSet<BudgetTransfer> BudgetTransfers => Set<BudgetTransfer>();
+    public DbSet<BankAccount> BankAccounts => Set<BankAccount>();
+    public DbSet<BankTransaction> BankTransactions => Set<BankTransaction>();
+    public DbSet<RoleAssignment> RoleAssignments => Set<RoleAssignment>();
+    public DbSet<WaiverOffset> WaiverOffsets => Set<WaiverOffset>();
+    public DbSet<ResidentDocument> ResidentDocuments => Set<ResidentDocument>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

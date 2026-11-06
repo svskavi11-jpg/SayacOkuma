@@ -1,14 +1,16 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  Alert, Button, Card, Col, DatePicker, Form, Input, InputNumber, Row, Select, Space, Statistic, Table, Tag, Typography, message,
+  Alert, Button, Card, Col, DatePicker, Form, Input, InputNumber, Popconfirm, Row, Select, Space, Statistic, Table, Tag, Tooltip, Typography, message,
 } from 'antd'
-import { EyeOutlined, ThunderboltOutlined } from '@ant-design/icons'
+import { EyeOutlined, StopOutlined, ThunderboltOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { apiClient } from '../../api/client'
 import { formatDate as dateFmt } from '../../utils/dateUtils'
 import {
+  AIDAT_CHARGE_TYPE_LABELS,
   AIDAT_DISTRIBUTION_LABELS,
+  type AidatChargeType,
   type AidatDistributionMethod,
   type AidatInvoiceListItem,
   type AidatPreviewResult,
@@ -27,6 +29,7 @@ export function AidatInvoicesPage() {
   const [form] = Form.useForm()
   const [preview, setPreview] = useState<AidatPreviewResult | null>(null)
   const method = Form.useWatch('distributionMethod', form)
+  const chargeType = Form.useWatch('chargeType', form) as AidatChargeType | undefined
 
   const invoicesQuery = useQuery({
     queryKey: ['aidat-invoices'],
@@ -41,6 +44,9 @@ export function AidatInvoicesPage() {
       distributionMethod: values.distributionMethod as AidatDistributionMethod,
       equalAmount: values.distributionMethod === 'Esit' ? (values.equalAmount as number) : null,
       note: (values.note as string) || null,
+      chargeType: (values.chargeType as AidatChargeType) || 'StandartAidat',
+      title: values.chargeType === 'OzelToplama' ? ((values.title as string) || null) : null,
+      targetAmount: values.chargeType === 'OzelToplama' ? (values.targetAmount as number) : null,
     }
     // Hata ayıklama: backend'e giden payload'ı konsolda göster (enum/string tip kontrolü).
     console.log('[Aidat] Tahakkuk payload:', JSON.stringify(req, null, 2))
@@ -64,6 +70,17 @@ export function AidatInvoicesPage() {
         `Tahakkuk oluşturuldu: ${result.chargeCount} daire, toplam ${tl(result.totalAmount)}` +
         (result.skippedCount > 0 ? ` (${result.skippedCount} daire atlandı — tarifesiz/m² yok).` : '.'),
       )
+    },
+  })
+
+  const cancelMutation = useMutation({
+    mutationFn: async (id: string) =>
+      (await apiClient.post(`/aidat/invoices/${id}/cancel`)).data,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['aidat-invoices'] })
+      void queryClient.invalidateQueries({ queryKey: ['ledger'] })
+      void queryClient.invalidateQueries({ queryKey: ['apartments'] })
+      message.success('Aidat tahakkuku iptal edildi. Daire borçları cari hesaptan düşüldü.')
     },
   })
 
@@ -92,8 +109,22 @@ export function AidatInvoicesPage() {
 
   const listColumns: ColumnsType<AidatInvoiceListItem> = [
     {
-      title: 'Dönem', dataIndex: 'periodStart', width: 200,
-      render: (_: unknown, r: AidatInvoiceListItem) => `${dateFmt(r.periodStart)} – ${dateFmt(r.periodEnd)}`,
+      title: 'Dönem', dataIndex: 'periodStart', width: 240,
+      render: (_: unknown, r: AidatInvoiceListItem) => {
+        const label = r.title || `${dateFmt(r.periodStart)} – ${dateFmt(r.periodEnd)}`
+        return (
+          <Space size={6}>
+            <Typography.Text delete={r.isCancelled} type={r.isCancelled ? 'secondary' : undefined}>
+              {label}
+            </Typography.Text>
+            {r.isCancelled && <Tag color="red">İptal Edildi</Tag>}
+          </Space>
+        )
+      },
+    },
+    {
+      title: 'Tür', dataIndex: 'chargeType', width: 130,
+      render: (v: AidatChargeType) => <Tag color={v === 'OzelToplama' ? 'purple' : 'blue'}>{AIDAT_CHARGE_TYPE_LABELS[v] ?? 'Standart Aidat'}</Tag>,
     },
     { title: 'Son Ödeme', dataIndex: 'dueDate', width: 110, render: (v: string) => dateFmt(v) },
     {
@@ -101,27 +132,127 @@ export function AidatInvoicesPage() {
       render: (v: AidatDistributionMethod) => <Tag color="geekblue">{AIDAT_DISTRIBUTION_LABELS[v]}</Tag>,
     },
     { title: 'Daire', dataIndex: 'chargeCount', width: 80, align: 'right' },
-    { title: 'Toplam', dataIndex: 'totalAmount', width: 130, align: 'right', render: (v: number) => tl(v) },
+    {
+      title: 'Toplam', dataIndex: 'totalAmount', width: 130, align: 'right',
+      render: (v: number, r) => (
+        <Typography.Text delete={r.isCancelled} type={r.isCancelled ? 'secondary' : undefined}>
+          {tl(v)}
+        </Typography.Text>
+      ),
+    },
+    {
+      title: 'Hedef', dataIndex: 'targetAmount', width: 130, align: 'right',
+      render: (v: number | null) => (v == null ? '—' : tl(v)),
+    },
+    {
+      title: 'Fon Harcaması', dataIndex: 'fundSpent', width: 140, align: 'right',
+      render: (v: number, r) => (r.chargeType === 'OzelToplama' ? tl(v) : '—'),
+    },
+    {
+      title: 'Fon Bakiyesi', dataIndex: 'fundBalance', width: 140, align: 'right',
+      render: (v: number, r) => (r.chargeType === 'OzelToplama' ? tl(v) : '—'),
+    },
     { title: 'Tahsil Edilen', dataIndex: 'paidAmount', width: 130, align: 'right', render: (v: number) => tl(v) },
     {
       title: 'Kalan', dataIndex: 'remainingAmount', width: 130, align: 'right',
-      render: (v: number) => (
-        <Typography.Text type={v > 0 ? 'danger' : 'success'}>{tl(v)}</Typography.Text>
+      render: (v: number, r) => (
+        r.isCancelled
+          ? <Typography.Text type="secondary">{tl(0)}</Typography.Text>
+          : <Typography.Text type={v > 0 ? 'danger' : 'success'}>{tl(v)}</Typography.Text>
       ),
     },
     {
       title: 'Tahsilat Oranı', dataIndex: 'collectionRatio', width: 130,
-      render: (v: number) => (
-        <Tag color={v >= 100 ? 'green' : v >= 50 ? 'gold' : 'red'}>{v.toLocaleString('tr-TR')}%</Tag>
+      render: (v: number, r) => (
+        r.isCancelled
+          ? <Tag color="default">İptal</Tag>
+          : <Tag color={v >= 100 ? 'green' : v >= 50 ? 'gold' : 'red'}>{v.toLocaleString('tr-TR')}%</Tag>
       ),
+    },
+    {
+      title: 'İşlemler',
+      key: 'actions',
+      width: 140,
+      align: 'center',
+      render: (_: unknown, r: AidatInvoiceListItem) => {
+        if (r.isCancelled) {
+          return (
+            <Tooltip title={r.cancelledAt ? `İptal tarihi: ${dateFmt(r.cancelledAt)}` : 'İptal edildi'}>
+              <Tag color="red">İptal Edildi</Tag>
+            </Tooltip>
+          )
+        }
+
+        const hasPayments = r.paidAmount > 0
+        const hasExpenses = r.chargeType === 'OzelToplama' && r.fundSpent > 0
+        const isLocked = !!r.isLocked
+        const disabled = isLocked || hasPayments || hasExpenses
+
+        const disableReason = isLocked
+          ? 'Bütçe dönemi kilitli olduğu için iptal edilemez.'
+          : hasPayments
+            ? 'Bu tahakkuka ait tahsilat bulunduğu için iptal edilemez. Önce ilgili tahsilatları iptal ediniz.'
+            : hasExpenses
+              ? 'Bu özel toplama fonuna bağlı gider kaydı bulunduğu için iptal edilemez.'
+              : null
+
+        if (disabled) {
+          return (
+            <Tooltip title={disableReason}>
+              <span>
+                <Button size="small" danger icon={<StopOutlined />} disabled>
+                  İptal Et
+                </Button>
+              </span>
+            </Tooltip>
+          )
+        }
+
+        return (
+          <Popconfirm
+            title="Tahakkuku İptal Et"
+            description="Bu tahakkuku iptal etmek istediğinize emin misiniz? Bu işlem geri alınamaz, dairelerin borçları silinir."
+            okText="Evet, İptal Et"
+            cancelText="Vazgeç"
+            okButtonProps={{ danger: true, loading: cancelMutation.isPending }}
+            onConfirm={() => cancelMutation.mutate(r.id)}
+          >
+            <Button size="small" danger icon={<StopOutlined />} loading={cancelMutation.isPending}>
+              İptal Et
+            </Button>
+          </Popconfirm>
+        )
+      },
     },
   ]
 
   return (
     <Card title="Aidat Tahakkukları">
       <Typography.Title level={5}>Yeni Tahakkuk Oluştur</Typography.Title>
-      <Form form={form} layout="vertical">
+      <Form form={form} layout="vertical" initialValues={{ chargeType: 'StandartAidat' }}>
         <Row gutter={12}>
+          <Col span={6}>
+            <Form.Item name="chargeType" label="Tahakkuk Türü" rules={[{ required: true, message: 'Zorunludur.' }]}>
+              <Select
+                options={(Object.entries(AIDAT_CHARGE_TYPE_LABELS) as [AidatChargeType, string][])
+                  .map(([value, label]) => ({ value, label }))}
+              />
+            </Form.Item>
+          </Col>
+          {chargeType === 'OzelToplama' && (
+            <>
+              <Col span={8}>
+                <Form.Item name="title" label="Fon Adı" rules={[{ required: true, message: 'Fon adı zorunludur.' }]}>
+                  <Input maxLength={120} placeholder="Çatı Onarımı Fonu" />
+                </Form.Item>
+              </Col>
+              <Col span={6}>
+                <Form.Item name="targetAmount" label="Hedef Tutar" rules={[{ required: true, message: 'Hedef tutar zorunludur.' }]}>
+                  <InputNumber style={{ width: '100%' }} min={0.01} precision={2} decimalSeparator="," addonAfter="TL" />
+                </Form.Item>
+              </Col>
+            </>
+          )}
           <Col span={6}>
             <Form.Item name="periodStart" label="Dönem Başlangıcı" rules={[{ required: true, message: 'Zorunludur.' }]}>
               <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />

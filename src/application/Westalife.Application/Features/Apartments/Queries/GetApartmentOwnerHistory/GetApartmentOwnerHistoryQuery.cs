@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Westalife.Application.Common.Interfaces;
 using Westalife.Domain.Constants;
+using Westalife.Domain.Enums;
 using Westalife.Domain.Exceptions;
 
 namespace Westalife.Application.Features.Apartments.Queries.GetApartmentOwnerHistory;
@@ -14,7 +15,11 @@ public sealed record ApartmentOwnerHistoryItem(
     Guid Id,
     string OwnerName,
     DateTimeOffset ValidFrom,
-    DateTimeOffset? ValidTo);
+    DateTimeOffset? ValidTo,
+    ResidentType ResidentType,
+    string? PhoneNumber,
+    DateOnly? LeaseStartDate,
+    DateOnly? LeaseEndDate);
 
 public sealed class GetApartmentOwnerHistoryQueryHandler
     : IRequestHandler<GetApartmentOwnerHistoryQuery, IReadOnlyList<ApartmentOwnerHistoryItem>>
@@ -38,7 +43,8 @@ public sealed class GetApartmentOwnerHistoryQueryHandler
         var items = await _db.ApartmentOwners
             .Where(o => o.ApartmentId == request.ApartmentId)
             .OrderBy(o => o.ValidFrom)
-            .Select(o => new ApartmentOwnerHistoryItem(o.Id, o.OwnerName, o.ValidFrom, o.ValidTo))
+            .Select(o => new ApartmentOwnerHistoryItem(
+                o.Id, o.OwnerName, o.ValidFrom, o.ValidTo, o.ResidentType, o.PhoneNumber, o.LeaseStartDate, o.LeaseEndDate))
             .ToListAsync(cancellationToken);
 
         return items;

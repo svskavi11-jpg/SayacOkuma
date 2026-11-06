@@ -1,4 +1,4 @@
-﻿using ClosedXML.Excel;
+using ClosedXML.Excel;
 using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -178,7 +178,7 @@ public class Etap67Tests
         var invoiceId = await mediator.Send(BuildInvoiceCommand(
             $"E67C{Random.Shared.Next(100000, 999999)}", from, to));
         await mediator.Send(new CalculateCostDistributionCommand(invoiceId));
-        await mediator.Send(new LockPeriodCommand(invoiceId));
+        await mediator.Send(new LockPeriodCommand(invoiceId, DateOnly.FromDateTime(DateTime.Today), DateOnly.FromDateTime(DateTime.Today).AddDays(15)));
 
         var invoice = await db.GasInvoices.FirstAsync(i => i.Id == invoiceId);
         var ex = await Assert.ThrowsAsync<DomainException>(() =>
@@ -511,7 +511,7 @@ public class Etap67Tests
         var invoiceId = await mediator.Send(BuildInvoiceCommand(
             $"E67L{Random.Shared.Next(100000, 999999)}", from, to));
         await mediator.Send(new CalculateCostDistributionCommand(invoiceId));
-        await mediator.Send(new LockPeriodCommand(invoiceId));
+        await mediator.Send(new LockPeriodCommand(invoiceId, DateOnly.FromDateTime(DateTime.Today), DateOnly.FromDateTime(DateTime.Today).AddDays(15)));
 
         // Kilitli döneme düşen okuma düzeltilemez.
         var result = await mediator.Send(new UpdateMeterReadingCommand(

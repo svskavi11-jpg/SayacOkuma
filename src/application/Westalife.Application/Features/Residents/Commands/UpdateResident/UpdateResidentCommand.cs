@@ -14,7 +14,11 @@ public sealed record ResidentInfoInput(
     string? PhoneNumber,
     string? Email,
     string? IdentityNumber,
-    string? Notes);
+    string? Notes,
+    DateOnly? LeaseStartDate = null,
+    DateOnly? LeaseEndDate = null,
+    DateOnly? ValidFrom = null,
+    DateOnly? ValidTo = null);
 
 /// <summary>
 /// Faz 7.1: Sakin ekler/günceller — hem Ev Sahibi hem Kiracı tek komutta (SCD Type 2,
@@ -30,7 +34,9 @@ public sealed record UpdateResidentCommand(
 public sealed record UpdateResidentResult(
     Guid ApartmentId,
     string? EvSahibiName,
-    string? KiraciName);
+    string? KiraciName,
+    Guid? EvSahibiId = null,
+    Guid? KiraciId = null);
 
 public sealed class UpdateResidentCommandValidator : AbstractValidator<UpdateResidentCommand>
 {
@@ -71,29 +77,29 @@ public sealed class UpdateResidentCommandHandler : IRequestHandler<UpdateResiden
             .FirstOrDefaultAsync(a => a.Id == request.ApartmentId, cancellationToken)
             ?? throw new NotFoundException("Daire bulunamadı.");
 
+        // İstemci "yyyy-MM-dd" gönderirse JSON bunu yerel ofsetle çözer (ör. -03:00).
+        // Npgsql timestamptz yalnızca UTC (ofset 0) kabul eder.
+        var validFrom = request.ValidFrom.ToUniversalTime();
+
+        // UpdateResident no-op'ta mevcut (tracked) kaydı döndürür. Yalnızca bu çağrıdan
+        // önce koleksiyonda olmayan kimlik yeni SCD satırıdır.
+        var existingOwnerIds = apartment.Owners.Select(o => o.Id).ToHashSet();
+        Guid? evSahibiId = null;
+        Guid? kiraciId = null;
+
         if (request.EvSahibi is { } evSahibi)
         {
-            apartment.UpdateResident(
-                ResidentType.EvSahibi,
-                evSahibi.Name,
-                evSahibi.PhoneNumber,
-                evSahibi.Email,
-                evSahibi.IdentityNumber,
-                evSahibi.Notes,
-                request.ValidFrom);
+            var resident = Place(apartment, ResidentType.EvSahibi, evSahibi, validFrom);
+            EnsureNewOwnerAdded(_db, resident, existingOwnerIds);
+            evSahibiId = resident.Id;
         }
 
         // Kiracı bloğu verilmiş ama ad boş bırakılmışsa kiracı kaydına dokunulmaz (bilinçli boş geçiş).
         if (request.Kiraci is { } kiraci && !string.IsNullOrWhiteSpace(kiraci.Name))
         {
-            apartment.UpdateResident(
-                ResidentType.Kiraci,
-                kiraci.Name,
-                kiraci.PhoneNumber,
-                kiraci.Email,
-                kiraci.IdentityNumber,
-                kiraci.Notes,
-                request.ValidFrom);
+            var resident = Place(apartment, ResidentType.Kiraci, kiraci, validFrom);
+            EnsureNewOwnerAdded(_db, resident, existingOwnerIds);
+            kiraciId = resident.Id;
         }
 
         await _db.SaveChangesAsync(cancellationToken);
@@ -103,6 +109,57 @@ public sealed class UpdateResidentCommandHandler : IRequestHandler<UpdateResiden
         return new UpdateResidentResult(
             apartment.Id,
             apartment.GetActiveResident(ResidentType.EvSahibi, now)?.OwnerName,
-            apartment.GetActiveResident(ResidentType.Kiraci, now)?.OwnerName);
+            apartment.GetActiveResident(ResidentType.Kiraci, now)?.OwnerName,
+            evSahibiId,
+            kiraciId);
+    }
+
+    private static ApartmentOwner Place(
+        Apartment apartment, ResidentType residentType, ResidentInfoInput info, DateTimeOffset commandValidFrom)
+    {
+        var from = info.ValidFrom is { } day ? TurkeyStart(day) : commandValidFrom;
+        DateTimeOffset? to = info.ValidTo is { } end ? TurkeyStart(end) : null;
+        return apartment.UpdateResident(
+            residentType,
+            info.Name,
+            info.PhoneNumber,
+            info.Email,
+            info.IdentityNumber,
+            info.Notes,
+            from,
+            replaceContact: true,
+            validTo: to,
+            leaseStart: info.LeaseStartDate,
+            leaseEnd: info.LeaseEndDate);
+    }
+
+    private static DateTimeOffset TurkeyStart(DateOnly date)
+    {
+        var zoneId = OperatingSystem.IsWindows() ? "Turkey Standard Time" : "Europe/Istanbul";
+        var zone = TimeZoneInfo.FindSystemTimeZoneById(zoneId);
+        var local = date.ToDateTime(TimeOnly.MinValue);
+        return new DateTimeOffset(local, zone.GetUtcOffset(local)).ToUniversalTime();
+    }
+
+    /// <summary>
+    /// Yeni SCD satırını INSERT (Added) olarak işaretler.
+    /// Anahtarı dolu client-GUID, ValueGeneratedOnAdd olduğu için navigation keşfi
+    /// kaydı Modified sanıp var olmayan satıra UPDATE gönderebiliyor (0 satır çakışması).
+    /// No-op mevcut kaydı döndürür; onun kimliği <paramref name="existingOwnerIds"/> içindedir.
+    /// </summary>
+    private static void EnsureNewOwnerAdded(
+        IApplicationDbContext db, ApartmentOwner resident, IReadOnlySet<Guid> existingOwnerIds)
+    {
+        if (existingOwnerIds.Contains(resident.Id))
+        {
+            return;
+        }
+
+        db.ApartmentOwners.Add(resident);
+
+        if (db is DbContext ctx && ctx.Entry(resident).State != EntityState.Added)
+        {
+            ctx.Entry(resident).State = EntityState.Added;
+        }
     }
 }

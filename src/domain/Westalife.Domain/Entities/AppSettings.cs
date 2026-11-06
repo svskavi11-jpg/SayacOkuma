@@ -1,5 +1,6 @@
 using Westalife.Domain.Common;
 using Westalife.Domain.Constants;
+using Westalife.Domain.Enums;
 using Westalife.Domain.Exceptions;
 
 namespace Westalife.Domain.Entities;
@@ -138,8 +139,6 @@ public class AppSettings : BaseEntity
             throw new ArgumentException(DomainConstants.AppSettings.UsbPortNameRequired, nameof(usbPortName));
         }
 
-        // Etap 6.7 bug fix: TcpPort/UsbBaudRate aralıkları yalnız İLGİLİ bağlantı tipinde doğrulanır —
-        // "Simulator" seçiliyken bu alanlar (genelde 0 gelir) validasyon hatası ÜRETMEZ.
         if (meterConnectionType == DomainConstants.AppSettings.ConnectionTcp
             && (tcpPort < DomainConstants.AppSettings.TcpPortMin || tcpPort > DomainConstants.AppSettings.TcpPortMax))
         {
@@ -223,7 +222,6 @@ public class AppSettings : BaseEntity
             throw new DomainException(DomainConstants.AppSettings.LogoTypeInvalid);
         }
 
-        // İçeriğin gerçek biçimi kaydedilen content-type'ı belirler.
         contentType = isPng ? "image/png" : "image/jpeg";
 
         switch (side)
@@ -279,6 +277,102 @@ public class AppSettings : BaseEntity
         IsInterestEnabled = isEnabled;
         InterestPeriod = interestPeriod;
         InterestRate = decimal.Round(interestRate, 4);
+        LastModifiedOn = DateTimeOffset.UtcNow;
+    }
+
+    // --- Faz 6.10: Bütçe takibi ---
+
+    public bool IsBudgetTrackingEnabled { get; private set; }
+
+    public void UpdateBudgetTracking(bool isEnabled)
+    {
+        IsBudgetTrackingEnabled = isEnabled;
+        LastModifiedOn = DateTimeOffset.UtcNow;
+    }
+
+    // --- Aktif Yönetim Dönemi (Dinamik Raporlama & Genel Kurul Dönemi) ---
+
+    public DateOnly? ManagementPeriodStart { get; private set; }
+
+    public DateOnly? ManagementPeriodEnd { get; private set; }
+
+    public void UpdateManagementPeriod(DateOnly startDate, DateOnly endDate)
+    {
+        if (endDate < startDate)
+        {
+            throw new DomainException(DomainConstants.AuditReport.PeriodInvalid);
+        }
+
+        ManagementPeriodStart = startDate;
+        ManagementPeriodEnd = endDate;
+        LastModifiedOn = DateTimeOffset.UtcNow;
+    }
+
+    // --- Varsayılan Görev Ücretleri & Görev Mahsup Bütçe Kalemi ---
+
+    public RolePaymentType DefaultManagerPaymentType { get; private set; } = RolePaymentType.Oran;
+
+    public decimal DefaultManagerExemptionRate { get; private set; } = 1.00m;
+
+    public decimal DefaultManagerFixedAmount { get; private set; }
+
+    public RolePeriodType DefaultManagerPeriodType { get; private set; } = RolePeriodType.Aylik;
+
+    public RolePaymentType DefaultAuditorPaymentType { get; private set; } = RolePaymentType.Oran;
+
+    public decimal DefaultAuditorExemptionRate { get; private set; }
+
+    public decimal DefaultAuditorFixedAmount { get; private set; }
+
+    public RolePeriodType DefaultAuditorPeriodType { get; private set; } = RolePeriodType.Aylik;
+
+    /// <summary>
+    /// Görev mahsuplarının (WaiverOffset) bütçe gerçekleşme ve denetim raporlarında hangi bütçe kalemine
+    /// yazılacağını belirler. Boş bırakılabilir; ancak görev mahsubu üretilecekse seçilmiş olması zorunludur.
+    /// </summary>
+    public Guid? ManagementExpenseBudgetItemId { get; private set; }
+
+    public void UpdateRoleFeeDefaults(
+        RolePaymentType managerPaymentType,
+        decimal managerExemptionRate,
+        decimal managerFixedAmount,
+        RolePeriodType managerPeriodType,
+        RolePaymentType auditorPaymentType,
+        decimal auditorExemptionRate,
+        decimal auditorFixedAmount,
+        RolePeriodType auditorPeriodType,
+        Guid? managementExpenseBudgetItemId = null)
+    {
+        if (!Enum.IsDefined(managerPaymentType) || !Enum.IsDefined(auditorPaymentType))
+        {
+            throw new DomainException(DomainConstants.RoleAssignment.PaymentTypeInvalid);
+        }
+
+        if (!Enum.IsDefined(managerPeriodType) || !Enum.IsDefined(auditorPeriodType))
+        {
+            throw new DomainException(DomainConstants.RoleAssignment.PeriodTypeRequired);
+        }
+
+        if (managerExemptionRate < 0m || managerExemptionRate > 1m || auditorExemptionRate < 0m || auditorExemptionRate > 1m)
+        {
+            throw new DomainException(DomainConstants.RoleAssignment.RateInvalid);
+        }
+
+        if (managerFixedAmount < 0m || auditorFixedAmount < 0m)
+        {
+            throw new DomainException(DomainConstants.RoleAssignment.FixedAmountInvalid);
+        }
+
+        DefaultManagerPaymentType = managerPaymentType;
+        DefaultManagerExemptionRate = decimal.Round(managerExemptionRate, 2, MidpointRounding.AwayFromZero);
+        DefaultManagerFixedAmount = decimal.Round(managerFixedAmount, 2, MidpointRounding.AwayFromZero);
+        DefaultManagerPeriodType = managerPeriodType;
+
+        DefaultAuditorPaymentType = auditorPaymentType;
+        DefaultAuditorExemptionRate = decimal.Round(auditorExemptionRate, 2, MidpointRounding.AwayFromZero);
+        DefaultAuditorFixedAmount = decimal.Round(auditorFixedAmount, 2, MidpointRounding.AwayFromZero);
+        DefaultAuditorPeriodType = auditorPeriodType;
+        ManagementExpenseBudgetItemId = managementExpenseBudgetItemId == Guid.Empty ? null : managementExpenseBudgetItemId;
         LastModifiedOn = DateTimeOffset.UtcNow;
     }
 

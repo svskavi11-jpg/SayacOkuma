@@ -7,7 +7,10 @@ using Westalife.Domain.Exceptions;
 namespace Westalife.Application.Features.GasInvoices.Commands.LockPeriod;
 
 /// <summary>Dönemi kilitler (Etap 6.6): kilitli döneme okuma eklenemez, dönem yeniden hesaplanamaz.</summary>
-public sealed record LockPeriodCommand(Guid GasInvoiceId) : IRequest<LockPeriodResult>;
+public sealed record LockPeriodCommand(
+    Guid GasInvoiceId,
+    DateOnly NoticeDate,
+    DateOnly DueDate) : IRequest<LockPeriodResult>;
 
 public sealed record LockPeriodResult(Guid GasInvoiceId, bool IsLocked, DateTimeOffset? LockedOn);
 
@@ -39,7 +42,7 @@ public sealed class LockPeriodCommandHandler : IRequestHandler<LockPeriodCommand
             throw new DomainException(DomainConstants.GasInvoice.LockRequiresCalculation);
         }
 
-        invoice.Lock();
+        invoice.Lock(request.NoticeDate, request.DueDate);
         await _db.SaveChangesAsync(cancellationToken);
 
         return new LockPeriodResult(invoice.Id, invoice.IsLocked, invoice.LockedOn);

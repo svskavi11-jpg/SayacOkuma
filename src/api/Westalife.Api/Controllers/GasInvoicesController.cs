@@ -80,14 +80,18 @@ public class GasInvoicesController : ControllerBase
         return Ok(result);
     }
 
-    /// <summary>Dönemi kilitler (Etap 6.6): kilitli döneme okuma eklenemez, dönem yeniden hesaplanamaz.</summary>
+    /// <summary>Dönemi kilitler. Bildirim ve son ödeme tarihi bu anda kesinleşir; faiz vadeden sonra işler.</summary>
     [HttpPost("{id:guid}/lock")]
     [ProducesResponseType(typeof(LockPeriodResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
-    public async Task<IActionResult> LockPeriod(Guid id, CancellationToken cancellationToken)
+    public async Task<IActionResult> LockPeriod(
+        Guid id, [FromBody] LockPeriodRequest request, CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(new LockPeriodCommand(id), cancellationToken);
+        var result = await _mediator.Send(
+            new LockPeriodCommand(id, request.NoticeDate, request.DueDate),
+            cancellationToken);
         return Ok(result);
     }
 
@@ -167,7 +171,7 @@ public class GasInvoicesController : ControllerBase
             $"Borclistesi-{data.PeriodName}.xlsx");
     }
 
-    /// <summary>Faz 6.8: faturanın son ödeme tarihini (vade) günceller. Dönem kilidinden bağımsızdır.</summary>
+    /// <summary>Faz 6.8: faturanın son ödeme tarihini günceller. Kilitli dönemde reddedilir.</summary>
     [HttpPut("{id:guid}/due-date")]
     [ProducesResponseType(typeof(InvoiceFinanceResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
@@ -185,3 +189,5 @@ public class GasInvoicesController : ControllerBase
         Guid id, [FromBody] SetInvoicePaidCommand command, CancellationToken cancellationToken) =>
         Ok(await _mediator.Send(command with { InvoiceId = id }, cancellationToken));
 }
+
+public sealed record LockPeriodRequest(DateOnly NoticeDate, DateOnly DueDate);

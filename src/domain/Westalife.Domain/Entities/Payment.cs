@@ -56,6 +56,11 @@ public class Payment : BaseEntity
     /// </summary>
     public Guid? TargetOwnerId { get; private set; }
 
+    /// <summary>Paranın girdiği banka hesabı. Boşsa tahsilat bankaya bağlanmamıştır.</summary>
+    public Guid? BankAccountId { get; private set; }
+
+    public BankAccount? BankAccount { get; private set; }
+
     // ── İptal alanları (soft-delete) ──────────────────────────────────────────
     public bool IsCancelled { get; private set; }
 
@@ -80,7 +85,8 @@ public class Payment : BaseEntity
         Guid? apartmentOwnerId = null,
         Guid? legalResponsibleOwnerId = null,
         LedgerDebtType? targetDebtType = null,
-        Guid? targetOwnerId = null)
+        Guid? targetOwnerId = null,
+        Guid? bankAccountId = null)
     {
         if (apartmentId == Guid.Empty)
             throw new ArgumentException("Daire kimliği (apartmentId) zorunludur.", nameof(apartmentId));
@@ -105,6 +111,7 @@ public class Payment : BaseEntity
         LegalResponsibleOwnerId = legalResponsibleOwnerId;
         TargetDebtType = targetDebtType;
         TargetOwnerId = targetOwnerId;
+        BankAccountId = NormalizeBankAccountId(bankAccountId);
     }
 
     /// <summary>
@@ -133,6 +140,44 @@ public class Payment : BaseEntity
         foreach (var alloc in _allocations)
             alloc.Void();
     }
+
+    /// <summary>
+    /// Yanlış girilen tahsilatı düzeltir. Cari hesap sorgu anında yeniden hesaplanır.
+    /// İptal edilmiş kayıt değiştirilemez.
+    /// </summary>
+    public void Update(
+        DateOnly paymentDate,
+        decimal amount,
+        string? description,
+        string? receivedBy,
+        LedgerDebtType? targetDebtType,
+        Guid? bankAccountId = null)
+    {
+        if (IsCancelled)
+            throw new DomainException(DomainConstants.Payment.CancelledCannotBeChanged);
+
+        if (amount <= 0m)
+            throw new ArgumentException(DomainConstants.Payment.AmountMustBePositive, nameof(amount));
+
+        if (amount > DomainConstants.Payment.AmountMax)
+            throw new ArgumentException(DomainConstants.Payment.AmountTooLarge, nameof(amount));
+
+        if (paymentDate > DateOnly.FromDateTime(DateTime.Today))
+            throw new ArgumentException(DomainConstants.Payment.PaymentDateFuture, nameof(paymentDate));
+
+        PaymentDate = paymentDate;
+        Amount = decimal.Round(amount, 2);
+        Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
+        ReceivedBy = string.IsNullOrWhiteSpace(receivedBy)
+            ? DomainConstants.Payment.DefaultReceivedBy
+            : receivedBy.Trim();
+        TargetDebtType = targetDebtType;
+        BankAccountId = NormalizeBankAccountId(bankAccountId);
+        LastModifiedOn = DateTimeOffset.UtcNow;
+    }
+
+    private static Guid? NormalizeBankAccountId(Guid? bankAccountId) =>
+        bankAccountId is Guid id && id != Guid.Empty ? id : null;
 
     /// <summary>Allocation ekler. Toplam allocation, Payment.Amount'u aşamaz.</summary>
     internal void AddAllocation(PaymentAllocation allocation)

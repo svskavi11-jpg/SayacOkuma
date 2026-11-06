@@ -56,6 +56,8 @@ public class AidatCharge : BaseEntity
         Amount = decimal.Round(amount, 2);
     }
 
+    internal void BindInvoice(AidatInvoice invoice) => AidatInvoice = invoice;
+
     /// <summary>
     /// Faz 7.1: Borç sahipliğini atar (Hibrit Model). Primary = kiracı (varsa) / ev sahibi;
     /// LegalResponsible = müteselsil sorumlu ev sahibi (KMK m.22). Application katmanından çağrılır.

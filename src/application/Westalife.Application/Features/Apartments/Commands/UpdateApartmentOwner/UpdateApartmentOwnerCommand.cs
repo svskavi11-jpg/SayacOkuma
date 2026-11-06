@@ -3,6 +3,8 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Westalife.Application.Common.Interfaces;
 using Westalife.Domain.Constants;
+using Westalife.Domain.Entities;
+using Westalife.Domain.Enums;
 using Westalife.Domain.Exceptions;
 
 namespace Westalife.Application.Features.Apartments.Commands.UpdateApartmentOwner;
@@ -52,19 +54,28 @@ public sealed class UpdateApartmentOwnerCommandHandler
             .FirstOrDefaultAsync(a => a.Id == request.ApartmentId, cancellationToken)
             ?? throw new DomainException(DomainConstants.ValidationMessages.ApartmentNotFoundForDoorNumber);
 
-        // No-op tespiti: aktif malik adı değişmediyse hiçbir kayıt açılmaz.
-        var currentActive = apartment.Owners.FirstOrDefault(o => o.ValidTo is null);
-        var isNoOp = currentActive is not null
-            && currentActive.OwnerName.Equals(request.OwnerName.Trim(), StringComparison.OrdinalIgnoreCase);
+        // No-op tespiti: aktif EV SAHİBİ adı değişmediyse hiçbir kayıt açılmaz.
+        // Tür filtresi şart — Kiracı da aktif olabilir; filtresiz FirstOrDefault aktif
+        // Kiracı'yı yakalayıp no-op'ı yanlış hesaplıyor ve yeni Ev Sahibi satırı eklenmiyordu.
+        var existingOwnerIds = apartment.Owners.Select(o => o.Id).ToHashSet();
+        var currentActiveEvSahibi = apartment.Owners.FirstOrDefault(
+            o => o.ResidentType == ResidentType.EvSahibi && o.ValidTo is null);
+
+        var isNoOp = currentActiveEvSahibi is not null
+            && currentActiveEvSahibi.OwnerName.Equals(request.OwnerName.Trim(), StringComparison.OrdinalIgnoreCase);
 
         var validFrom = DateTimeOffset.UtcNow;
         var newOwner = apartment.UpdateOwner(request.OwnerName, validFrom);
 
-        // Yeni kayıt açıldıysa garanti şekilde ekle (navigation-discovery detayı —
-        // UpdateApartmentDimension ile aynı bilinçli Add() deseni).
-        if (!isNoOp)
+        // Yeni SCD satırı: client-GUID + ValueGeneratedOnAdd, navigation keşfinde Modified
+        // olabiliyor. Kimliği bu yüklemede yoksa açıkça Added'a alınır (0-satır UPDATE yok).
+        if (!existingOwnerIds.Contains(newOwner.Id))
         {
             _db.ApartmentOwners.Add(newOwner);
+            if (_db is DbContext ctx && ctx.Entry(newOwner).State != EntityState.Added)
+            {
+                ctx.Entry(newOwner).State = EntityState.Added;
+            }
         }
 
         await _db.SaveChangesAsync(cancellationToken);

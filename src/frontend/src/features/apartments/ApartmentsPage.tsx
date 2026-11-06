@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Alert,
@@ -19,7 +19,6 @@ import {
   Table,
   Tabs,
   Tag,
-  Tooltip,
   Typography,
   Upload,
 } from 'antd'
@@ -34,19 +33,34 @@ import type {
   ApartmentListItem,
   ImportMetersFromExcelResult,
   ManualReadingResult,
+  ApartmentOwnerHistoryItem,
+  ResidentDocumentItem,
+  ResidentDocumentType,
   SetApartmentTariffResult,
   UpdateResidentsResult,
 } from '../../types/api'
+import { ResidentHistoryBlock, StayFields, uploadResidentFiles } from './ResidentManageExtras'
+import type { UploadFile } from 'antd/es/upload/interface'
 import dayjs, { type Dayjs } from 'dayjs'
 import { AnalysisModal } from './AnalysisModal'
+import { RoleAssignModal } from './RoleAssignModal'
 import { ReadingsModal } from './ReadingsModal'
 import { OwnerEditModal, OwnerHistoryModal } from './OwnerModals'
-import { AccountBookOutlined, HistoryOutlined, LineChartOutlined, MoneyCollectOutlined, TableOutlined, TeamOutlined, UserOutlined } from '@ant-design/icons'
+import { AccountBookOutlined, HistoryOutlined, LineChartOutlined, MoneyCollectOutlined, SafetyCertificateOutlined, TableOutlined, TeamOutlined, UserOutlined } from '@ant-design/icons'
 
 // Türkçe sayı biçimi: binlik ayracı nokta, ondalık ayracı virgül (Intl 'tr-TR')
 const fmtIndex = new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
 const fmtM2 = new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const tl = (v: number) => v.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })
+
+function renderDebt(v: number, color: string) {
+  if (!v) return <Typography.Text type="secondary">—</Typography.Text>
+  return (
+    <Typography.Text strong style={{ color }}>
+      {tl(v)}
+    </Typography.Text>
+  )
+}
 const fmtM2One = (v: number) => v.toLocaleString('tr-TR', { minimumFractionDigits: 1 })
 
 /** Excel içe aktarma sonucu: satır bazlı başarı/atlanan/hatalı raporu. */
@@ -153,16 +167,19 @@ export function ApartmentsPage() {
   const [readingsFor, setReadingsFor] = useState<ApartmentListItem | null>(null)
   const [ownerEditFor, setOwnerEditFor] = useState<ApartmentListItem | null>(null)
   const [ownerHistoryFor, setOwnerHistoryFor] = useState<ApartmentListItem | null>(null)
+  const [roleFor, setRoleFor] = useState<ApartmentListItem | null>(null)
 
   // Etap 6.8: Devir bakiyesi girişi (Anapara + Geçmiş Faiz + Devir Tarihi).
   const [devirFor, setDevirFor] = useState<ApartmentListItem | null>(null)
-  const [devirForm] = Form.useForm<{ principalAmount: number; interestAmount: number; balanceDate: Dayjs }>()
+  const [devirForm] = Form.useForm<{ principalAmount: number; interestAmount: number; balanceDate: Dayjs; ownerId?: string }>()
+  const devirPrincipal = Form.useWatch('principalAmount', devirForm)
   const devirMutation = useMutation({
     mutationFn: async (input: {
       apartmentId: string
       principalAmount: number
       interestAmount: number
       balanceDate: string
+      ownerId?: string | null
     }) =>
       (
         await apiClient.put(
@@ -171,6 +188,7 @@ export function ApartmentsPage() {
             principalAmount: input.principalAmount,
             interestAmount: input.interestAmount,
             balanceDate: input.balanceDate,
+            ownerId: input.ownerId ?? null,
           },
         )
       ).data as { openingBalancePrincipal: number; openingBalanceInterest: number },
@@ -266,24 +284,63 @@ export function ApartmentsPage() {
 
   // Faz 7.1: Sakin yönetimi (Ev Sahibi + Kiracı) — tekli modal.
   const [residentsFor, setResidentsFor] = useState<ApartmentListItem | null>(null)
+  const [evFiles, setEvFiles] = useState<UploadFile[]>([])
+  const [kiFiles, setKiFiles] = useState<UploadFile[]>([])
+  const [evDocType, setEvDocType] = useState<ResidentDocumentType>('Tapu')
+  const [kiDocType, setKiDocType] = useState<ResidentDocumentType>('KiraSozlesmesi')
+  const stayFilledFor = useRef<string | null>(null)
   const [residentsForm] = Form.useForm<{
     evName: string; evPhone?: string; evEmail?: string; evTckn?: string; evNotes?: string
+    evValidFrom?: Dayjs; evValidTo?: Dayjs; evLeaseStart?: Dayjs; evLeaseEnd?: Dayjs
     kiName?: string; kiPhone?: string; kiEmail?: string; kiTckn?: string; kiNotes?: string
+    kiValidFrom?: Dayjs; kiValidTo?: Dayjs; kiLeaseStart?: Dayjs; kiLeaseEnd?: Dayjs
   }>()
+  const stayApartmentId = residentsFor?.id ?? devirFor?.id ?? null
+  const stayQuery = useQuery({
+    queryKey: ['apartment-owner-history', stayApartmentId],
+    enabled: stayApartmentId !== null,
+    queryFn: async () =>
+      (await apiClient.get<ApartmentOwnerHistoryItem[]>(`/apartments/${stayApartmentId}/owner/history`)).data,
+  })
+  const documentQuery = useQuery({
+    queryKey: ['resident-documents', residentsFor?.id],
+    enabled: residentsFor !== null,
+    queryFn: async () =>
+      (await apiClient.get<ResidentDocumentItem[]>(`/residents/documents?apartmentId=${residentsFor!.id}`)).data,
+  })
   const residentsMutation = useMutation({
     mutationFn: async (input: { apartmentId: string; body: Record<string, unknown> }) =>
       (await apiClient.put<UpdateResidentsResult>(
         `/apartments/${input.apartmentId}/residents`,
         input.body,
       )).data,
-    onSuccess: (res) => {
+    onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['apartments'] })
-      setResidentsFor(null)
-      message.success(
-        `Sakinler kaydedildi — Ev Sahibi: ${res.evSahibiName ?? '—'} · Kiracı: ${res.kiraciName ?? '—'}`,
-      )
+      void queryClient.invalidateQueries({ queryKey: ['apartment-owner-history'] })
+      void queryClient.invalidateQueries({ queryKey: ['resident-history'] })
+      void queryClient.invalidateQueries({ queryKey: ['resident-documents'] })
+      message.success('Sakin kaydı yazıldı.')
     },
   })
+  useEffect(() => {
+    if (!residentsFor || !stayQuery.data || stayFilledFor.current === residentsFor.id) return
+    stayFilledFor.current = residentsFor.id
+    const active = (type: ApartmentOwnerHistoryItem['residentType']) =>
+      stayQuery.data.find((row) => row.residentType === type && row.validTo === null)
+    const ev = active('EvSahibi')
+    const ki = active('Kiraci')
+    const asDay = (value: string | null | undefined) => (value ? dayjs(value) : undefined)
+    residentsForm.setFieldsValue({
+      evValidFrom: ev ? dayjs(ev.validFrom) : dayjs(),
+      evValidTo: undefined,
+      evLeaseStart: asDay(ev?.leaseStartDate),
+      evLeaseEnd: asDay(ev?.leaseEndDate),
+      kiValidFrom: ki ? dayjs(ki.validFrom) : undefined,
+      kiValidTo: undefined,
+      kiLeaseStart: asDay(ki?.leaseStartDate),
+      kiLeaseEnd: asDay(ki?.leaseEndDate),
+    })
+  }, [residentsFor, stayQuery.data, residentsForm])
 
   // Arama filtresi: Kapı No, Daire adı, Kat Maliki, Sayaç Seri No
   const filteredApartments = (apartmentsQuery.data ?? []).filter((a) => {
@@ -306,13 +363,46 @@ export function ApartmentsPage() {
       defaultSortOrder: 'ascend',
       render: (v: string) => <Typography.Text strong>{v}</Typography.Text>,
     },
-    { title: 'Daire', dataIndex: 'title' },
+    { title: 'Daire', dataIndex: 'title', width: 108, ellipsis: true },
     {
       title: 'Kat Maliki',
       dataIndex: 'ownerName',
       width: 160,
       render: (v: string | null) =>
         v ? <Typography.Text style={{ fontWeight: 500 }}>{v}</Typography.Text> : <Tag>YOK</Tag>,
+    },
+    {
+      title: 'Güncel Bakiye',
+      dataIndex: 'currentBalance',
+      width: 150,
+      align: 'right',
+      sorter: (a, b) => a.currentBalance - b.currentBalance,
+      render: (v: number) => {
+        if (v === 0) {
+          return <Typography.Text type="secondary">Borcu Yok</Typography.Text>
+        }
+        return (
+          <Typography.Text strong style={{ color: v > 0 ? '#cf1322' : '#389e0d' }}>
+            {tl(v)}
+          </Typography.Text>
+        )
+      },
+    },
+    {
+      title: 'Aidat Borcu',
+      dataIndex: 'aidatDebt',
+      width: 130,
+      align: 'right',
+      sorter: (a, b) => a.aidatDebt - b.aidatDebt,
+      render: (v: number) => renderDebt(v, '#722ed1'),
+    },
+    {
+      title: 'Isınma Borcu',
+      dataIndex: 'heatingDebt',
+      width: 130,
+      align: 'right',
+      sorter: (a, b) => a.heatingDebt - b.heatingDebt,
+      render: (v: number) => renderDebt(v, '#cf1322'),
     },
     {
       title: 'Aktif m² (SCD)',
@@ -356,50 +446,38 @@ export function ApartmentsPage() {
         record.meters.length > 0 ? record.meters[0].serialNumber : <Tag>Sayaç yok</Tag>,
     },
     {
-      title: 'M-Bus Adresi',
-      width: 130,
-      align: 'right',
-      render: (_: unknown, record: ApartmentListItem) =>
-        record.meters.length > 0 ? record.meters[0].mbusPrimaryAddress ?? '-' : '-',
-    },
-    {
       title: 'İşlem',
-      width: 220,
+      width: 72,
+      align: 'center',
       render: (_: unknown, record: ApartmentListItem) => (
-        <Space size={4}>
-          <Tooltip title="Manuel okuma gir (M-Bus okunamadığında B planı)">
-            <Button
-              size="small"
-              type="primary"
-              ghost
-              icon={<FormOutlined />}
-              disabled={record.meters.filter((m) => m.isActive).length === 0}
-              onClick={() => {
-                setManualFor(record)
-                manualForm.resetFields()
-                const activeMeters = record.meters.filter((m) => m.isActive)
-                if (activeMeters.length === 1) {
-                  manualForm.setFieldsValue({ meterId: activeMeters[0].id })
-                }
-              }}
-            >
-              Manuel Okuma
-            </Button>
-          </Tooltip>
-          <Dropdown
+        <Dropdown
             menu={{
               items: [
+                {
+                  key: 'manual',
+                  icon: <FormOutlined />,
+                  label: 'Manuel Okuma',
+                  disabled: record.meters.filter((m) => m.isActive).length === 0,
+                },
                 { key: 'dimension', icon: <EditOutlined />, label: 'm² Düzenle' },
                 { key: 'tariff', icon: <MoneyCollectOutlined />, label: 'Tarife Ata' },
                 { key: 'residents', icon: <TeamOutlined />, label: 'Sakin Yönetimi' },
                 { key: 'owner', icon: <UserOutlined />, label: 'Malik Değiştir' },
                 { key: 'ownerHistory', icon: <HistoryOutlined />, label: 'Malik Geçmişi' },
+                { key: 'role', icon: <SafetyCertificateOutlined />, label: 'Görev Ata' },
                 { key: 'openingBalance', icon: <AccountBookOutlined />, label: 'Devir Bakiye Gir' },
                 { key: 'readings', icon: <TableOutlined />, label: 'Okuma Listesi', disabled: !record.activeMeterId },
                 { key: 'analysis', icon: <LineChartOutlined />, label: 'Tüketim Analizi' },
               ],
               onClick: ({ key }) => {
-                if (key === 'dimension') {
+                if (key === 'manual') {
+                  setManualFor(record)
+                  manualForm.resetFields()
+                  const activeMeters = record.meters.filter((m) => m.isActive)
+                  if (activeMeters.length === 1) {
+                    manualForm.setFieldsValue({ meterId: activeMeters[0].id })
+                  }
+                } else if (key === 'dimension') {
                   setEditing(record)
                   form.setFieldsValue({ squareMeters: record.activeSquareMeters ?? undefined })
                 } else if (key === 'tariff') {
@@ -407,22 +485,32 @@ export function ApartmentsPage() {
                   tariffForm.setFieldsValue({ tariffId: record.aidatTariffId ?? '__none__' })
                 } else if (key === 'residents') {
                   setResidentsFor(record)
+                  residentsForm.resetFields()
                   residentsForm.setFieldsValue({
                     evName: record.ownerName ?? undefined,
                     evPhone: record.evSahibiPhoneNumber ?? undefined,
+                    evEmail: record.evSahibiEmail ?? undefined,
+                    evTckn: record.evSahibiIdentityNumber ?? undefined,
+                    evNotes: record.evSahibiNotes ?? undefined,
                     kiName: record.kiraciName ?? undefined,
                     kiPhone: record.kiraciPhoneNumber ?? undefined,
+                    kiEmail: record.kiraciEmail ?? undefined,
+                    kiTckn: record.kiraciIdentityNumber ?? undefined,
+                    kiNotes: record.kiraciNotes ?? undefined,
                   })
                 } else if (key === 'owner') {
                   setOwnerEditFor(record)
                 } else if (key === 'ownerHistory') {
                   setOwnerHistoryFor(record)
+                } else if (key === 'role') {
+                  setRoleFor(record)
                 } else if (key === 'openingBalance') {
                   setDevirFor(record)
                   devirForm.setFieldsValue({
                     principalAmount: record.openingBalancePrincipal ?? undefined,
                     interestAmount: record.openingBalanceInterest ?? undefined,
                     balanceDate: record.openingBalanceDate ? dayjs(record.openingBalanceDate) : undefined,
+                    ownerId: record.openingBalanceOwnerId ?? undefined,
                   })
                 } else if (key === 'readings') {
                   setReadingsFor(record)
@@ -435,7 +523,6 @@ export function ApartmentsPage() {
           >
             <Button size="small" icon={<MoreOutlined />} aria-label="Diğer işlemler" />
           </Dropdown>
-        </Space>
       ),
     },
   ]
@@ -483,6 +570,7 @@ export function ApartmentsPage() {
         dataSource={filteredApartments}
         loading={apartmentsQuery.isLoading}
         size="small"
+        scroll={{ x: 'max-content' }}
         pagination={{ pageSize: 15, showSizeChanger: false }}
       />
 
@@ -518,6 +606,7 @@ export function ApartmentsPage() {
       <ReadingsModal apartment={readingsFor} onClose={() => setReadingsFor(null)} />
       <OwnerEditModal apartment={ownerEditFor} onClose={() => setOwnerEditFor(null)} />
       <OwnerHistoryModal apartment={ownerHistoryFor} onClose={() => setOwnerHistoryFor(null)} />
+      <RoleAssignModal apartment={roleFor} onClose={() => setRoleFor(null)} />
 
       {/* Etap 6.8: Devir bakiyesi girişi — Anapara + Geçmiş Faiz + Devir Tarihi */}
       <Modal
@@ -535,6 +624,7 @@ export function ApartmentsPage() {
               principalAmount: values.principalAmount,
               interestAmount: values.interestAmount ?? 0,
               balanceDate: (values.balanceDate as Dayjs).format('YYYY-MM-DD'),
+              ownerId: values.ownerId ?? null,
             })
           })
         }
@@ -555,12 +645,28 @@ export function ApartmentsPage() {
           >
             <InputNumber style={{ width: '100%' }} min={-10000000} max={10000000} step={0.01} decimalSeparator="," addonAfter="TL" />
           </Form.Item>
+          {typeof devirPrincipal === 'number' && devirPrincipal < 0 && (
+            <Alert
+              type="success"
+              showIcon
+              style={{ marginBottom: 12 }}
+              message={`Bu tutar (${tl(Math.abs(devirPrincipal))}) Alacak olarak işlenecektir. Yeni borç tahakkuk ettiğinde öncelikle bu alacaktan düşülür.`}
+            />
+          )}
           <Form.Item
             name="interestAmount"
             label="Devreden Faiz (TL)"
-            rules={[{ type: 'number', message: 'Sayısal bir tutar giriniz.' }]}
+            rules={[
+              { type: 'number', message: 'Sayısal bir tutar giriniz.' },
+              {
+                validator: (_, val: number | null | undefined) =>
+                  typeof val === 'number' && val < 0
+                    ? Promise.reject('Geçmiş dönem gecikme faizi negatif olamaz.')
+                    : Promise.resolve(),
+              },
+            ]}
           >
-            <InputNumber style={{ width: '100%' }} min={-10000000} max={10000000} step={0.01} decimalSeparator="," addonAfter="TL" />
+            <InputNumber style={{ width: '100%' }} min={0} max={10000000} step={0.01} decimalSeparator="," addonAfter="TL" />
           </Form.Item>
           <Form.Item
             name="balanceDate"
@@ -579,6 +685,17 @@ export function ApartmentsPage() {
             ]}
           >
             <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" disabledDate={(d) => d.isAfter(dayjs(), 'day')} />
+          </Form.Item>
+          <Form.Item name="ownerId" label="Borcun sahibi">
+            <Select
+              allowClear
+              placeholder="Sakin seçin"
+              loading={stayQuery.isLoading}
+              options={(stayQuery.data ?? []).map((row) => ({
+                value: row.id,
+                label: `${row.ownerName} — ${row.residentType === 'Kiraci' ? 'Kiracı' : 'Ev Sahibi'} — ${formatDate(row.validFrom)} / ${row.validTo ? formatDate(row.validTo) : 'Devam Ediyor'}`,
+              }))}
+            />
           </Form.Item>
         </Form>
       </Modal>
@@ -624,7 +741,12 @@ export function ApartmentsPage() {
       <Modal
         title={`Sakin Yönetimi — Daire ${residentsFor?.doorNumber ?? ''}`}
         open={residentsFor !== null}
-        onCancel={() => setResidentsFor(null)}
+        onCancel={() => {
+          stayFilledFor.current = null
+          setEvFiles([])
+          setKiFiles([])
+          setResidentsFor(null)
+        }}
         confirmLoading={residentsMutation.isPending}
         okText="Kaydet"
         cancelText="İptal"
@@ -632,6 +754,7 @@ export function ApartmentsPage() {
         onOk={() =>
           residentsForm.validateFields().then((values) => {
             if (residentsFor === null) return
+            const day = (value?: Dayjs) => (value ? value.format('YYYY-MM-DD') : null)
             const ev = values.evName
               ? {
                   name: values.evName as string,
@@ -639,6 +762,10 @@ export function ApartmentsPage() {
                   email: (values.evEmail as string) || null,
                   identityNumber: (values.evTckn as string) || null,
                   notes: (values.evNotes as string) || null,
+                  validFrom: day(values.evValidFrom),
+                  validTo: day(values.evValidTo),
+                  leaseStartDate: day(values.evLeaseStart),
+                  leaseEndDate: day(values.evLeaseEnd),
                 }
               : null
             const ki = values.kiName
@@ -648,11 +775,26 @@ export function ApartmentsPage() {
                   email: (values.kiEmail as string) || null,
                   identityNumber: (values.kiTckn as string) || null,
                   notes: (values.kiNotes as string) || null,
+                  validFrom: day(values.kiValidFrom),
+                  validTo: day(values.kiValidTo),
+                  leaseStartDate: day(values.kiLeaseStart),
+                  leaseEndDate: day(values.kiLeaseEnd),
                 }
               : null
-            residentsMutation.mutate({
+            return residentsMutation.mutateAsync({
               apartmentId: residentsFor.id,
-              body: { validFrom: dayjs().format('YYYY-MM-DD'), evSahibi: ev, kiraci: ki },
+              body: {
+                validFrom: (values.evValidFrom ?? values.kiValidFrom ?? dayjs()).toISOString(),
+                evSahibi: ev,
+                kiraci: ki,
+              },
+            }).then(async (saved) => {
+              if (saved.evSahibiId) await uploadResidentFiles(saved.evSahibiId, evFiles, evDocType)
+              if (saved.kiraciId) await uploadResidentFiles(saved.kiraciId, kiFiles, kiDocType)
+              stayFilledFor.current = null
+              setEvFiles([])
+              setKiFiles([])
+              setResidentsFor(null)
             })
           })
         }
@@ -693,6 +835,14 @@ export function ApartmentsPage() {
                         </Form.Item>
                       </Col>
                     </Row>
+                    <StayFields
+                      prefix="ev"
+                      startRequired
+                      files={evFiles}
+                      onFiles={setEvFiles}
+                      documentType={evDocType}
+                      onDocumentType={setEvDocType}
+                    />
                   </>
                 ),
               },
@@ -733,10 +883,23 @@ export function ApartmentsPage() {
                         </Form.Item>
                       </Col>
                     </Row>
+                    <StayFields
+                      prefix="ki"
+                      startRequired={false}
+                      files={kiFiles}
+                      onFiles={setKiFiles}
+                      documentType={kiDocType}
+                      onDocumentType={setKiDocType}
+                    />
                   </>
                 ),
               },
             ]}
+          />
+          <ResidentHistoryBlock
+            rows={stayQuery.data ?? []}
+            documents={documentQuery.data ?? []}
+            loading={stayQuery.isLoading}
           />
         </Form>
       </Modal>

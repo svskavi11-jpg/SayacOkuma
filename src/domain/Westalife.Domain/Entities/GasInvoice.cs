@@ -137,9 +137,14 @@ public class GasInvoice : BaseEntity
     // Saat dilimi kaymasi (UTC/yerel gece yarisi) yuzunden 1 gunluk tolerans: DB'den UTC gelen tarih bir gun geri gorunebilir.
     private DateOnly IssuedDateTolerantFloor() => DateOnly.FromDateTime(IssuedOn.DateTime).AddDays(-1);
 
-    /// <summary>Son ödeme tarihini (vade) ayarlar. Düzenleme tarihinden önce olamaz. Dönem kilidinden bağımsızdır.</summary>
+    /// <summary>Son ödeme tarihini (vade) ayarlar. Kilitli dönemde değiştirilemez.</summary>
     public void SetDueDate(DateOnly dueDate)
     {
+        if (IsLocked)
+        {
+            throw new Westalife.Domain.Exceptions.DomainException(DomainConstants.GasInvoice.DueDateLocked);
+        }
+
         if (dueDate < IssuedDateTolerantFloor())
         {
             throw new ArgumentException(DomainConstants.GasInvoice.DueDateBeforeIssued, nameof(dueDate));
@@ -241,11 +246,23 @@ public class GasInvoice : BaseEntity
     }
 
     /// <summary>
-    /// Dönemi kilitler (Etap 6.6). Yalnız hesaplaması olan faturalarda çağrılabilir;
-    /// ön koşul kontrolü Application katmanında (LockPeriodCommandHandler) yapılır.
+    /// Dönemi kilitler ve son ödeme tarihini kesinleştirir.
+    /// Faiz, kilitten sonra ve yalnızca bu vadeden sonraki günden işler.
     /// </summary>
-    public void Lock()
+    public void Lock(DateOnly noticeDate, DateOnly dueDate)
     {
+        var issued = IssuedDateTolerantFloor();
+        if (noticeDate < issued)
+        {
+            throw new Westalife.Domain.Exceptions.DomainException(DomainConstants.GasInvoice.NoticeDateBeforeIssued);
+        }
+
+        if (dueDate < noticeDate)
+        {
+            throw new Westalife.Domain.Exceptions.DomainException(DomainConstants.GasInvoice.DueDateBeforeNotice);
+        }
+
+        DueDate = dueDate;
         IsLocked = true;
         LockedOn = DateTimeOffset.UtcNow;
         LastModifiedOn = DateTimeOffset.UtcNow;

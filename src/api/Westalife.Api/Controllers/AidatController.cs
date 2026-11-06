@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Westalife.Api.Infrastructure;
 using Westalife.Application.Features.Aidat.Commands.AssignTariffBySquareMeters;
+using Westalife.Application.Features.Aidat.Commands.CancelAidatInvoice;
 using Westalife.Application.Features.Aidat.Commands.CreateAidatInvoice;
 using Westalife.Application.Features.Aidat.Commands.CreateAidatTariff;
 using Westalife.Application.Features.Aidat.Commands.SetApartmentTariff;
@@ -117,7 +118,10 @@ public class AidatController : ControllerBase
                 request.DueDate,
                 request.DistributionMethod,
                 request.EqualAmount,
-                request.Note),
+                request.Note,
+                request.ChargeType,
+                request.Title,
+                request.TargetAmount),
             ct);
         return CreatedAtAction(nameof(GetInvoices), new { id = result.AidatInvoiceId }, result);
     }
@@ -141,6 +145,20 @@ public class AidatController : ControllerBase
             ct);
         return Ok(result);
     }
+
+    /// <summary>
+    /// Hatalı oluşturulan aidat tahakkukunu iptal eder (Soft Delete — denetim izi korunur).
+    /// Bütçe dönemi kilitliyse veya tahakkuka ait tahsilat varsa 400 döner.
+    /// </summary>
+    [HttpPost("invoices/{id:guid}/cancel")]
+    [ProducesResponseType(typeof(CancelAidatInvoiceResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> CancelInvoice(Guid id, CancellationToken ct)
+    {
+        var result = await _mediator.Send(new CancelAidatInvoiceCommand(id), ct);
+        return Ok(result);
+    }
 }
 
 // ── Request DTO'ları ──────────────────────────────────────────────────────────
@@ -161,7 +179,10 @@ public sealed record CreateAidatInvoiceRequest(
     DateOnly DueDate,
     AidatDistributionMethod DistributionMethod,
     decimal? EqualAmount = null,
-    string? Note = null);
+    string? Note = null,
+    AidatChargeType ChargeType = AidatChargeType.StandartAidat,
+    string? Title = null,
+    decimal? TargetAmount = null);
 
 public sealed record SetApartmentTariffRequest(Guid? TariffId);
 

@@ -16,8 +16,10 @@ builder.Host.UseSerilog((context, services, loggerConfiguration) => loggerConfig
     .Enrich.FromLogContext());
 
 // Infrastructure: DbContext (PostgreSQL UTF-8/tr-TR) + meter reading engine (M-Bus/Simulator).
-builder.Services.AddInfrastructure(builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? throw new InvalidOperationException("ConnectionStrings:DefaultConnection ayari eksik."));
+builder.Services.AddInfrastructure(
+    builder.Configuration.GetConnectionString("DefaultConnection")
+        ?? throw new InvalidOperationException("ConnectionStrings:DefaultConnection ayari eksik."),
+    builder.Configuration["ResidentDocuments:RootPath"]);
 
 // Application: CQRS (MediatR) + FluentValidation pipeline.
 builder.Services.AddApplication();

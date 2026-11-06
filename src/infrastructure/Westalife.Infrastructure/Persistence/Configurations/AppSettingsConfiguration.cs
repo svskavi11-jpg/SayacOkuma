@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Westalife.Domain.Constants;
 using Westalife.Domain.Entities;
+using Westalife.Domain.Enums;
 
 namespace Westalife.Infrastructure.Persistence.Configurations;
 
@@ -50,6 +51,41 @@ public class AppSettingsConfiguration : IEntityTypeConfiguration<AppSettings>
             .HasDefaultValue(DomainConstants.AppSettings.InterestPeriodDaily);
         builder.Property(s => s.InterestRate).HasPrecision(9, 4).HasDefaultValue(0m);
 
+        // Faz 6.10: bütçe takibi. Varsayılan kapalı — bütçe kullanmayan site yalnız serbest gider girer.
+        builder.Property(s => s.IsBudgetTrackingEnabled).HasDefaultValue(false);
+
+        builder.Property(s => s.ManagementPeriodStart);
+        builder.Property(s => s.ManagementPeriodEnd);
+
+        // Varsayılan görev ücretleri (Yönetici / Denetçi)
+        builder.Property(s => s.DefaultManagerPaymentType)
+            .HasConversion<int>()
+            .HasDefaultValue(RolePaymentType.Oran);
+        builder.Property(s => s.DefaultManagerExemptionRate)
+            .HasPrecision(DomainConstants.MoneyPrecision, DomainConstants.MoneyScale)
+            .HasDefaultValue(1.00m);
+        builder.Property(s => s.DefaultManagerFixedAmount)
+            .HasPrecision(DomainConstants.MoneyPrecision, DomainConstants.MoneyScale)
+            .HasDefaultValue(0m);
+        builder.Property(s => s.DefaultManagerPeriodType)
+            .HasConversion<int>()
+            .HasDefaultValue(RolePeriodType.Aylik);
+
+        builder.Property(s => s.DefaultAuditorPaymentType)
+            .HasConversion<int>()
+            .HasDefaultValue(RolePaymentType.Oran);
+        builder.Property(s => s.DefaultAuditorExemptionRate)
+            .HasPrecision(DomainConstants.MoneyPrecision, DomainConstants.MoneyScale)
+            .HasDefaultValue(0m);
+        builder.Property(s => s.DefaultAuditorFixedAmount)
+            .HasPrecision(DomainConstants.MoneyPrecision, DomainConstants.MoneyScale)
+            .HasDefaultValue(0m);
+        builder.Property(s => s.DefaultAuditorPeriodType)
+            .HasConversion<int>()
+            .HasDefaultValue(RolePeriodType.Aylik);
+
+        builder.Property(s => s.ManagementExpenseBudgetItemId);
+
         // Seed: "Çınar Teknik" (kullanıcı Ayarlar sayfasından değiştirebilir).
         builder.HasData(new
         {
@@ -70,6 +106,18 @@ public class AppSettingsConfiguration : IEntityTypeConfiguration<AppSettings>
             IsInterestEnabled = false,
             InterestPeriod = DomainConstants.AppSettings.InterestPeriodDaily,
             InterestRate = 0m,
+            IsBudgetTrackingEnabled = false,
+            ManagementPeriodStart = (DateOnly?)null,
+            ManagementPeriodEnd = (DateOnly?)null,
+            DefaultManagerPaymentType = RolePaymentType.Oran,
+            DefaultManagerExemptionRate = 1.00m,
+            DefaultManagerFixedAmount = 0m,
+            DefaultManagerPeriodType = RolePeriodType.Aylik,
+            DefaultAuditorPaymentType = RolePaymentType.Oran,
+            DefaultAuditorExemptionRate = 0m,
+            DefaultAuditorFixedAmount = 0m,
+            DefaultAuditorPeriodType = RolePeriodType.Aylik,
+            ManagementExpenseBudgetItemId = (Guid?)null,
             CreatedOn = DomainConstants.SeedData.SeedTimestamp,
             LastModifiedOn = (DateTimeOffset?)null
         });

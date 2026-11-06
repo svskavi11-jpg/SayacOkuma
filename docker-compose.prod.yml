@@ -41,12 +41,16 @@ services:
 
   api:
     image: sayacokuma-api:latest
+    build:
+      context: .
+      dockerfile: src/api/Westalife.Api/Dockerfile
     container_name: sayacokuma-prod-api
     restart: unless-stopped
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__DefaultConnection: ${DATABASE_CONNECTION}
       Security__ApiKey: ${SECURITY_API_KEY:?SECURITY_API_KEY .env icinde tanimli olmali}
+      ResidentDocuments__RootPath: /app/data/resident-documents
       # Faz 7 hazirligi: JWT_SECRET / TenantId gibi env'ler buraya eklenecek (simdilik kod yok)
     depends_on:
       db:
@@ -56,9 +60,13 @@ services:
     volumes:
       # Serilog file sink (relative path logs/) — Kural #2: mutlak yol yok
       - sayacokuma_api_logs:/app/logs
+      - sayacokuma_resident_documents:/app/data/resident-documents
 
   web:
     image: sayacokuma-web:latest
+    build:
+      context: src/frontend
+      dockerfile: Dockerfile
     container_name: sayacokuma-prod-web
     restart: unless-stopped
     environment:
@@ -73,3 +81,4 @@ services:
 volumes:
   sayacokuma_pgdata_prod:
   sayacokuma_api_logs:
+  sayacokuma_resident_documents:

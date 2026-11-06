@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Westalife.Application.Common.Interfaces;
+using Westalife.Domain.Services.Ledger;
 
 namespace Westalife.Application.Features.Payments.Queries.GetPayments;
 
@@ -19,7 +20,10 @@ public sealed record PaymentListItem(
     bool IsCancelled,
     DateTimeOffset? CancelledOn,
     string? CancellationReason,
-    DateTimeOffset CreatedOn);
+    DateTimeOffset CreatedOn,
+    LedgerDebtType? TargetDebtType,
+    Guid? BankAccountId,
+    string? BankAccountLabel);
 
 public sealed class GetPaymentsQueryHandler : IRequestHandler<GetPaymentsQuery, IReadOnlyList<PaymentListItem>>
 {
@@ -45,7 +49,10 @@ public sealed class GetPaymentsQueryHandler : IRequestHandler<GetPaymentsQuery, 
                 p.IsCancelled,
                 p.CancelledOn,
                 p.CancellationReason,
-                p.CreatedOn))
+                p.CreatedOn,
+                p.TargetDebtType,
+                p.BankAccountId,
+                p.BankAccount == null ? null : p.BankAccount.BankName + " — " + p.BankAccount.AccountName))
             .ToListAsync(cancellationToken);
     }
 }

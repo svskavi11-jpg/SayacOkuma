@@ -2,7 +2,9 @@ using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Westalife.Api.Infrastructure;
 using Westalife.Application.Features.Payments.Commands.CancelPayment;
+using Westalife.Application.Features.Payments.Commands.DeletePayment;
 using Westalife.Application.Features.Payments.Commands.RecordPayment;
+using Westalife.Application.Features.Payments.Commands.UpdatePayment;
 using Westalife.Application.Features.Payments.Queries.GetCashFlow;
 using Westalife.Application.Features.Payments.Queries.GetLedger;
 using Westalife.Application.Features.Payments.Queries.GetPayments;
@@ -48,10 +50,42 @@ public class PaymentsController : ControllerBase
             request.Description,
             request.ReceivedBy,
             request.TargetDebtType,
-            request.TargetOwnerId);
+            request.TargetOwnerId,
+            request.BankAccountId);
 
         var result = await _mediator.Send(command, ct);
         return CreatedAtAction(nameof(GetPayments), new { apartmentId = result.ApartmentId }, result);
+    }
+
+    /// <summary>Yanlış girilen tahsilatı düzeltir. Mahsup cari hesapta yeniden hesaplanır.</summary>
+    [HttpPut("{paymentId:guid}")]
+    [ProducesResponseType(typeof(UpdatePaymentResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdatePayment(
+        Guid paymentId, [FromBody] UpdatePaymentRequest request, CancellationToken ct)
+    {
+        var result = await _mediator.Send(
+            new UpdatePaymentCommand(
+                paymentId,
+                request.PaymentDate,
+                request.Amount,
+                request.Description,
+                request.ReceivedBy,
+                request.TargetDebtType,
+                request.BankAccountId),
+            ct);
+        return Ok(result);
+    }
+
+    /// <summary>Yanlış girilen tahsilatı kalıcı siler.</summary>
+    [HttpDelete("{paymentId:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeletePayment(Guid paymentId, CancellationToken ct)
+    {
+        await _mediator.Send(new DeletePaymentCommand(paymentId), ct);
+        return NoContent();
     }
 
     /// <summary>Tahsilatı iptal eder (soft-delete).</summary>
@@ -112,6 +146,15 @@ public sealed record RecordPaymentRequest(
     string? Description,
     string? ReceivedBy,
     LedgerDebtType? TargetDebtType = null,
-    Guid? TargetOwnerId = null);
+    Guid? TargetOwnerId = null,
+    Guid? BankAccountId = null);
+
+public sealed record UpdatePaymentRequest(
+    DateOnly PaymentDate,
+    decimal Amount,
+    string? Description,
+    string? ReceivedBy,
+    LedgerDebtType? TargetDebtType = null,
+    Guid? BankAccountId = null);
 
 public sealed record CancelPaymentRequest(string Reason);

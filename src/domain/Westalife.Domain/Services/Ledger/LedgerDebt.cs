@@ -26,12 +26,34 @@ public record LedgerDebt(
 
     /// <summary>
     /// Borcun sahibi sakin (Faz 7.1 — Hibrit Model: kiracı varsa kiracı, yoksa ev sahibi).
-    /// Devir bakiyesi daire düzeyinde olduğundan NULL'dur. Hedefli tahsilat bu alanla eşleşir.
+    /// Devir bakiyesi bir sakine bağlandıysa o sakinin kimliğidir. Boşsa daire düzeyindedir.
     /// </summary>
     Guid? OwnerId = null,
 
     /// <summary>Borç sahibi sakinin adı (UI etiketleri için — owner ile birlikte taşınır).</summary>
-    string? OwnerName = null
+    string? OwnerName = null,
+
+    /// <summary>
+    /// Bu satıra gecikme faizi işler mi? Isınma faturası kilitlenmeden false kalır.
+    /// Aidat ve devir anapara varsayılan olarak true'dur.
+    /// </summary>
+    bool ChargesInterest = true,
+
+    /// <summary>
+    /// Aidat döneminin başlangıcı. Cari hesap tarih sütunu bunu gösterir.
+    /// Faiz hesabı <see cref="DueDate"/> üzerinden devam eder.
+    /// </summary>
+    DateOnly? PeriodStart = null,
+
+    /// <summary>
+    /// İptal edilmiş tahakkuk satırı mı? (Denetim izi: tutarı 0'dır, FIFO ve faize girmez).
+    /// </summary>
+    bool IsCancelled = false,
+
+    /// <summary>
+    /// İptal edilmiş satırın iptal öncesi orijinal anapara tutarı (bilgi/denetim amaçlı).
+    /// </summary>
+    decimal? OriginalPrincipalAmount = null
 );
 
 /// <summary>
@@ -50,6 +72,12 @@ public enum LedgerDebtType
     OpeningBalanceInterest = 3,
 
     /// <summary>Aidat (ortak gider) dönem borcu — Faz 6.9 (faiz işler).</summary>
-    Aidat = 4
+    Aidat = 4,
+
+    /// <summary>
+    /// Görev mahsubu. Borç değildir; bağlı aidat anaparasından düşen alacak satırıdır.
+    /// Tahsilat hedefi olamaz ve faiz işlemez. 5, 6 ve 7 kasıtlı olarak boştur.
+    /// </summary>
+    WaiverOffset = 8
 }
 

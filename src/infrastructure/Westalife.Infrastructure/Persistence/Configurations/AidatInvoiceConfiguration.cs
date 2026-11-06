@@ -24,6 +24,22 @@ public class AidatInvoiceConfiguration : IEntityTypeConfiguration<AidatInvoice>
         builder.Property(i => i.Note)
             .HasMaxLength(DomainConstants.AidatInvoice.NoteMaxLength);
 
+        builder.Property(i => i.ChargeType)
+            .IsRequired()
+            .HasDefaultValue(AidatChargeType.StandartAidat);
+
+        builder.Property(i => i.Title)
+            .HasMaxLength(DomainConstants.AidatInvoice.TitleMaxLength);
+
+        builder.Property(i => i.TargetAmount)
+            .HasPrecision(DomainConstants.MoneyPrecision, DomainConstants.MoneyScale);
+
+        builder.Property(i => i.IsCancelled)
+            .IsRequired()
+            .HasDefaultValue(false);
+
+        builder.Property(i => i.CancelledAt);
+
         // Dönem listesi sorguları için dönem indeksi; vade sıralaması için vade indeksi.
         builder.HasIndex(i => new { i.PeriodStart, i.PeriodEnd })
             .HasDatabaseName("IX_AidatInvoices_Period");

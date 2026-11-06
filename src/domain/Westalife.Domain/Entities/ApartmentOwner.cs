@@ -1,6 +1,7 @@
 using Westalife.Domain.Common;
 using Westalife.Domain.Constants;
 using Westalife.Domain.Enums;
+using Westalife.Domain.Exceptions;
 
 namespace Westalife.Domain.Entities;
 
@@ -43,6 +44,12 @@ public class ApartmentOwner : BaseEntity
     /// <summary>Geçerlilik bitişi (timestamptz, hariç). NULL = hâlâ aktif sakin.</summary>
     public DateTimeOffset? ValidTo { get; private set; }
 
+    /// <summary>Kira veya tapu sözleşmesinin başlangıcı. Oturma çizelgesinden bağımsızdır.</summary>
+    public DateOnly? LeaseStartDate { get; private set; }
+
+    /// <summary>Sözleşme bitişi. Oturma çizelgesinden bağımsızdır.</summary>
+    public DateOnly? LeaseEndDate { get; private set; }
+
     private ApartmentOwner() { } // EF Core
 
     public ApartmentOwner(
@@ -53,7 +60,10 @@ public class ApartmentOwner : BaseEntity
         string? phoneNumber = null,
         string? email = null,
         string? identityNumber = null,
-        string? notes = null)
+        string? notes = null,
+        DateOnly? leaseStartDate = null,
+        DateOnly? leaseEndDate = null,
+        DateTimeOffset? validTo = null)
     {
         if (apartmentId == Guid.Empty)
         {
@@ -65,18 +75,109 @@ public class ApartmentOwner : BaseEntity
             throw new ArgumentException(DomainConstants.ValidationMessages.OwnerNameRequired, nameof(ownerName));
         }
 
+        ApartmentId = apartmentId;
+        OwnerName = ownerName.Trim();
+        ResidentType = residentType;
+        ApplyContact(phoneNumber, email, identityNumber, notes);
+        ValidFrom = validFrom;
+        if (validTo is { } end)
+        {
+            if (end <= validFrom)
+            {
+                throw new ArgumentException(DomainConstants.ValidationMessages.ValidFromMustBeBeforeValidTo, nameof(validTo));
+            }
+
+            ValidTo = end;
+        }
+
+        SetLease(leaseStartDate, leaseEndDate);
+    }
+
+    /// <summary>Sözleşme günlerini yazar. Oturma aralığını değiştirmez.</summary>
+    internal void SetLease(DateOnly? start, DateOnly? end)
+    {
+        if (start is { } leaseStart && end is { } leaseEnd && leaseEnd < leaseStart)
+        {
+            throw new DomainException(DomainConstants.ApartmentOwner.LeaseEndBeforeStart);
+        }
+
+        LeaseStartDate = start;
+        LeaseEndDate = end;
+    }
+
+    /// <summary>Açık kaydın girişini kaydırır. Bitişten sonraya geçemez.</summary>
+    internal void MoveStart(DateTimeOffset newFrom)
+    {
+        if (ValidTo is { } end && newFrom >= end)
+        {
+            throw new ArgumentException(DomainConstants.ValidationMessages.ValidFromMustBeBeforeValidTo, nameof(newFrom));
+        }
+
+        if (newFrom == ValidFrom)
+        {
+            return;
+        }
+
+        ValidFrom = newFrom;
+        LastModifiedOn = DateTimeOffset.UtcNow;
+    }
+
+    /// <summary>
+    /// Aynı sakinin iletişim bilgisini yerinde günceller. Ad değişmediği için yeni SCD satırı açılmaz.
+    /// Değerler zaten aynıysa false döner.
+    /// </summary>
+    internal bool UpdateContact(string? phoneNumber, string? email, string? identityNumber, string? notes)
+    {
+        var phone = NormalizePhone(phoneNumber);
+        var mail = NormalizeEmail(email);
+        var identity = NormalizeIdentity(identityNumber);
+        var note = NormalizeNotes(notes);
+
+        if (PhoneNumber == phone && Email == mail && IdentityNumber == identity && Notes == note)
+        {
+            return false;
+        }
+
+        PhoneNumber = phone;
+        Email = mail;
+        IdentityNumber = identity;
+        Notes = note;
+        LastModifiedOn = DateTimeOffset.UtcNow;
+        return true;
+    }
+
+    private void ApplyContact(string? phoneNumber, string? email, string? identityNumber, string? notes)
+    {
+        PhoneNumber = NormalizePhone(phoneNumber);
+        Email = NormalizeEmail(email);
+        IdentityNumber = NormalizeIdentity(identityNumber);
+        Notes = NormalizeNotes(notes);
+    }
+
+    private static string? NormalizePhone(string? phoneNumber)
+    {
         if (phoneNumber is { Length: > DomainConstants.ApartmentOwner.PhoneMaxLength } ||
             (phoneNumber is { Length: > 0 } && !phoneNumber.Trim().All(ch => char.IsDigit(ch) || " ()+-".Contains(ch))))
         {
             throw new ArgumentException(DomainConstants.ValidationMessages.SakinPhoneInvalid, nameof(phoneNumber));
         }
 
+        return string.IsNullOrWhiteSpace(phoneNumber) ? null : phoneNumber.Trim();
+    }
+
+    private static string? NormalizeEmail(string? email)
+    {
         if (email is { Length: > DomainConstants.ApartmentOwner.EmailMaxLength } ||
             (email is { Length: > 0 } && (!email.Trim().Contains('@') || email.Trim().Contains(' '))))
         {
             throw new ArgumentException(DomainConstants.ValidationMessages.SakinEmailInvalid, nameof(email));
         }
 
+        return string.IsNullOrWhiteSpace(email) ? null : email.Trim();
+    }
+
+    private static string? NormalizeIdentity(string? identityNumber)
+    {
         if (identityNumber is { Length: > 0 } &&
             (identityNumber.Trim().Length != DomainConstants.ApartmentOwner.IdentityNumberLength ||
              !identityNumber.Trim().All(char.IsDigit)))
@@ -84,6 +185,11 @@ public class ApartmentOwner : BaseEntity
             throw new ArgumentException(DomainConstants.ValidationMessages.SakinIdentityNumberInvalid, nameof(identityNumber));
         }
 
+        return string.IsNullOrWhiteSpace(identityNumber) ? null : identityNumber.Trim();
+    }
+
+    private static string? NormalizeNotes(string? notes)
+    {
         if (notes is { Length: > DomainConstants.ApartmentOwner.NotesMaxLength })
         {
             throw new ArgumentException(
@@ -91,14 +197,7 @@ public class ApartmentOwner : BaseEntity
                 nameof(notes));
         }
 
-        ApartmentId = apartmentId;
-        OwnerName = ownerName.Trim();
-        ResidentType = residentType;
-        PhoneNumber = string.IsNullOrWhiteSpace(phoneNumber) ? null : phoneNumber.Trim();
-        Email = string.IsNullOrWhiteSpace(email) ? null : email.Trim();
-        IdentityNumber = string.IsNullOrWhiteSpace(identityNumber) ? null : identityNumber.Trim();
-        Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim();
-        ValidFrom = validFrom;
+        return string.IsNullOrWhiteSpace(notes) ? null : notes.Trim();
     }
 
     /// <summary>Aktif sakin kaydının aralığını kapatır (SCD Type 2 "expire" adımı).</summary>

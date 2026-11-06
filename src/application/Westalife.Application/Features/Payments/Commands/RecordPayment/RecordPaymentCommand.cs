@@ -2,6 +2,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Westalife.Application.Common.Interfaces;
+using Westalife.Application.Features.BankAccounts;
 using Westalife.Domain.Constants;
 using Westalife.Domain.Entities;
 using Westalife.Domain.Enums;
@@ -27,7 +28,8 @@ public sealed record RecordPaymentCommand(
     string? Description,
     string? ReceivedBy,
     LedgerDebtType? TargetDebtType = null,
-    Guid? TargetOwnerId = null) : IRequest<RecordPaymentResult>;
+    Guid? TargetOwnerId = null,
+    Guid? BankAccountId = null) : IRequest<RecordPaymentResult>;
 
 public sealed record RecordPaymentResult(
     Guid PaymentId,
@@ -65,6 +67,8 @@ public sealed class RecordPaymentCommandValidator : AbstractValidator<RecordPaym
         // Faz 7.1: Hedefli tahsilat — borç türü enum doğrulaması (verildiyse).
         RuleFor(c => c.TargetDebtType)
             .IsInEnum()
+            .Must(t => t != LedgerDebtType.WaiverOffset)
+            .WithMessage(DomainConstants.RoleAssignment.NotCollectionTarget)
             .When(c => c.TargetDebtType.HasValue);
     }
 }
@@ -91,6 +95,9 @@ public sealed class RecordPaymentCommandHandler : IRequestHandler<RecordPaymentC
         // KMK m.22: müteselsil sorumlu ev sahibi (ödeyen kiracıysa rücu edilebilir).
         var legalOwnerId = apartment.GetActiveResident(ResidentType.EvSahibi, now)?.Id;
 
+        var bankAccountId = await BankAccountLookup.ResolveAsync(
+            _db, request.BankAccountId, null, cancellationToken);
+
         var payment = new Payment(
             request.ApartmentId,
             request.PaymentDate,
@@ -100,7 +107,8 @@ public sealed class RecordPaymentCommandHandler : IRequestHandler<RecordPaymentC
             payerId,
             legalOwnerId,
             request.TargetDebtType,
-            request.TargetOwnerId);
+            request.TargetOwnerId,
+            bankAccountId);
 
         _db.Payments.Add(payment);
         await _db.SaveChangesAsync(cancellationToken);

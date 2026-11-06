@@ -18,6 +18,7 @@ import {
   Tag,
   Typography,
   Upload,
+  Alert,
 } from 'antd'
 import {
   CalculatorOutlined,
@@ -38,12 +39,15 @@ import type {
   CalculationResultResponse,
   GasInvoiceDetail,
   GasInvoiceListItem,
+  NoticeSettingsDTO,
   ImportReadingsResult,
   InvoiceFinanceResult,
   UpdateGasInvoiceResult,
 } from '../../types/api'
 
 const tl = (v: number) => v.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })
+
+const DEFAULT_DUE_DATE_DAYS = 15
 
 /** Akmercan fatura giriş formu + liste + hesaplama (Kural #1 mutabakatlı). */
 export function InvoicesPage() {
@@ -58,6 +62,14 @@ export function InvoicesPage() {
   // Faz 6.8: Vade tarihi düzenleme
   const [dueDateEditId, setDueDateEditId] = useState<string | null>(null)
   const [dueDateValue, setDueDateValue] = useState<Dayjs | null>(null)
+  const [lockTarget, setLockTarget] = useState<GasInvoiceListItem | null>(null)
+  const [noticeDate, setNoticeDate] = useState<Dayjs>(() => dayjs())
+  const [lockDueDate, setLockDueDate] = useState<Dayjs>(() => dayjs())
+
+  const noticeSettingsQuery = useQuery({
+    queryKey: ['notice-settings'],
+    queryFn: async () => (await apiClient.get<NoticeSettingsDTO>('/settings/notice')).data,
+  })
 
   // Etap 6.6: Excel okuma içe aktarma (Source=Import; kısmi başarı modeli).
   const importReadingsMutation = useMutation({
@@ -81,11 +93,16 @@ export function InvoicesPage() {
 
   // Etap 6.6: Dönem kilitleme/açma.
   const lockMutation = useMutation({
-    mutationFn: async (id: string) =>
-      (await apiClient.post(`/gas-invoices/${id}/lock`)).data,
+    mutationFn: async (body: { id: string; noticeDate: string; dueDate: string }) =>
+      (await apiClient.post(`/gas-invoices/${body.id}/lock`, {
+        noticeDate: body.noticeDate,
+        dueDate: body.dueDate,
+      })).data,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['gas-invoices'] })
-      message.success('Dönem kilitlendi — bu döneme artık okuma eklenemez.')
+      void queryClient.invalidateQueries({ queryKey: ['ledger'] })
+      setLockTarget(null)
+      message.success('Dönem kilitlendi. Gecikme faizi son ödeme tarihinden sonra işler.')
     },
   })
 
@@ -259,14 +276,20 @@ export function InvoicesPage() {
         <Space direction="vertical" size={2}>
           <Space size={4}>
             <Typography.Text style={{ fontSize: 12 }}>Vade:</Typography.Text>
-            <Button
-              type="link"
-              size="small"
-              style={{ padding: 0, fontSize: 12 }}
-              onClick={() => { setDueDateEditId(r.id); setDueDateValue(dayjs(r.dueDate)) }}
-            >
-              {dayjs(r.dueDate).format('DD.MM.YYYY')}
-            </Button>
+            {r.isLocked ? (
+              <Typography.Text style={{ fontSize: 12 }}>
+                {dayjs(r.dueDate).format('DD.MM.YYYY')}
+              </Typography.Text>
+            ) : (
+              <Button
+                type="link"
+                size="small"
+                style={{ padding: 0, fontSize: 12 }}
+                onClick={() => { setDueDateEditId(r.id); setDueDateValue(dayjs(r.dueDate)) }}
+              >
+                {dayjs(r.dueDate).format('DD.MM.YYYY')}
+              </Button>
+            )}
           </Space>
           {r.isPaid ? (
             <Tag
@@ -352,16 +375,14 @@ export function InvoicesPage() {
               size="small"
               icon={<LockOutlined />}
               disabled={!r.hasCalculation}
-              title={r.hasCalculation ? 'Dönemi kilitle' : 'Yalnız hesaplanmış fatura kilitlenebilir'}
-              onClick={() =>
-                Modal.confirm({
-                  title: `Dönem kilirlensin mi? (${r.invoiceNumber})`,
-                  content: 'Kilitli döneme okuma eklenemez, Excel içe aktarılamaz ve yeniden hesaplama yapılamaz.',
-                  okText: 'Kilitle',
-                  cancelText: 'Vazgeç',
-                  onOk: () => lockMutation.mutateAsync(r.id),
-                })
-              }
+              title={r.hasCalculation ? 'Dönemi kilitle ve son ödeme tarihini kesinleştir' : 'Yalnız hesaplanmış fatura kilitlenebilir'}
+              onClick={() => {
+                const notice = dayjs()
+                const days = noticeSettingsQuery.data?.dueDateDays ?? DEFAULT_DUE_DATE_DAYS
+                setNoticeDate(notice)
+                setLockDueDate(notice.add(days, 'day'))
+                setLockTarget(r)
+              }}
             >
               Kilitle
             </Button>
@@ -684,6 +705,61 @@ export function InvoicesPage() {
               </>
             )}
           </>
+        )}
+      </Modal>
+      {/* Dönem kilidi: bildirim ve son ödeme tarihi */}
+      <Modal
+        title={lockTarget ? `Dönemi kilitle (${lockTarget.invoiceNumber})` : 'Dönemi kilitle'}
+        open={!!lockTarget}
+        onCancel={() => setLockTarget(null)}
+        confirmLoading={lockMutation.isPending}
+        okText="Kilitle"
+        cancelText="Vazgeç"
+        okButtonProps={{ disabled: lockDueDate.isBefore(noticeDate, 'day') }}
+        onOk={() => {
+          if (!lockTarget) return
+          if (lockDueDate.isBefore(noticeDate, 'day')) {
+            void message.warning('Son ödeme tarihi bildirim tarihinden önce olamaz.')
+            return
+          }
+          lockMutation.mutate({
+            id: lockTarget.id,
+            noticeDate: noticeDate.format('YYYY-MM-DD'),
+            dueDate: lockDueDate.format('YYYY-MM-DD'),
+          })
+        }}
+      >
+        <Typography.Paragraph type="secondary">
+          Kilitlenince bu döneme okuma eklenemez ve yeniden hesaplama yapılamaz.
+          Gecikme faizi, son ödeme tarihinden sonraki günden işler.
+        </Typography.Paragraph>
+        <Typography.Text>Bildirim tarihi</Typography.Text>
+        <DatePicker
+          style={{ width: '100%', marginBottom: 12 }}
+          format="DD.MM.YYYY"
+          value={noticeDate}
+          onChange={(d) => {
+            if (!d) return
+            const days = noticeSettingsQuery.data?.dueDateDays ?? DEFAULT_DUE_DATE_DAYS
+            setNoticeDate(d)
+            setLockDueDate(d.add(days, 'day'))
+          }}
+        />
+        <Typography.Text>Son ödeme tarihi</Typography.Text>
+        <DatePicker
+          style={{ width: '100%' }}
+          format="DD.MM.YYYY"
+          value={lockDueDate}
+          disabledDate={(d) => d.isBefore(noticeDate, 'day')}
+          onChange={(d) => { if (d) setLockDueDate(d) }}
+        />
+        {lockDueDate.isBefore(dayjs(), 'day') && (
+          <Alert
+            type="warning"
+            showIcon
+            style={{ marginTop: 12 }}
+            message="Seçilen son ödeme geçmişte. Faiz bu tarihten bugüne işler."
+          />
         )}
       </Modal>
       {/* Faz 6.8: Vade Tarihi Düzenleme Modal */}

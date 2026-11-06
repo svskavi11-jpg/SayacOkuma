@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Westalife.Application.Common.Interfaces;
+using Westalife.Application.Features.Roles;
 using Westalife.Domain.Entities;
 using Westalife.Domain.Exceptions;
 using Westalife.Domain.Services.Ledger;
@@ -24,6 +25,8 @@ public sealed class GetLedgerQueryHandler : IRequestHandler<GetLedgerQuery, Ledg
     public async Task<LedgerResult> Handle(GetLedgerQuery request, CancellationToken cancellationToken)
     {
         var asOf = request.AsOfDate ?? DateOnly.FromDateTime(DateTime.Today);
+
+        await WaiverOffsetSyncService.SyncAllAsync(_db, cancellationToken);
 
         // Daire (bakiye alanları ile)
         var apartment = await _db.Apartments
@@ -62,6 +65,11 @@ public sealed class GetLedgerQueryHandler : IRequestHandler<GetLedgerQuery, Ledg
 
         var annualRate = settings?.InterestRate ?? 0m;
 
-        return LedgerService.Calculate(apartment, invoices, payments, annualRate, asOf, aidatCharges);
+        var waivers = await _db.WaiverOffsets
+            .AsNoTracking()
+            .Where(w => w.ApartmentId == request.ApartmentId)
+            .ToListAsync(cancellationToken);
+
+        return LedgerService.Calculate(apartment, invoices, payments, annualRate, asOf, aidatCharges, waivers);
     }
 }

@@ -73,6 +73,14 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<DateTimeOffset?>("CancelledAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("ChargeType")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1);
+
                     b.Property<DateTimeOffset>("CreatedOn")
                         .HasColumnType("timestamp with time zone");
 
@@ -81,6 +89,11 @@ namespace Westalife.Infrastructure.Persistence.Migrations
 
                     b.Property<DateOnly>("DueDate")
                         .HasColumnType("date");
+
+                    b.Property<bool>("IsCancelled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
 
                     b.Property<DateTimeOffset?>("LastModifiedOn")
                         .HasColumnType("timestamp with time zone");
@@ -94,6 +107,14 @@ namespace Westalife.Infrastructure.Persistence.Migrations
 
                     b.Property<DateOnly>("PeriodStart")
                         .HasColumnType("date");
+
+                    b.Property<decimal?>("TargetAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<string>("Title")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)");
 
                     b.Property<decimal>("TotalAmount")
                         .HasPrecision(18, 2)
@@ -184,6 +205,9 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                         .HasColumnType("numeric(18,2)")
                         .HasDefaultValue(0m);
 
+                    b.Property<Guid?>("OpeningBalanceOwnerId")
+                        .HasColumnType("uuid");
+
                     b.Property<decimal>("OpeningBalancePrincipal")
                         .ValueGeneratedOnAdd()
                         .HasPrecision(18, 2)
@@ -198,6 +222,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("AidatTariffId");
+
+                    b.HasIndex("OpeningBalanceOwnerId");
 
                     b.HasIndex("BuildingId", "DoorNumber")
                         .IsUnique();
@@ -1791,6 +1817,12 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset?>("LastModifiedOn")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<DateOnly?>("LeaseEndDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("LeaseStartDate")
+                        .HasColumnType("date");
+
                     b.Property<string>("Notes")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
@@ -1852,6 +1884,50 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("CreatedOn")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<decimal>("DefaultAuditorExemptionRate")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<decimal>("DefaultAuditorFixedAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<int>("DefaultAuditorPaymentType")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1);
+
+                    b.Property<int>("DefaultAuditorPeriodType")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1);
+
+                    b.Property<decimal>("DefaultManagerExemptionRate")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(1.00m);
+
+                    b.Property<decimal>("DefaultManagerFixedAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m);
+
+                    b.Property<int>("DefaultManagerPaymentType")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1);
+
+                    b.Property<int>("DefaultManagerPeriodType")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1);
+
                     b.Property<string>("DefaultNoticeNote")
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
@@ -1881,6 +1957,11 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                         .HasPrecision(9, 4)
                         .HasColumnType("numeric(9,4)")
                         .HasDefaultValue(0m);
+
+                    b.Property<bool>("IsBudgetTrackingEnabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
 
                     b.Property<bool>("IsInterestEnabled")
                         .ValueGeneratedOnAdd()
@@ -1913,6 +1994,15 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
                         .HasDefaultValue(17);
+
+                    b.Property<Guid?>("ManagementExpenseBudgetItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly?>("ManagementPeriodEnd")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("ManagementPeriodStart")
+                        .HasColumnType("date");
 
                     b.Property<string>("MeterConnectionType")
                         .IsRequired()
@@ -1956,10 +2046,19 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CompanyName = "Çınar Teknik",
                             ConsumptionRatio = 0.70m,
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            DefaultAuditorExemptionRate = 0m,
+                            DefaultAuditorFixedAmount = 0m,
+                            DefaultAuditorPaymentType = 1,
+                            DefaultAuditorPeriodType = 1,
+                            DefaultManagerExemptionRate = 1.00m,
+                            DefaultManagerFixedAmount = 0m,
+                            DefaultManagerPaymentType = 1,
+                            DefaultManagerPeriodType = 1,
                             DueDateDays = 15,
                             FixedCostRatio = 0.30m,
                             InterestPeriod = "Daily",
                             InterestRate = 0m,
+                            IsBudgetTrackingEnabled = false,
                             IsInterestEnabled = false,
                             LogoLeftHeightMm = 17,
                             LogoRightHeightMm = 17,
@@ -1968,6 +2067,214 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             TcpPort = 2000,
                             UsbBaudRate = 2400
                         });
+                });
+
+            modelBuilder.Entity("Westalife.Domain.Entities.BankAccount", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AccountName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("AccountNumber")
+                        .IsRequired()
+                        .HasMaxLength(34)
+                        .HasColumnType("character varying(34)");
+
+                    b.Property<string>("BankName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTimeOffset>("CreatedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Iban")
+                        .HasMaxLength(26)
+                        .HasColumnType("character varying(26)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset?>("LastModifiedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("OpeningBalance")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<DateOnly>("OpeningDate")
+                        .HasColumnType("date");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AccountNumber")
+                        .IsUnique()
+                        .HasDatabaseName("IX_BankAccounts_AccountNumber");
+
+                    b.HasIndex("Iban")
+                        .IsUnique()
+                        .HasDatabaseName("IX_BankAccounts_Iban")
+                        .HasFilter("\"Iban\" IS NOT NULL");
+
+                    b.ToTable("BankAccounts", (string)null);
+                });
+
+            modelBuilder.Entity("Westalife.Domain.Entities.BankTransaction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<Guid>("BankAccountId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTimeOffset?>("LastModifiedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("TargetBankAccountId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly>("TransactionDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid?>("TransferGroupId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BankAccountId")
+                        .HasDatabaseName("IX_BankTransactions_BankAccountId");
+
+                    b.HasIndex("TargetBankAccountId")
+                        .HasDatabaseName("IX_BankTransactions_TargetBankAccountId");
+
+                    b.HasIndex("TransferGroupId")
+                        .HasDatabaseName("IX_BankTransactions_TransferGroupId");
+
+                    b.ToTable("BankTransactions", (string)null);
+                });
+
+            modelBuilder.Entity("Westalife.Domain.Entities.BudgetItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTimeOffset>("CreatedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("EstimatedAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<DateTimeOffset?>("LastModifiedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Year")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Year", "Category")
+                        .IsUnique()
+                        .HasDatabaseName("UX_BudgetItems_Year_Category");
+
+                    b.ToTable("BudgetItems", (string)null);
+                });
+
+            modelBuilder.Entity("Westalife.Domain.Entities.BudgetPeriod", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsLocked")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset?>("LastModifiedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("LockedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Year")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Year")
+                        .IsUnique()
+                        .HasDatabaseName("UX_BudgetPeriods_Year");
+
+                    b.ToTable("BudgetPeriods", (string)null);
+                });
+
+            modelBuilder.Entity("Westalife.Domain.Entities.BudgetTransfer", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<DateTimeOffset>("CreatedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("FromBudgetItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("LastModifiedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<Guid>("ToBudgetItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly>("TransferDate")
+                        .HasColumnType("date");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FromBudgetItemId");
+
+                    b.HasIndex("ToBudgetItemId");
+
+                    b.HasIndex("TransferDate")
+                        .HasDatabaseName("IX_BudgetTransfers_TransferDate");
+
+                    b.ToTable("BudgetTransfers", (string)null);
                 });
 
             modelBuilder.Entity("Westalife.Domain.Entities.Building", b =>
@@ -2013,6 +2320,62 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             Name = "Westalife Residence"
                         });
+                });
+
+            modelBuilder.Entity("Westalife.Domain.Entities.Expense", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<Guid?>("BankAccountId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("BudgetItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("DocumentNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateOnly>("ExpenseDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("ExpenseType")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid?>("FundAidatInvoiceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("LastModifiedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BankAccountId")
+                        .HasDatabaseName("IX_Expenses_BankAccountId");
+
+                    b.HasIndex("BudgetItemId")
+                        .HasDatabaseName("IX_Expenses_BudgetItemId");
+
+                    b.HasIndex("ExpenseDate")
+                        .HasDatabaseName("IX_Expenses_ExpenseDate");
+
+                    b.HasIndex("FundAidatInvoiceId");
+
+                    b.ToTable("Expenses", (string)null);
                 });
 
             modelBuilder.Entity("Westalife.Domain.Entities.GasInvoice", b =>
@@ -2122,6 +2485,39 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("IX_GasInvoices_ReadingPeriod");
 
                     b.ToTable("GasInvoices", (string)null);
+                });
+
+            modelBuilder.Entity("Westalife.Domain.Entities.IncomeItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTimeOffset>("CreatedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<decimal>("EstimatedAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<DateTimeOffset?>("LastModifiedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Year")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Year", "Category")
+                        .IsUnique()
+                        .HasDatabaseName("UX_IncomeItems_Year_Category");
+
+                    b.ToTable("IncomeItems", (string)null);
                 });
 
             modelBuilder.Entity("Westalife.Domain.Entities.Meter", b =>
@@ -2293,6 +2689,9 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("ApartmentOwnerId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("BankAccountId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("CancellationReason")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
@@ -2334,6 +2733,9 @@ namespace Westalife.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ApartmentOwnerId")
                         .HasDatabaseName("IX_Payments_ApartmentOwnerId");
+
+                    b.HasIndex("BankAccountId")
+                        .HasDatabaseName("IX_Payments_BankAccountId");
 
                     b.HasIndex("LegalResponsibleOwnerId");
 
@@ -2393,6 +2795,170 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                     b.ToTable("PaymentAllocations", (string)null);
                 });
 
+            modelBuilder.Entity("Westalife.Domain.Entities.ResidentDocument", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ApartmentOwnerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("DocumentType")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("FilePath")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<DateTimeOffset?>("LastModifiedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApartmentOwnerId")
+                        .HasDatabaseName("IX_ResidentDocuments_ApartmentOwnerId");
+
+                    b.ToTable("ResidentDocuments", (string)null);
+                });
+
+            modelBuilder.Entity("Westalife.Domain.Entities.RoleAssignment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ApartmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateOnly?>("BoardDecisionDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateTimeOffset?>("CancelledAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("CreatedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly?>("EndDate")
+                        .HasColumnType("date");
+
+                    b.Property<decimal>("ExemptionRate")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<decimal?>("FixedAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<bool>("IsCancelled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<DateTimeOffset?>("LastModifiedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("PaymentType")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1);
+
+                    b.Property<int?>("PeriodType")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("PersonName")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<int>("RoleType")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly>("StartDate")
+                        .HasColumnType("date");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApartmentId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_RoleAssignments_OpenApartment")
+                        .HasFilter("\"EndDate\" IS NULL AND \"IsCancelled\" = FALSE");
+
+                    b.ToTable("RoleAssignments", (string)null);
+                });
+
+            modelBuilder.Entity("Westalife.Domain.Entities.WaiverOffset", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AidatChargeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)");
+
+                    b.Property<Guid>("ApartmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BudgetItemId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("CancelledAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("CreatedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<bool>("IsCancelled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<DateTimeOffset?>("LastModifiedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("OffsetDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("RoleAssignmentId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AidatChargeId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_WaiverOffsets_AidatChargeId")
+                        .HasFilter("\"IsCancelled\" = FALSE");
+
+                    b.HasIndex("ApartmentId")
+                        .HasDatabaseName("IX_WaiverOffsets_ApartmentId");
+
+                    b.HasIndex("BudgetItemId")
+                        .HasDatabaseName("IX_WaiverOffsets_BudgetItemId");
+
+                    b.HasIndex("RoleAssignmentId");
+
+                    b.ToTable("WaiverOffsets", (string)null);
+                });
+
             modelBuilder.Entity("Westalife.Domain.Entities.AidatCharge", b =>
                 {
                     b.HasOne("Westalife.Domain.Entities.AidatInvoice", "AidatInvoice")
@@ -2438,6 +3004,11 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                         .HasForeignKey("BuildingId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.HasOne("Westalife.Domain.Entities.ApartmentOwner", null)
+                        .WithMany()
+                        .HasForeignKey("OpeningBalanceOwnerId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("AidatTariff");
 
@@ -2499,6 +3070,65 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                     b.Navigation("Apartment");
                 });
 
+            modelBuilder.Entity("Westalife.Domain.Entities.BankTransaction", b =>
+                {
+                    b.HasOne("Westalife.Domain.Entities.BankAccount", "BankAccount")
+                        .WithMany()
+                        .HasForeignKey("BankAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Westalife.Domain.Entities.BankAccount", "TargetBankAccount")
+                        .WithMany()
+                        .HasForeignKey("TargetBankAccountId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("BankAccount");
+
+                    b.Navigation("TargetBankAccount");
+                });
+
+            modelBuilder.Entity("Westalife.Domain.Entities.BudgetTransfer", b =>
+                {
+                    b.HasOne("Westalife.Domain.Entities.BudgetItem", "FromBudgetItem")
+                        .WithMany()
+                        .HasForeignKey("FromBudgetItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Westalife.Domain.Entities.BudgetItem", "ToBudgetItem")
+                        .WithMany()
+                        .HasForeignKey("ToBudgetItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("FromBudgetItem");
+
+                    b.Navigation("ToBudgetItem");
+                });
+
+            modelBuilder.Entity("Westalife.Domain.Entities.Expense", b =>
+                {
+                    b.HasOne("Westalife.Domain.Entities.BankAccount", "BankAccount")
+                        .WithMany()
+                        .HasForeignKey("BankAccountId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Westalife.Domain.Entities.BudgetItem", "BudgetItem")
+                        .WithMany()
+                        .HasForeignKey("BudgetItemId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Westalife.Domain.Entities.AidatInvoice", null)
+                        .WithMany()
+                        .HasForeignKey("FundAidatInvoiceId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("BankAccount");
+
+                    b.Navigation("BudgetItem");
+                });
+
             modelBuilder.Entity("Westalife.Domain.Entities.Meter", b =>
                 {
                     b.HasOne("Westalife.Domain.Entities.Apartment", "Apartment")
@@ -2544,6 +3174,11 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                         .HasForeignKey("ApartmentOwnerId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("Westalife.Domain.Entities.BankAccount", "BankAccount")
+                        .WithMany()
+                        .HasForeignKey("BankAccountId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("Westalife.Domain.Entities.ApartmentOwner", "LegalResponsibleOwner")
                         .WithMany()
                         .HasForeignKey("LegalResponsibleOwnerId")
@@ -2552,6 +3187,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                     b.Navigation("Apartment");
 
                     b.Navigation("ApartmentOwner");
+
+                    b.Navigation("BankAccount");
 
                     b.Navigation("LegalResponsibleOwner");
                 });
@@ -2578,6 +3215,61 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                     b.Navigation("ApartmentInvoice");
 
                     b.Navigation("Payment");
+                });
+
+            modelBuilder.Entity("Westalife.Domain.Entities.ResidentDocument", b =>
+                {
+                    b.HasOne("Westalife.Domain.Entities.ApartmentOwner", "ApartmentOwner")
+                        .WithMany()
+                        .HasForeignKey("ApartmentOwnerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ApartmentOwner");
+                });
+
+            modelBuilder.Entity("Westalife.Domain.Entities.RoleAssignment", b =>
+                {
+                    b.HasOne("Westalife.Domain.Entities.Apartment", "Apartment")
+                        .WithMany()
+                        .HasForeignKey("ApartmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Apartment");
+                });
+
+            modelBuilder.Entity("Westalife.Domain.Entities.WaiverOffset", b =>
+                {
+                    b.HasOne("Westalife.Domain.Entities.AidatCharge", "AidatCharge")
+                        .WithMany()
+                        .HasForeignKey("AidatChargeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Westalife.Domain.Entities.Apartment", null)
+                        .WithMany()
+                        .HasForeignKey("ApartmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Westalife.Domain.Entities.BudgetItem", "BudgetItem")
+                        .WithMany()
+                        .HasForeignKey("BudgetItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Westalife.Domain.Entities.RoleAssignment", "RoleAssignment")
+                        .WithMany()
+                        .HasForeignKey("RoleAssignmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("AidatCharge");
+
+                    b.Navigation("BudgetItem");
+
+                    b.Navigation("RoleAssignment");
                 });
 
             modelBuilder.Entity("Westalife.Domain.Entities.AidatInvoice", b =>

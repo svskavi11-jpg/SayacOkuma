@@ -7,13 +7,15 @@ using Westalife.Application.Features.Apartments.Commands.ImportMetersFromExcel;
 using Westalife.Application.Features.MeterReadings.Commands.ImportReadingsFromExcel;
 using Westalife.Infrastructure.Metering.Readers;
 using Westalife.Infrastructure.Persistence.Contexts;
+using Westalife.Infrastructure.Storage;
 
 namespace Westalife.Infrastructure;
 
 /// <summary>Infrastructure katmanının servis kayıtları.</summary>
 public static class DependencyInjection
 {
-    public static IServiceCollection AddInfrastructure(this IServiceCollection services, string connectionString)
+    public static IServiceCollection AddInfrastructure(
+        this IServiceCollection services, string connectionString, string? residentDocumentRoot = null)
     {
         services.AddDbContext<ApplicationDbContext>(options =>
             options.UseNpgsql(connectionString, npgsqlOptions =>
@@ -30,6 +32,11 @@ public static class DependencyInjection
             sp.GetRequiredService<ApplicationDbContext>());
 
         services.AddMetering();
+
+        var documentRoot = string.IsNullOrWhiteSpace(residentDocumentRoot)
+            ? Path.Combine(AppContext.BaseDirectory, "data", "resident-documents")
+            : residentDocumentRoot;
+        services.AddSingleton<IResidentDocumentStore>(_ => new LocalResidentDocumentStore(documentRoot));
 
         return services;
     }

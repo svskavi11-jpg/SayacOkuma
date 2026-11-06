@@ -3,6 +3,7 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Westalife.Application.Common;
 using Westalife.Application.Common.Interfaces;
+using Westalife.Application.Features.Roles;
 using Westalife.Domain.Constants;
 using Westalife.Domain.Entities;
 using Westalife.Domain.Enums;
@@ -10,25 +11,16 @@ using Westalife.Domain.Exceptions;
 
 namespace Westalife.Application.Features.Aidat.Commands.CreateAidatInvoice;
 
-/// <summary>
-/// Faz 6.9: Bir dönem için aidat tahakkuku oluşturur. Aktif tüm daireleri gezip
-/// seçilen dağıtım yöntemine göre <see cref="AidatCharge"/> borç satırları yazar:
-/// <list type="bullet">
-///   <item>TarifeBazli: dairenin atanmış tarifesinin aylık tutarı. Tarifesiz daire ATLANIR ve raporlanır.</item>
-///   <item>Metrekare: birim m² fiyatı tarifenin tutarından (tarife tutarı / tarife m²),
-///     dairenin aktif <see cref="ApartmentDimension"/> m²'si ile çarpılır. Tarifesi veya m²'si olmayan daire atlanır.</item>
-///   <item>Esit: tüm dairelere komutta verilen <paramref name="EqualAmount"/> kadar.</item>
-/// </list>
-/// Dönem çakışması engellenir (mevcut tahakkukla kesişen dönem kabul edilmez).
-/// Tüm tutarlar decimal ve kuruş hassasiyetindedir.
-/// </summary>
 public sealed record CreateAidatInvoiceCommand(
     DateOnly PeriodStart,
     DateOnly PeriodEnd,
     DateOnly DueDate,
     AidatDistributionMethod DistributionMethod,
     decimal? EqualAmount = null,
-    string? Note = null) : IRequest<CreateAidatInvoiceResult>;
+    string? Note = null,
+    AidatChargeType ChargeType = AidatChargeType.StandartAidat,
+    string? Title = null,
+    decimal? TargetAmount = null) : IRequest<CreateAidatInvoiceResult>;
 
 public sealed record CreateAidatInvoiceSkippedApartment(string DoorNumber, string Reason);
 
@@ -66,10 +58,21 @@ public sealed class CreateAidatInvoiceCommandValidator : AbstractValidator<Creat
         RuleFor(c => c.Note)
             .MaximumLength(DomainConstants.AidatInvoice.NoteMaxLength)
             .When(c => c.Note is not null);
+
+        RuleFor(c => c.Title)
+            .NotEmpty()
+            .WithMessage(DomainConstants.AidatInvoice.FundTitleRequired)
+            .MaximumLength(DomainConstants.AidatInvoice.TitleMaxLength)
+            .WithMessage(DomainConstants.AidatInvoice.FundTitleTooLong)
+            .When(c => c.ChargeType == AidatChargeType.OzelToplama);
+
+        RuleFor(c => c.TargetAmount)
+            .NotNull()
+            .GreaterThan(0m)
+            .WithMessage(DomainConstants.AidatInvoice.FundTargetRequired)
+            .When(c => c.ChargeType == AidatChargeType.OzelToplama);
     }
 }
-
-// ── Handler ──────────────────────────────────────────────────────────────────
 
 public sealed class CreateAidatInvoiceCommandHandler : IRequestHandler<CreateAidatInvoiceCommand, CreateAidatInvoiceResult>
 {
@@ -80,13 +83,21 @@ public sealed class CreateAidatInvoiceCommandHandler : IRequestHandler<CreateAid
     public async Task<CreateAidatInvoiceResult> Handle(
         CreateAidatInvoiceCommand request, CancellationToken cancellationToken)
     {
-        // 1. Dönem çakışması engeli (fatura dönemlerindeki kuralın aynısı).
-        var overlap = await _db.AidatInvoices
-            .AnyAsync(i => i.PeriodStart < request.PeriodEnd && i.PeriodEnd > request.PeriodStart, cancellationToken);
-
-        if (overlap)
+        // 1. Dönem çakışması engeli (fatura dönemlerindeki kuralın aynısı — iptal edilmiş tahakkuklar hariç).
+        if (request.ChargeType != AidatChargeType.OzelToplama)
         {
-            throw new DomainException(DomainConstants.ValidationMessages.AidatPeriodOverlap);
+            var overlap = await _db.AidatInvoices
+                .AnyAsync(
+                    i => !i.IsCancelled
+                        && i.ChargeType != AidatChargeType.OzelToplama
+                        && i.PeriodStart < request.PeriodEnd
+                        && i.PeriodEnd > request.PeriodStart,
+                    cancellationToken);
+
+            if (overlap)
+            {
+                throw new DomainException(DomainConstants.ValidationMessages.AidatPeriodOverlap);
+            }
         }
 
         // 2. Eşit dağıtım için daire başına tutar zorunlu.
@@ -112,9 +123,13 @@ public sealed class CreateAidatInvoiceCommandHandler : IRequestHandler<CreateAid
             request.DistributionMethod,
             request.Note);
 
+        if (request.ChargeType == AidatChargeType.OzelToplama)
+        {
+            invoice.MarkAsSpecialCollection(request.Title ?? string.Empty, request.TargetAmount ?? 0m);
+        }
+
         var skipped = new List<CreateAidatInvoiceSkippedApartment>();
 
-        // Kapı numarası sayısal sırada (1, 2, ... 10, 11).
         foreach (var apartment in apartments.OrderByDoorNumber(a => a.DoorNumber))
         {
             switch (request.DistributionMethod)
@@ -146,7 +161,6 @@ public sealed class CreateAidatInvoiceCommandHandler : IRequestHandler<CreateAid
                         continue;
                     }
 
-                    // Birim m² fiyatı tarifenin tutarından türetilir: tarife tutarı / tarife m².
                     var unitPrice = apartment.AidatTariff.Amount / apartment.AidatTariff.SquareMeters;
                     AssignHibritOwner(apartment, invoice.AddCharge(
                         apartment.Id, decimal.Round(activeDimension.SquareMeters * unitPrice, 2)));
@@ -158,14 +172,47 @@ public sealed class CreateAidatInvoiceCommandHandler : IRequestHandler<CreateAid
             }
         }
 
-        // Hiç daire borcu yazılamadıysa tahakkuk oluşturma (boş dönem kaydı oluşmasın).
         if (invoice.Charges.Count == 0)
         {
             throw new DomainException(DomainConstants.ValidationMessages.AidatInvoiceNoCharges);
         }
 
+        // Standart aidat döneminde muafiyetli / sabit ücretli aktif görev varsa Görev Mahsup Bütçe Kalemi seçilmiş olmalıdır.
+        if (request.ChargeType == AidatChargeType.StandartAidat)
+        {
+            var apartmentIds = invoice.Charges.Select(c => c.ApartmentId).Distinct().ToList();
+            var activeRoles = await _db.RoleAssignments.AsNoTracking()
+                .Where(r => apartmentIds.Contains(r.ApartmentId) && !r.IsCancelled)
+                .ToListAsync(cancellationToken);
+
+            var hasMatchingCompensatedRole = activeRoles.Any(
+                r => r.HasCompensation && r.CoversPeriod(invoice.PeriodStart, invoice.PeriodEnd));
+
+            if (hasMatchingCompensatedRole)
+            {
+                var settings = await _db.AppSettings.AsNoTracking()
+                    .OrderBy(s => s.Id)
+                    .FirstOrDefaultAsync(cancellationToken);
+
+                var budgetItemId = settings?.ManagementExpenseBudgetItemId;
+                if (!budgetItemId.HasValue || budgetItemId.Value == Guid.Empty)
+                {
+                    throw new DomainException(DomainConstants.WaiverOffset.ManagementBudgetItemNotConfigured);
+                }
+
+                var budgetItemExists = await _db.BudgetItems.AsNoTracking()
+                    .AnyAsync(b => b.Id == budgetItemId.Value, cancellationToken);
+                if (!budgetItemExists)
+                {
+                    throw new DomainException(DomainConstants.WaiverOffset.ManagementBudgetItemNotConfigured);
+                }
+            }
+        }
+
         _db.AidatInvoices.Add(invoice);
         await _db.SaveChangesAsync(cancellationToken);
+
+        await WaiverOffsetSyncService.SyncAllAsync(_db, cancellationToken);
 
         return new CreateAidatInvoiceResult(
             invoice.Id,
@@ -179,11 +226,6 @@ public sealed class CreateAidatInvoiceCommandHandler : IRequestHandler<CreateAid
             skipped);
     }
 
-    /// <summary>
-    /// Faz 7.1 — Hibrit Model (KMK m.22): borç, tahakkuk anında kiracıya (varsa) / ev sahibine
-    /// yazılır; ev sahibi müteselsil sorumlu olarak ayrıca kayıt altına alınır.
-    /// Böylece eski kiracının borcu yeni kiracıya asla geçmez.
-    /// </summary>
     private static void AssignHibritOwner(Apartment apartment, AidatCharge charge)
     {
         var now = DateTimeOffset.UtcNow;

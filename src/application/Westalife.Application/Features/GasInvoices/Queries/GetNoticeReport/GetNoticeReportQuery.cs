@@ -262,7 +262,9 @@ public sealed class GetNoticeReportQueryHandler : IRequestHandler<GetNoticeRepor
             subscriber,
             invoice.MasterMeterSerial,
             invoice.IssuedOn,
-            invoice.IssuedOn.AddDays(dueDays),
+            invoice.IsLocked
+                ? new DateTimeOffset(invoice.DueDate.ToDateTime(TimeOnly.MinValue), invoice.IssuedOn.Offset)
+                : invoice.IssuedOn.AddDays(dueDays),
             invoice.TotalAmount,
             totalSquareMeters,
             totalConsumption,

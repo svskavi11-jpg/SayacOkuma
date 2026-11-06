@@ -2,6 +2,9 @@ using MediatR;
 using Microsoft.EntityFrameworkCore;
 using Westalife.Application.Common;
 using Westalife.Application.Common.Interfaces;
+using Westalife.Application.Features.Roles;
+using Westalife.Domain.Constants;
+using Westalife.Domain.Services.Ledger;
 
 namespace Westalife.Application.Features.Apartments.Queries.GetApartments;
 
@@ -25,7 +28,18 @@ public sealed record ApartmentListItem(
     string? AidatTariffName = null,
     string? KiraciName = null,
     string? EvSahibiPhoneNumber = null,
-    string? KiraciPhoneNumber = null);
+    string? EvSahibiEmail = null,
+    string? EvSahibiIdentityNumber = null,
+    string? EvSahibiNotes = null,
+    string? KiraciPhoneNumber = null,
+    string? KiraciEmail = null,
+    string? KiraciIdentityNumber = null,
+    string? KiraciNotes = null,
+    decimal CurrentBalance = 0m,
+    string BalanceStatus = DomainConstants.Apartment.BalanceSettled,
+    decimal AidatDebt = 0m,
+    decimal HeatingDebt = 0m,
+    Guid? OpeningBalanceOwnerId = null);
 
 public sealed record ApartmentMeterItem(Guid Id, string SerialNumber, string MeterType, int? MbusPrimaryAddress, bool IsActive);
 
@@ -43,6 +57,8 @@ public sealed class GetApartmentsQueryHandler : IRequestHandler<GetApartmentsQue
     {
         var now = DateTimeOffset.UtcNow;
 
+        await WaiverOffsetSyncService.SyncAllAsync(_db, cancellationToken);
+
         var apartments = await _db.Apartments
             .Where(a => a.IsActive)
             // Not: kapı numarası metin olduğundan sıralama bellekte sayısal yapılır (1, 2, ... 10).
@@ -54,6 +70,7 @@ public sealed class GetApartmentsQueryHandler : IRequestHandler<GetApartmentsQue
                 a.OpeningBalancePrincipal,
                 a.OpeningBalanceInterest,
                 a.OpeningBalanceDate,
+                a.OpeningBalanceOwnerId,
                 AidatTariffId = (Guid?)a.AidatTariffId,
                 AidatTariffName = a.AidatTariff != null ? a.AidatTariff.Name : null,
                 ActiveSquareMeters = a.Dimensions
@@ -76,6 +93,21 @@ public sealed class GetApartmentsQueryHandler : IRequestHandler<GetApartmentsQue
                                 o.ValidFrom <= now && (o.ValidTo == null || o.ValidTo > now))
                     .Select(o => o.PhoneNumber)
                     .FirstOrDefault(),
+                EvSahibiEmail = a.Owners
+                    .Where(o => o.ResidentType == Domain.Enums.ResidentType.EvSahibi &&
+                                o.ValidFrom <= now && (o.ValidTo == null || o.ValidTo > now))
+                    .Select(o => o.Email)
+                    .FirstOrDefault(),
+                EvSahibiIdentityNumber = a.Owners
+                    .Where(o => o.ResidentType == Domain.Enums.ResidentType.EvSahibi &&
+                                o.ValidFrom <= now && (o.ValidTo == null || o.ValidTo > now))
+                    .Select(o => o.IdentityNumber)
+                    .FirstOrDefault(),
+                EvSahibiNotes = a.Owners
+                    .Where(o => o.ResidentType == Domain.Enums.ResidentType.EvSahibi &&
+                                o.ValidFrom <= now && (o.ValidTo == null || o.ValidTo > now))
+                    .Select(o => o.Notes)
+                    .FirstOrDefault(),
                 KiraciName = a.Owners
                     .Where(o => o.ResidentType == Domain.Enums.ResidentType.Kiraci &&
                                 o.ValidFrom <= now && (o.ValidTo == null || o.ValidTo > now))
@@ -86,9 +118,21 @@ public sealed class GetApartmentsQueryHandler : IRequestHandler<GetApartmentsQue
                                 o.ValidFrom <= now && (o.ValidTo == null || o.ValidTo > now))
                     .Select(o => o.PhoneNumber)
                     .FirstOrDefault(),
-                // Etap 6.7: aktif kalorimetre (en yeni CreatedOn — ImportReadings ile aynı deterministik
-                // seçim) ve SADECE BU SAYACIN son okuması. Okumalar seçilen sayaca bağlı çözülür ki
-                // dairede birden fazla aktif sayaç varsa "son endeks" farklı sayactan gelmesin.
+                KiraciEmail = a.Owners
+                    .Where(o => o.ResidentType == Domain.Enums.ResidentType.Kiraci &&
+                                o.ValidFrom <= now && (o.ValidTo == null || o.ValidTo > now))
+                    .Select(o => o.Email)
+                    .FirstOrDefault(),
+                KiraciIdentityNumber = a.Owners
+                    .Where(o => o.ResidentType == Domain.Enums.ResidentType.Kiraci &&
+                                o.ValidFrom <= now && (o.ValidTo == null || o.ValidTo > now))
+                    .Select(o => o.IdentityNumber)
+                    .FirstOrDefault(),
+                KiraciNotes = a.Owners
+                    .Where(o => o.ResidentType == Domain.Enums.ResidentType.Kiraci &&
+                                o.ValidFrom <= now && (o.ValidTo == null || o.ValidTo > now))
+                    .Select(o => o.Notes)
+                    .FirstOrDefault(),
                 ActiveMeter = a.Meters
                     .Where(m => m.IsActive && m.Type == Domain.Enums.MeterType.Calorimeter)
                     .OrderByDescending(m => m.CreatedOn)
@@ -116,14 +160,88 @@ public sealed class GetApartmentsQueryHandler : IRequestHandler<GetApartmentsQue
             })
             .ToListAsync(cancellationToken);
 
+        var balances = await CalculateBalances(apartments.Select(a => a.Id).ToList(), cancellationToken);
+
         return apartments
             .OrderByDoorNumber(a => a.DoorNumber)
-            .Select(a => new ApartmentListItem(
-                a.Id, a.DoorNumber, a.Title, a.ActiveSquareMeters, a.OwnerName,
-                a.ActiveMeter?.Id, a.ActiveMeter?.LastIndex, a.ActiveMeter?.LastDate, a.Meters,
-                a.OpeningBalancePrincipal, a.OpeningBalanceInterest, a.OpeningBalanceDate,
-                a.AidatTariffId, a.AidatTariffName,
-                a.KiraciName, a.EvSahibiPhoneNumber, a.KiraciPhoneNumber))
+            .Select(a =>
+            {
+                var totals = balances.GetValueOrDefault(a.Id);
+                return new ApartmentListItem(
+                    a.Id, a.DoorNumber, a.Title, a.ActiveSquareMeters, a.OwnerName,
+                    a.ActiveMeter?.Id, a.ActiveMeter?.LastIndex, a.ActiveMeter?.LastDate, a.Meters,
+                    a.OpeningBalancePrincipal, a.OpeningBalanceInterest, a.OpeningBalanceDate,
+                    a.AidatTariffId, a.AidatTariffName,
+                    a.KiraciName, a.EvSahibiPhoneNumber, a.EvSahibiEmail, a.EvSahibiIdentityNumber, a.EvSahibiNotes,
+                    a.KiraciPhoneNumber, a.KiraciEmail, a.KiraciIdentityNumber, a.KiraciNotes,
+                    totals.Balance, ApartmentBalance.Status(totals.Balance),
+                    totals.AidatDebt, totals.HeatingDebt, a.OpeningBalanceOwnerId);
+            })
             .ToList();
+    }
+
+    private readonly record struct ApartmentLedgerTotals(decimal Balance, decimal AidatDebt, decimal HeatingDebt);
+
+    private async Task<Dictionary<Guid, ApartmentLedgerTotals>> CalculateBalances(
+        IReadOnlyList<Guid> apartmentIds, CancellationToken cancellationToken)
+    {
+        if (apartmentIds.Count == 0)
+        {
+            return [];
+        }
+
+        var settings = await _db.AppSettings.AsNoTracking()
+            .OrderBy(s => s.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+        var annualRate = settings?.InterestRate ?? 0m;
+        var asOf = DateOnly.FromDateTime(DateTime.Today);
+
+        var apartmentEntities = await _db.Apartments.AsNoTracking()
+            .Where(a => apartmentIds.Contains(a.Id))
+            .ToListAsync(cancellationToken);
+
+        var invoices = await _db.ApartmentInvoices.AsNoTracking()
+            .Include(i => i.GasInvoice)
+            .Where(i => apartmentIds.Contains(i.ApartmentId) && !i.IsSuperseded)
+            .ToListAsync(cancellationToken);
+
+        var payments = await _db.Payments.AsNoTracking()
+            .Where(p => apartmentIds.Contains(p.ApartmentId))
+            .ToListAsync(cancellationToken);
+
+        var charges = await _db.AidatCharges.AsNoTracking()
+            .Include(c => c.AidatInvoice)
+            .Where(c => apartmentIds.Contains(c.ApartmentId))
+            .ToListAsync(cancellationToken);
+
+        var invoicesByApartment = invoices.GroupBy(i => i.ApartmentId).ToDictionary(g => g.Key, g => (IReadOnlyList<Domain.Entities.ApartmentInvoice>)g.ToList());
+        var paymentsByApartment = payments.GroupBy(p => p.ApartmentId).ToDictionary(g => g.Key, g => (IReadOnlyList<Domain.Entities.Payment>)g.ToList());
+        var chargesByApartment = charges.GroupBy(c => c.ApartmentId).ToDictionary(g => g.Key, g => (IReadOnlyList<Domain.Entities.AidatCharge>)g.ToList());
+
+        var waivers = await _db.WaiverOffsets.AsNoTracking()
+            .Where(w => apartmentIds.Contains(w.ApartmentId))
+            .ToListAsync(cancellationToken);
+        var waiversByApartment = waivers.GroupBy(w => w.ApartmentId)
+            .ToDictionary(g => g.Key, g => (IReadOnlyList<Domain.Entities.WaiverOffset>)g.ToList());
+
+        var balances = new Dictionary<Guid, ApartmentLedgerTotals>(apartmentEntities.Count);
+        foreach (var apartment in apartmentEntities)
+        {
+            var ledger = LedgerService.Calculate(
+                apartment,
+                invoicesByApartment.GetValueOrDefault(apartment.Id) ?? [],
+                paymentsByApartment.GetValueOrDefault(apartment.Id) ?? [],
+                annualRate,
+                asOf,
+                chargesByApartment.GetValueOrDefault(apartment.Id) ?? [],
+                waiversByApartment.GetValueOrDefault(apartment.Id) ?? []);
+            var summary = ledger.Summary;
+            balances[apartment.Id] = new ApartmentLedgerTotals(
+                ledger.TotalBalance,
+                (summary?.AidatPrincipalDue ?? 0m) + (summary?.AidatInterestAccrued ?? 0m),
+                (summary?.InvoicePrincipalDue ?? 0m) + (summary?.InvoiceInterestAccrued ?? 0m));
+        }
+
+        return balances;
     }
 }

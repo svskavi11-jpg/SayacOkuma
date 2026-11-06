@@ -27,8 +27,21 @@ public record LedgerResult(
     DateOnly AsOfDate,
 
     /// <summary>Borç türü bazlı özet (Faz 7.1) — cari hesap ekranındaki özet kartlarının kaynağı.</summary>
-    LedgerSummary? Summary = null
+    LedgerSummary? Summary = null,
+
+    /// <summary>
+    /// Borca mahsup edilemeyen tahsilat artığı. Aidat tahakkuku silinince hedefi aidat olan
+    /// ödeme burada kalır ve bakiyeyi alacağa çeker.
+    /// </summary>
+    IReadOnlyList<LedgerCredit>? Credits = null
 );
+
+/// <summary>Borca bağlanamayan tahsilat artığı.</summary>
+public record LedgerCredit(
+    Guid PaymentId,
+    DateOnly PaymentDate,
+    decimal Amount,
+    LedgerDebtType? TargetDebtType);
 
 /// <summary>Cari hesap tek satırı.</summary>
 public record LedgerLine(
@@ -66,7 +79,16 @@ public record LedgerLine(
     Guid? OwnerId = null,
 
     /// <summary>Borç sahibi sakinin adı (UI Sakin Seçici/etiketleri için).</summary>
-    string? OwnerName = null
+    string? OwnerName = null,
+
+    /// <summary>Aidat dönem başlangıcı. Cari hesap tarih sütunu bunu kullanır; faiz vadesi DueDate'tir.</summary>
+    DateOnly? PeriodStart = null,
+
+    /// <summary>İptal edilmiş tahakkuk satırı mı? (Denetim izi: tutar 0'a düşürülmüştür).</summary>
+    bool IsCancelled = false,
+
+    /// <summary>İptal edilmiş satırın orijinal tahakkuk tutarı (denetim izi için).</summary>
+    decimal? OriginalPrincipalAmount = null
 );
 
 /// <summary>

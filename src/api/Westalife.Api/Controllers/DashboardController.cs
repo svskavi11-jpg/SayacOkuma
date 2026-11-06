@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Westalife.Api.Infrastructure;
+using Westalife.Application.Features.Dashboard.Queries.GetBankDashboard;
 using Westalife.Application.Features.Dashboard.Queries.GetDashboardSummary;
 
 namespace Westalife.Api.Controllers;
@@ -23,6 +24,15 @@ public class DashboardController : ControllerBase
     public async Task<IActionResult> GetSummary(CancellationToken cancellationToken)
     {
         var result = await _mediator.Send(new GetDashboardSummaryQuery(), cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>Banka durumu: hesap bazında devir, giren, çıkan ve yılın aylık hareketi.</summary>
+    [HttpGet("banks")]
+    [ProducesResponseType(typeof(BankDashboardResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetBanks(CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new GetBankDashboardQuery(), cancellationToken);
         return Ok(result);
     }
 }

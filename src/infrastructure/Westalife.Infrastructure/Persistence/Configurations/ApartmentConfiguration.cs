@@ -58,6 +58,11 @@ public class ApartmentConfiguration : IEntityTypeConfiguration<Apartment>
             .HasForeignKey(o => o.ApartmentId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        builder.HasOne<ApartmentOwner>()
+            .WithMany()
+            .HasForeignKey(a => a.OpeningBalanceOwnerId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         // Seed: 72 daire (DoorNumber: 1..72). Gerçek m² değerleri Faz 5'te girilecek.
         var buildingId = DomainConstants.SeedData.BuildingId;
         var seedTimestamp = DomainConstants.SeedData.SeedTimestamp;

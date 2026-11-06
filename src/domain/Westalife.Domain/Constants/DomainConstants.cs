@@ -44,7 +44,12 @@ public static class DomainConstants
         /// <summary>Devir (açılış) bakiyesi: + borçlu, - alacaklı (fazla ödeme). Mutlak üst sınır.</summary>
         public const decimal OpeningBalanceMaxAbs = 10_000_000m;
         public const string OpeningBalanceOutOfRange = "Devir bakiyesi izin verilen aralığın dışında.";
+        public const string OpeningBalanceInterestCannotBeNegative = "Geçmiş dönem gecikme faizi negatif olamaz.";
         public const string OpeningBalanceDateRequired = "Devir bakiyesi için bakiye tarihi zorunludur.";
+
+        public const string BalanceDebtor = "Borçlu";
+        public const string BalanceCreditor = "Alacaklı";
+        public const string BalanceSettled = "Borcu Yok";
     }
 
     public static class ApartmentDimension
@@ -72,6 +77,22 @@ public static class DomainConstants
         public const int EmailMaxLength = 100;
         public const int IdentityNumberLength = 11;
         public const int NotesMaxLength = 500;
+        public const string PeriodOverlap = "Bu rolde girilen tarihler mevcut bir sakin kaydıyla çakışıyor.";
+        public const string StartMustFollowCurrent = "Yeni başlangıç, mevcut sakinin girişinden sonra olmalıdır.";
+        public const string LeaseEndBeforeStart = "Sözleşme bitişi başlangıçtan önce olamaz.";
+        public const string OpeningBalanceOwnerNotFound = "Seçilen sakin bu daireye ait değil.";
+    }
+
+    public static class ResidentDocument
+    {
+        public const int FileNameMaxLength = 200;
+        public const int FilePathMaxLength = 300;
+        public const int MaxBytes = 10 * 1024 * 1024;
+        public const string FileRequired = "Evrak dosyası zorunludur.";
+        public const string FileTooLarge = "Evrak en fazla 10 MB olabilir.";
+        public const string FileTypeInvalid = "Evrak yalnızca PDF, JPG veya PNG olabilir.";
+        public const string NotFound = "Evrak bulunamadı.";
+        public const string OwnerNotFound = "Sakin kaydı bulunamadı.";
     }
 
     /// <summary>Okuma düzeltme denetim izi kuralları (Etap 6.7).</summary>
@@ -99,14 +120,25 @@ public static class DomainConstants
         public const int SquareMetersScale = 2;
     }
 
-    /// <summary>Aidat tahakkuk kuralları (Faz 6.9).</summary>
+    /// <summary>Aidat tahakkuk kuralları (Faz 6.9, özel toplama fonu).</summary>
     public static class AidatInvoice
     {
         public const int NoteMaxLength = 500;
+        public const int TitleMaxLength = 120;
 
         /// <summary>Tahakkuk sonucunda atlanan daireler için rapor gerekçeleri.</summary>
         public const string SkipReasonNoTariff = "Aidat tarifesı atanmamış.";
         public const string SkipReasonNoDimension = "Aktif m² kaydı bulunamadı.";
+
+        public const string FundTitleRequired = "Özel toplama için fon adı zorunludur.";
+        public const string FundTitleTooLong = "Fon adı en fazla 120 karakter olabilir.";
+        public const string FundTargetRequired = "Özel toplama için hedef tutar sıfırdan büyük olmalıdır.";
+
+        public const string InvoiceNotFound = "Aidat tahakkuku bulunamadı.";
+        public const string AlreadyCancelled = "Bu aidat tahakkuku zaten iptal edilmiş.";
+        public const string CancelBlockedByLockedPeriod = "İlgili bütçe dönemi kilitli olduğu için aidat tahakkuku iptal edilemez.";
+        public const string CancelBlockedByPayments = "Bu tahakkuka ait tahsilat bulunduğu için iptal edilemez. Önce ilgili tahsilatları iptal ediniz.";
+        public const string CancelBlockedByExpenses = "Bu özel toplama fonuna bağlı gider kaydı bulunduğu için tahakkuk iptal edilemez.";
     }
 
     public static class GasInvoice
@@ -120,6 +152,9 @@ public static class DomainConstants
         public const string PaidOnRequired = "Ödendi olarak işaretlemek için ödeme tarihi zorunludur.";
         public const string PaidOnBeforeIssued = "Ödeme tarihi fatura düzenleme tarihinden önce olamaz.";
         public const string DueDateBeforeIssued = "Son ödeme tarihi fatura düzenleme tarihinden önce olamaz.";
+        public const string DueDateLocked = "Kilitli dönemin son ödeme tarihi değiştirilemez. Kilidi açıp yeniden kilitleyin.";
+        public const string DueDateBeforeNotice = "Son ödeme tarihi bildirim tarihinden önce olamaz.";
+        public const string NoticeDateBeforeIssued = "Bildirim tarihi fatura düzenleme tarihinden önce olamaz.";
 
         /// <summary>Dönem kilidi kuralları (Etap 6.6).</summary>
         public const string PeriodLocked =
@@ -185,12 +220,93 @@ public static class DomainConstants
         public const string AmountTooLarge = "Tahsilat tutarı izin verilen üst sınırı aşıyor.";
         public const string PaymentDateFuture = "Tahsilat tarihi bugünden ileri olamaz.";
         public const string AlreadyCancelled = "Bu tahsilat zaten iptal edilmiş.";
+        public const string CancelledCannotBeChanged = "İptal edilmiş tahsilat değiştirilemez.";
         public const string NotFound = "Tahsilat kaydı bulunamadı.";
         public const string CancellationReasonRequired = "İptal gerekçesi zorunludur.";
         public const int CancellationReasonMaxLength = 500;
 
         /// <summary>Faz 7'ye kadar (JWT yok) tahsilatı giren kullanıcı boş bırakılırsa kullanılır.</summary>
         public const string DefaultReceivedBy = "Yönetici";
+    }
+
+    /// <summary>Banka hesap kartı. Tahsilat ve gider bu karta bağlanır; bağ boş kalabilir.</summary>
+    public static class BankAccount
+    {
+        public const int BankNameMaxLength = 100;
+        public const int AccountNameMaxLength = 100;
+        public const int AccountNumberMaxLength = 34;
+        public const int IbanLength = 26;
+        public const decimal AmountMax = 10_000_000m;
+
+        public const string BankNameRequired = "Banka adı zorunludur.";
+        public const string BankNameTooLong = "Banka adı en fazla 100 karakter olabilir.";
+        public const string AccountNameRequired = "Hesap adı zorunludur.";
+        public const string AccountNameTooLong = "Hesap adı en fazla 100 karakter olabilir.";
+        public const string AccountNumberRequired = "Hesap numarası zorunludur.";
+        public const string AccountNumberTooLong = "Hesap numarası en fazla 34 karakter olabilir.";
+        public const string AccountNumberDuplicate = "Bu hesap numarası zaten kayıtlı.";
+        public const string IbanInvalid = "IBAN, TR ile başlayan 26 haneli geçerli bir numara olmalıdır.";
+        public const string IbanDuplicate = "Bu IBAN zaten kayıtlı.";
+        public const string OpeningBalanceInvalid = "Devir bakiyesi negatif olamaz ve izin verilen üst sınırı aşamaz.";
+        public const string OpeningDateFuture = "Devir tarihi bugünden ileri olamaz.";
+        public const string NotFound = "Banka hesabı bulunamadı.";
+        public const string Inactive = "Pasif banka hesabı yeni kayda bağlanamaz.";
+        public const string HasMovements = "Bu hesaba bağlı hareket var. Hesap silinemez; pasife alınabilir.";
+    }
+
+    public static class BankTransaction
+    {
+        public const int DescriptionMaxLength = 200;
+
+        public const string AmountInvalid = "Tutar sıfırdan büyük olmalı ve izin verilen üst sınırı aşmamalıdır.";
+        public const string DateFuture = "Hareket tarihi bugünden ileri olamaz.";
+        public const string DateBeforeOpening = "Hareket tarihi hesabın devir tarihinden önce olamaz.";
+        public const string DescriptionTooLong = "Açıklama en fazla 200 karakter olabilir.";
+        public const string TypeInvalid = "Faiz veya masraf seçilmelidir.";
+        public const string SameAccount = "Virman aynı hesaba yapılamaz.";
+        public const string NotFound = "Banka hareketi bulunamadı.";
+    }
+
+    /// <summary>Görev ataması (yönetici / denetçi) ve aidat muafiyeti.</summary>
+    public static class RoleAssignment
+    {
+        public const int PersonNameMaxLength = 150;
+        public const string ManagementExpenseCategory = "Yönetim gideri";
+
+        public const string PersonNameRequired = "Görevli adı zorunludur.";
+        public const string PersonNameTooLong = "Görevli adı en fazla 150 karakter olabilir.";
+        public const string RateInvalid = "Muafiyet oranı 0 ile 1 arasında olmalıdır.";
+        public const string DateInvalid = "Görev bitişi başlangıçtan önce olamaz.";
+        public const string Overlap = "Bu dairede görev tarihleri çakışıyor.";
+        public const string NotFound = "Görev kaydı bulunamadı.";
+        public const string AlreadyClosed = "Görev zaten kapatılmış.";
+        public const string AlreadyCancelled = "Bu görev ataması zaten iptal edilmiş.";
+        public const string CancelBlockedByLockedPeriod = "İlgili bütçe dönemi kilitli olduğu için görev ataması ve mahsupları iptal edilemez.";
+        public const string ApartmentNotFound = "Daire bulunamadı.";
+        public const string NotCollectionTarget = "Görev mahsubu tahsilat hedefi olamaz.";
+        public const string PaymentTypeInvalid = "Geçersiz görev ücreti türü.";
+        public const string FixedAmountInvalid = "Sabit görev ücreti sıfırdan büyük olmalıdır.";
+        public const string PeriodTypeRequired = "Sabit tutarlı görevlerde periyot (Aylık / Yıllık) seçilmelidir.";
+    }
+
+    public static class WaiverOffset
+    {
+        public const int DescriptionMaxLength = 200;
+        public const string ManagementExpenseMissing = "Mahsup için bu yılın Yönetim gideri bütçe kalemi bulunamadı. Önce kalemi açın.";
+        public const string ManagementExpenseDuplicate = "Bu yıl için Yönetim gideri bütçe kalemi bir tane olmalıdır.";
+        public const string ManagementBudgetItemNotConfigured = "Lütfen Ayarlar sayfasından Görev Mahsup Bütçe Kalemini seçin.";
+    }
+
+    public static class AuditReport
+    {
+        public const string AidatCollection = "Aidat tahsilatı";
+        public const string FuelCollection = "Yakıt tahsilatı";
+        public const string OpeningCollection = "Devir tahsilatı";
+        public const string UnallocatedCollection = "Bağlanmamış tahsilat";
+        public const string UnbudgetedExpense = "Bütçe kalemi yok";
+        public const string AccountOpening = "Hesap devri";
+        public const string BankNotFound = "Banka hesabı bulunamadı.";
+        public const string PeriodInvalid = "Bitiş tarihi başlangıçtan önce olamaz.";
     }
 
     /// <summary>
@@ -252,6 +368,65 @@ public static class DomainConstants
         public const decimal InterestRateMax = 500m;
         public const string InterestRateInvalid = "Yıllık faiz oranı 0 ile 500 arasında olmalıdır.";
         public const string InterestPeriodInvalid = "Faiz dönemi yalnızca 'Daily' (günlük) olabilir.";
+    }
+
+    /// <summary>Faz 6.10: Bütçe (işletme projesi) ve gider takibi.</summary>
+    public static class Budget
+    {
+        public const int CategoryMaxLength = 100;
+        public const int ExpenseTypeMaxLength = 100;
+        public const int DescriptionMaxLength = 500;
+        public const int DocumentNumberMaxLength = 50;
+        public const int TransferNoteMaxLength = 500;
+
+        public const decimal AmountMax = 10_000_000m;
+
+        public const int YearMin = 2000;
+        public const int YearMax = 2100;
+
+        /// <summary>Harcama, tahmini tutarın bu oranına ulaşınca uyarı verilir. Kayıt engellenmez.</summary>
+        public const decimal WarningRatio = 0.90m;
+
+        public const string IncomeLabel = "Gelir";
+        public const string ExpenseLabel = "Gider";
+        public const string TotalLabel = "Toplam";
+        public const string CollectionTitle = "Tahsilat";
+        public const string EstimatedIncomeLabel = "Tahmini Gelir";
+        public const string EstimatedExpenseLabel = "Tahmini Gider";
+        public const string BalanceLabel = "Denge";
+        public const string TransferLabel = "Virman";
+
+        public const string CategoryRequired = "Bütçe kategorisi zorunludur.";
+        public const string CategoryTooLong = "Bütçe kategorisi en fazla 100 karakter olabilir.";
+        public const string CategoryAlreadyExists = "Bu yıl için aynı kategoride bir bütçe kalemi zaten kayıtlı.";
+        public const string EstimatedAmountInvalid = "Tahmini bütçe tutarı sıfırdan büyük ve izin verilen üst sınırın altında olmalıdır.";
+        public const string YearInvalid = "Yıl 2000 ile 2100 arasında olmalıdır.";
+        public const string ExpenseAmountInvalid = "Gider tutarı sıfırdan büyük ve izin verilen üst sınırın altında olmalıdır.";
+        public const string ExpenseDateFuture = "Gider tarihi bugünden ileri olamaz.";
+        public const string ExpenseTypeRequired = "Gider türü zorunludur.";
+        public const string ExpenseTypeTooLong = "Gider türü en fazla 100 karakter olabilir.";
+        public const string ExpenseTypeNotAllowedWithItem = "Bütçe kalemine bağlı giderde serbest gider türü yazılamaz.";
+        public const string DescriptionTooLong = "Gider açıklaması en fazla 500 karakter olabilir.";
+        public const string BudgetItemRequired = "Bütçe takibi açıkken gider bir bütçe kalemine bağlanmalıdır.";
+        public const string BudgetItemNotAllowed = "Bütçe takibi kapalıyken bütçe kalemi seçilemez. Gider türünü yazın.";
+        public const string BudgetItemYearMismatch = "Gider tarihi ile bütçe kaleminin yılı aynı olmalıdır.";
+        public const string BudgetItemNotFound = "Bütçe kalemi bulunamadı.";
+        public const string ExpenseNotFound = "Gider kaydı bulunamadı.";
+        public const string BudgetTrackingDisabled = "Bütçe takibi kapalı. Bütçe kalemi bu durumda eklenemez, değiştirilemez veya raporlanamaz.";
+        public const string BudgetItemHasExpenses = "Bu kaleme bağlı giderler olduğu için kalem silinemez.";
+        public const string BudgetItemHasTransfers = "Bu kaleme bağlı virman olduğu için kalem silinemez.";
+        public const string WarningReachedFormat = "{0} kaleminde harcama, tahmini bütçenin %{1:N2} düzeyine ulaştı veya aştı.";
+        public const string DocumentNumberTooLong = "Belge numarası en fazla 50 karakter olabilir.";
+        public const string YearLocked = "Bu bütçe yılı kilitli. Yeni kayıt eklenemez; kilidi açın.";
+        public const string TransferSameItem = "Virman aynı kalem içinde yapılamaz.";
+        public const string TransferYearMismatch = "Virman kalemleri aynı yıla ait olmalıdır.";
+        public const string TransferDateYearMismatch = "Virman tarihi, kalemlerin yılı ile aynı olmalıdır.";
+        public const string TransferExceedsAvailable = "Virman tutarı kaynak kalemin kalan bütçesini aşamaz.";
+        public const string TransferNotFound = "Virman kaydı bulunamadı.";
+        public const string IncomeCategoryAlreadyExists = "Bu yıl için aynı gelir kalemi zaten kayıtlı.";
+        public const string IncomeItemNotFound = "Gelir kalemi bulunamadı.";
+        public const string FundNotFound = "Özel toplama fonu bulunamadı.";
+        public const string FundNotSpecial = "Gider yalnızca özel toplama fonuna bağlanabilir.";
     }
 
     public static class ValidationMessages

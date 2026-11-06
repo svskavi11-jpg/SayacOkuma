@@ -8,7 +8,9 @@ import { AidatTariffsPage } from './features/aidat/AidatTariffsPage'
 import { AidatInvoicesPage } from './features/aidat/AidatInvoicesPage'
 import { FormerResidentsPage } from './features/residents/FormerResidentsPage'
 import { ReportsPage } from './features/reports/ReportsPage'
+import { BudgetPage } from './features/budget/BudgetPage'
 import { SettingsPage } from './features/settings/SettingsPage'
+import { BankAccountsPage } from './features/bankAccounts/BankAccountsPage'
 
 export default function App() {
   return (
@@ -21,6 +23,8 @@ export default function App() {
         <Route path="/aidat/tariffs" element={<AidatTariffsPage />} />
         <Route path="/aidat/invoices" element={<AidatInvoicesPage />} />
         <Route path="/former-residents" element={<FormerResidentsPage />} />
+        <Route path="/budget" element={<BudgetPage />} />
+        <Route path="/bank-accounts" element={<BankAccountsPage />} />
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>

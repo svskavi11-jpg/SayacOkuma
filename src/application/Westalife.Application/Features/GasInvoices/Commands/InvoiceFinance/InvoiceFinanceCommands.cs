@@ -7,7 +7,7 @@ using Westalife.Domain.Exceptions;
 
 namespace Westalife.Application.Features.GasInvoices.Commands.InvoiceFinance;
 
-/// <summary>Faz 6.8: faturanın son ödeme tarihini (vade) günceller. Dönem kilidinden bağımsızdır.</summary>
+/// <summary>Faz 6.8: faturanın son ödeme tarihini günceller. Kilitli dönemde reddedilir.</summary>
 public sealed record SetInvoiceDueDateCommand(Guid InvoiceId, DateOnly DueDate) : IRequest<InvoiceFinanceResult>;
 
 /// <summary>

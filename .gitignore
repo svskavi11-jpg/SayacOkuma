@@ -33,3 +33,5 @@ logs/
 backups/
 
 dist/
+
+*.dump

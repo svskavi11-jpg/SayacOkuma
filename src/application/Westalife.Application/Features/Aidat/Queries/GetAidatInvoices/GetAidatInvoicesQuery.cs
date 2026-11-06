@@ -24,7 +24,15 @@ public sealed record AidatInvoiceListItem(
     decimal PaidAmount,
     decimal RemainingAmount,
     decimal CollectionRatio,
-    DateTimeOffset CreatedOn);
+    DateTimeOffset CreatedOn,
+    AidatChargeType ChargeType,
+    string? Title,
+    decimal? TargetAmount,
+    decimal FundSpent,
+    decimal FundBalance,
+    bool IsCancelled = false,
+    DateTimeOffset? CancelledAt = null,
+    bool IsLocked = false);
 
 public sealed class GetAidatInvoicesQueryHandler : IRequestHandler<GetAidatInvoicesQuery, IReadOnlyList<AidatInvoiceListItem>>
 {
@@ -88,6 +96,15 @@ public sealed class GetAidatInvoicesQueryHandler : IRequestHandler<GetAidatInvoi
 
         // Daire bazında FIFO çalıştır; her aidat satırının ödenen tutarını topla.
         // SourceId = AidatCharge.Id (string) — LedgerService ile aynı sözleşme.
+        var chargeIds = charges.Select(c => c.Id).ToList();
+        var waivers = await _db.WaiverOffsets.AsNoTracking()
+            .Where(w => chargeIds.Contains(w.AidatChargeId))
+            .ToListAsync(cancellationToken);
+        var waivedByCharge = waivers
+            .Where(w => !w.IsCancelled)
+            .GroupBy(w => w.AidatChargeId)
+            .ToDictionary(g => g.Key, g => g.Sum(w => w.Amount));
+
         var paidByCharge = new Dictionary<string, decimal>();
 
         foreach (var apartmentGroup in charges.GroupBy(c => c.ApartmentId))
@@ -105,7 +122,8 @@ public sealed class GetAidatInvoicesQueryHandler : IRequestHandler<GetAidatInvoi
                 payments.Where(p => p.ApartmentId == apartmentGroup.Key),
                 annualRate,
                 asOf,
-                chargesForLedger);
+                chargesForLedger,
+                waivers.Where(w => w.ApartmentId == apartmentGroup.Key));
 
             foreach (var line in result.Lines.Where(l => l.Type == LedgerDebtType.Aidat))
             {
@@ -113,15 +131,36 @@ public sealed class GetAidatInvoicesQueryHandler : IRequestHandler<GetAidatInvoi
             }
         }
 
+        var fundExpenseRows = await _db.Expenses.AsNoTracking()
+            .Where(e => e.FundAidatInvoiceId != null && invoiceIds.Contains(e.FundAidatInvoiceId.Value))
+            .Select(e => new { FundId = e.FundAidatInvoiceId!.Value, e.Amount })
+            .ToListAsync(cancellationToken);
+        var spentByFund = fundExpenseRows
+            .GroupBy(e => e.FundId)
+            .ToDictionary(g => g.Key, g => g.Sum(e => e.Amount));
+
+        var years = invoices.SelectMany(i => new[] { i.PeriodStart.Year, i.PeriodEnd.Year }).Distinct().ToList();
+        var lockedYears = (await _db.BudgetPeriods.AsNoTracking()
+                .Where(p => years.Contains(p.Year) && p.IsLocked)
+                .Select(p => p.Year)
+                .ToListAsync(cancellationToken))
+            .ToHashSet();
+
         var items = new List<AidatInvoiceListItem>(invoices.Count);
 
         foreach (var invoice in invoices)
         {
             var invoiceCharges = chargesByInvoice.GetValueOrDefault(invoice.Id) ?? [];
-            var total = invoiceCharges.Sum(c => c.Amount);
-            var paid = invoiceCharges.Sum(c => paidByCharge.GetValueOrDefault(c.Id.ToString()));
-            var remaining = Math.Max(0m, total - paid);
-            var ratio = total > 0m ? Math.Min(100m, decimal.Round(paid / total * 100m, 1)) : 0m;
+            var total = invoice.IsCancelled ? 0m : invoiceCharges.Sum(c => c.Amount);
+            var paid = invoice.IsCancelled ? 0m : invoiceCharges.Sum(c => paidByCharge.GetValueOrDefault(c.Id.ToString()));
+            var waived = invoice.IsCancelled ? 0m : invoiceCharges.Sum(c => waivedByCharge.GetValueOrDefault(c.Id));
+            var remaining = Math.Max(0m, total - paid - waived);
+            var progressBase = invoice.ChargeType == AidatChargeType.OzelToplama && invoice.TargetAmount is > 0m
+                ? invoice.TargetAmount.Value
+                : total;
+            var ratio = progressBase > 0m ? Math.Min(100m, decimal.Round(paid / progressBase * 100m, 1)) : 0m;
+            var spent = spentByFund.GetValueOrDefault(invoice.Id);
+            var isPeriodLocked = lockedYears.Contains(invoice.PeriodStart.Year) || lockedYears.Contains(invoice.PeriodEnd.Year);
 
             items.Add(new AidatInvoiceListItem(
                 invoice.Id,
@@ -130,11 +169,19 @@ public sealed class GetAidatInvoicesQueryHandler : IRequestHandler<GetAidatInvoi
                 invoice.DueDate,
                 invoice.DistributionMethod,
                 invoiceCharges.Count,
-                total,
+                invoice.IsCancelled ? invoice.TotalAmount : total,
                 paid,
                 remaining,
                 ratio,
-                invoice.CreatedOn));
+                invoice.CreatedOn,
+                invoice.ChargeType,
+                invoice.Title,
+                invoice.TargetAmount,
+                spent,
+                decimal.Round(paid - spent, 2),
+                invoice.IsCancelled,
+                invoice.CancelledAt,
+                isPeriodLocked));
         }
 
         return items;

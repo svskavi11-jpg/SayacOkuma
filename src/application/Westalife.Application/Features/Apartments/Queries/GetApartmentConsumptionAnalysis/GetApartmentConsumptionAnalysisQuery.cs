@@ -112,7 +112,7 @@ public sealed class GetApartmentConsumptionAnalysisQueryHandler
             monthly.Add(new MonthlyConsumptionItem(
                 cursor.Year,
                 cursor.Month,
-                culture.DateTimeFormat.GetAbbreviatedMonthName(cursor.Month),
+                culture.DateTimeFormat.GetMonthName(cursor.Month),
                 monthReadings.Sum(r => r.ConsumptionKWh),
                 monthReadings.Count));
         }

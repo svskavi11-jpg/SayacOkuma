@@ -1,4 +1,5 @@
 using Westalife.Application.Features.Apartments.Commands.AddApartments;
+using Westalife.Application.Features.Roles;
 using Westalife.Application.Features.Apartments.Commands.SetOpeningBalance;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
@@ -165,4 +166,46 @@ public class ApartmentsController : ControllerBase
     public async Task<IActionResult> SetOpeningBalance(
         Guid id, [FromBody] SetOpeningBalanceCommand command, CancellationToken cancellationToken) =>
         Ok(await _mediator.Send(command with { ApartmentId = id }, cancellationToken));
+
+    [HttpGet("{id:guid}/roles")]
+    [ProducesResponseType(typeof(IReadOnlyList<RoleAssignmentListItem>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetRoles(Guid id, CancellationToken cancellationToken) =>
+        Ok(await _mediator.Send(new GetRoleAssignmentsQuery(id), cancellationToken));
+
+    [HttpPost("{id:guid}/roles")]
+    [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> AssignRole(
+        Guid id, [FromBody] AssignRoleCommand command, CancellationToken cancellationToken)
+    {
+        var roleId = await _mediator.Send(command with { ApartmentId = id }, cancellationToken);
+        return StatusCode(StatusCodes.Status201Created, roleId);
+    }
+
+    [HttpPost("roles/{roleId:guid}/close")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> CloseRole(
+        Guid roleId, [FromBody] CloseRoleAssignmentCommand command, CancellationToken cancellationToken)
+    {
+        await _mediator.Send(command with { Id = roleId }, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPost("roles/{roleId:guid}/cancel")]
+    [ProducesResponseType(typeof(CancelRoleAssignmentResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> CancelRole(
+        Guid roleId, CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new CancelRoleAssignmentCommand(roleId), cancellationToken);
+        return Ok(result);
+    }
 }

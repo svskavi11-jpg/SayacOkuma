@@ -24,6 +24,16 @@ public interface IApplicationDbContext
     DbSet<AidatTariff> AidatTariffs { get; }
     DbSet<AidatInvoice> AidatInvoices { get; }
     DbSet<AidatCharge> AidatCharges { get; }
+    DbSet<BudgetItem> BudgetItems { get; }
+    DbSet<Expense> Expenses { get; }
+    DbSet<IncomeItem> IncomeItems { get; }
+    DbSet<BudgetPeriod> BudgetPeriods { get; }
+    DbSet<BudgetTransfer> BudgetTransfers { get; }
+    DbSet<BankAccount> BankAccounts { get; }
+    DbSet<BankTransaction> BankTransactions { get; }
+    DbSet<RoleAssignment> RoleAssignments { get; }
+    DbSet<WaiverOffset> WaiverOffsets { get; }
+    DbSet<ResidentDocument> ResidentDocuments { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 

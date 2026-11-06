@@ -78,6 +78,10 @@ public sealed class GetFormerResidentsWithDebtQueryHandler
 
         var annualRate = settings?.InterestRate ?? 0m;
 
+        var waivers = await _db.WaiverOffsets.AsNoTracking()
+            .Where(w => apartmentIds.Contains(w.ApartmentId))
+            .ToListAsync(cancellationToken);
+
         var items = new List<FormerResidentDebtItem>();
 
         foreach (var apartment in apartments)
@@ -88,7 +92,8 @@ public sealed class GetFormerResidentsWithDebtQueryHandler
                 payments.Where(p => p.ApartmentId == apartment.Id),
                 annualRate,
                 asOf,
-                charges.Where(c => c.ApartmentId == apartment.Id));
+                charges.Where(c => c.ApartmentId == apartment.Id),
+                waivers.Where(w => w.ApartmentId == apartment.Id));
 
             // Borçlu satırlar sakin bazında gruplanır (devir bakiyesi OwnerId null olduğundan
             // otomatik dışlanır — o borç daire düzeyindedir, sakine izole edilemez).
