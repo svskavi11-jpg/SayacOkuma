@@ -157,10 +157,16 @@ public sealed class CalculateCostDistributionCommandHandler
 
         await _db.SaveChangesAsync(cancellationToken);
 
+        var chargedIds = shares.Select(s => s.ApartmentId).Distinct().ToList();
+        var hasAnyReading = consumptionByApartment.Count > 0;
         return new CalculateCostDistributionResult(
             shares.Count,
             shares.Count(s => s.IsMeterReadFailed),
             shares.Sum(s => s.TotalAmountKurus) / 100m,
-            invoice.TotalAmount);
+            invoice.TotalAmount,
+            invoice.Id,
+            chargedIds,
+            hasAnyReading,
+            hasAnyReading ? null : DomainConstants.Notification.NoReadingForPeriod);
     }
 }

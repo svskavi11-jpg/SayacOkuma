@@ -22,7 +22,9 @@ public sealed record NoticeSettingsResponse(
     bool HasLeftLogo,
     bool HasRightLogo,
     int LogoLeftHeightMm,
-    int LogoRightHeightMm);
+    int LogoRightHeightMm,
+    bool ShowDebtBreakdownOnPdf,
+    bool ShowDebtTableOnPdf);
 
 public sealed record GetNoticeSettingsQuery : IRequest<NoticeSettingsResponse>;
 
@@ -50,7 +52,9 @@ public sealed class GetNoticeSettingsQueryHandler : IRequestHandler<GetNoticeSet
             settings.LogoLeft is { Length: > 0 },
             settings.LogoRight is { Length: > 0 },
             settings.LogoLeftHeightMm,
-            settings.LogoRightHeightMm);
+            settings.LogoRightHeightMm,
+            settings.ShowDebtBreakdownOnPdf,
+            settings.ShowDebtTableOnPdf);
     }
 }
 
@@ -63,7 +67,9 @@ public sealed record UpdateNoticeSettingsCommand(
     string? DefaultSubscriberNumber,
     string BuildingAddress,
     int LogoLeftHeightMm = DomainConstants.AppSettings.LogoHeightMmDefault,
-    int LogoRightHeightMm = DomainConstants.AppSettings.LogoHeightMmDefault) : IRequest<NoticeSettingsResponse>;
+    int LogoRightHeightMm = DomainConstants.AppSettings.LogoHeightMmDefault,
+    bool ShowDebtBreakdownOnPdf = true,
+    bool ShowDebtTableOnPdf = true) : IRequest<NoticeSettingsResponse>;
 
 public sealed class UpdateNoticeSettingsCommandValidator : AbstractValidator<UpdateNoticeSettingsCommand>
 {
@@ -108,7 +114,8 @@ public sealed class UpdateNoticeSettingsCommandHandler
 
         settings.UpdateNoticeSettings(
             request.LeftTitle, request.RightTitle, request.DueDateDays, request.ReadingServiceFee,
-            request.DefaultNote, request.DefaultSubscriberNumber);
+            request.DefaultNote, request.DefaultSubscriberNumber,
+            request.ShowDebtBreakdownOnPdf, request.ShowDebtTableOnPdf);
         settings.SetLogoSizes(request.LogoLeftHeightMm, request.LogoRightHeightMm);
 
         // Adres Building tablosunda tutulur (PDF sol blok oradan okunur).

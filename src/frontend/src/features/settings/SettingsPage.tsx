@@ -21,6 +21,7 @@ import { InterestSettingsCard } from './InterestSettingsCard'
 import { BudgetSettingsCard } from './BudgetSettingsCard'
 import { ManagementPeriodSettingsCard } from './ManagementPeriodSettingsCard'
 import { RoleFeeSettingsCard } from './RoleFeeSettingsCard'
+import { NotificationSettingsCard } from './NotificationSettingsCard'
 
 /** Ayarlar sayfası: şirket/bina adı ve 30/70 oranları. Toplam tam %100 olmalıdır. */
 export function SettingsPage() {
@@ -208,6 +209,7 @@ export function SettingsPage() {
     <InterestSettingsCard />
     <BudgetSettingsCard />
     <NoticeSettingsCard />
+    <NotificationSettingsCard />
     </>
   )
 }

@@ -222,15 +222,60 @@ export function InvoicesPage() {
       ).data,
     onSuccess: (calc, invoiceId) => {
       void queryClient.invalidateQueries({ queryKey: ['gas-invoices'] })
+      void queryClient.invalidateQueries({ queryKey: ['apartments'] })
       // Kural #1: mutabakat bilgisi yeşil bildirimle gösterilir.
       Modal.success({
         title: calc.reconciled ? 'Hesaplama tamamlandı — MUTABIK ✔' : 'Hesaplama tamamlandı — MUTABAKATSIZ!',
         content: `${calc.apartmentCount} daireye dağıtıldı. Dağıtılan: ${tl(calc.totalDistributedAmount)} / Fatura: ${tl(calc.invoiceTotalAmount)}${calc.failedMeterCount > 0 ? ` — ${calc.failedMeterCount} dairenin okuması alınamadı (tüketim 0 kabul edildi).` : ''}`,
         okText: 'Sonuçları göster',
-        onOk: () => void showResult(invoiceId),
+        onOk: () => {
+          void showResult(invoiceId)
+          offerHeatingNotification(calc)
+        },
       })
     },
   })
+
+  const notifyHeatingMutation = useMutation({
+    mutationFn: async (payload: { apartmentIds: string[]; gasInvoiceId: string }) =>
+      (
+        await apiClient.post('/notifications', {
+          apartmentIds: payload.apartmentIds,
+          channel: 'Sms',
+          purpose: 'Heating',
+          gasInvoiceId: payload.gasInvoiceId,
+          includePdf: true,
+        })
+      ).data as { sent: number; failed: number; simulated: number },
+    onSuccess: (result) => {
+      void queryClient.invalidateQueries({ queryKey: ['notification-logs'] })
+      message.success(
+        `Isınma bildirimi bitti. Başarılı: ${result.sent}, Başarısız: ${result.failed}, Simüle: ${result.simulated}.`,
+      )
+    },
+  })
+
+  const offerHeatingNotification = (calc: CalculateDistributionResult) => {
+    if (!calc.canNotify) {
+      Modal.warning({
+        title: 'Bildirim gönderilemez',
+        content: calc.notifyBlockReason ?? 'Bu döneme ait okuma verisi yok, bildirim gönderilemez.',
+      })
+      return
+    }
+
+    Modal.confirm({
+      title: 'Isınma bildirimi gönderilsin mi?',
+      content: `Hesaplama bitti. ${calc.chargedApartmentIds.length} daireye ısınma bildirimi (SMS + PDF linki) gönderilsin mi?`,
+      okText: 'Evet, gönder',
+      cancelText: 'Hayır',
+      onOk: () =>
+        notifyHeatingMutation.mutateAsync({
+          apartmentIds: calc.chargedApartmentIds,
+          gasInvoiceId: calc.gasInvoiceId,
+        }),
+    })
+  }
 
   const showResult = async (invoiceId: string) => {
     const response = await apiClient.get<CalculationResultResponse>(

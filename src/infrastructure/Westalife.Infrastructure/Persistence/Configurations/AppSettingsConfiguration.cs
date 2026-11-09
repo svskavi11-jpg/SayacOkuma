@@ -43,6 +43,8 @@ public class AppSettingsConfiguration : IEntityTypeConfiguration<AppSettings>
             .HasPrecision(DomainConstants.MoneyPrecision, DomainConstants.MoneyScale)
             .HasDefaultValue(0m);
         builder.Property(s => s.DefaultNoticeNote).HasMaxLength(DomainConstants.AppSettings.NoticeNoteMaxLength);
+        builder.Property(s => s.ShowDebtBreakdownOnPdf).HasDefaultValue(true);
+        builder.Property(s => s.ShowDebtTableOnPdf).HasDefaultValue(true);
         builder.Property(s => s.DefaultSubscriberNumber).HasMaxLength(DomainConstants.AppSettings.SubscriberNumberMaxLength);
 
         // Faz 6.8: gecikme faizi (yıllık basit faiz, günlük işletim). Varsayılan: kapalı.
@@ -86,6 +88,22 @@ public class AppSettingsConfiguration : IEntityTypeConfiguration<AppSettings>
 
         builder.Property(s => s.ManagementExpenseBudgetItemId);
 
+        builder.Property(s => s.NotificationTestMode).HasDefaultValue(false);
+        builder.Property(s => s.PublicBaseUrl).HasMaxLength(DomainConstants.Notification.PublicBaseUrlMaxLength);
+        builder.Property(s => s.SmtpHost).HasMaxLength(DomainConstants.Notification.HostMaxLength);
+        builder.Property(s => s.SmtpPort).HasDefaultValue(DomainConstants.Notification.SmtpPortDefault);
+        builder.Property(s => s.SmtpUser).HasMaxLength(DomainConstants.Notification.HostMaxLength);
+        builder.Property(s => s.SmtpPassword).HasMaxLength(DomainConstants.Notification.SecretMaxLength);
+        builder.Property(s => s.SmsProvider)
+            .IsRequired()
+            .HasMaxLength(DomainConstants.Notification.ProviderMaxLength)
+            .HasDefaultValue(DomainConstants.Notification.SmsProviderNetgsm);
+        builder.Property(s => s.SmsUser).HasMaxLength(DomainConstants.Notification.HostMaxLength);
+        builder.Property(s => s.SmsPassword).HasMaxLength(DomainConstants.Notification.SecretMaxLength);
+        builder.Property(s => s.SmsHeader).HasMaxLength(DomainConstants.Notification.HeaderMaxLength);
+        builder.Property(s => s.WhatsAppToken).HasMaxLength(DomainConstants.Notification.SecretMaxLength);
+        builder.Property(s => s.WhatsAppPhoneNumberId).HasMaxLength(DomainConstants.Notification.PhoneNumberIdMaxLength);
+
         // Seed: "Çınar Teknik" (kullanıcı Ayarlar sayfasından değiştirebilir).
         builder.HasData(new
         {
@@ -118,6 +136,20 @@ public class AppSettingsConfiguration : IEntityTypeConfiguration<AppSettings>
             DefaultAuditorFixedAmount = 0m,
             DefaultAuditorPeriodType = RolePeriodType.Aylik,
             ManagementExpenseBudgetItemId = (Guid?)null,
+            NotificationTestMode = false,
+            PublicBaseUrl = (string?)null,
+            SmtpHost = (string?)null,
+            SmtpPort = DomainConstants.Notification.SmtpPortDefault,
+            SmtpUser = (string?)null,
+            SmtpPassword = (string?)null,
+            SmsProvider = DomainConstants.Notification.SmsProviderNetgsm,
+            SmsUser = (string?)null,
+            SmsPassword = (string?)null,
+            SmsHeader = (string?)null,
+            WhatsAppToken = (string?)null,
+            WhatsAppPhoneNumberId = (string?)null,
+            ShowDebtBreakdownOnPdf = true,
+            ShowDebtTableOnPdf = true,
             CreatedOn = DomainConstants.SeedData.SeedTimestamp,
             LastModifiedOn = (DateTimeOffset?)null
         });

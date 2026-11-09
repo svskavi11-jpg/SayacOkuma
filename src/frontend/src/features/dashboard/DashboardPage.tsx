@@ -44,13 +44,16 @@ import type {
 } from '../../types/api'
 import { BankPanel } from './BankPanel'
 
-const tl = (v: number) => v.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })
+const tl = (v: number) =>
+  `${v.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} TL`
 
 const cardBaseStyle: CSSProperties = {
   borderRadius: 12,
-  boxShadow: '0 4px 16px rgba(15, 23, 42, 0.06)',
+  boxShadow: '0 4px 18px rgba(15, 23, 42, 0.06)',
   border: 'none',
   height: '100%',
+  display: 'flex',
+  flexDirection: 'column',
 }
 
 function lossColor(percent: number): string {
@@ -61,14 +64,14 @@ function lossColor(percent: number): string {
 
 function KpiCard({
   label,
-  value,
+  amount,
   hint,
   color,
   bgTint,
   icon,
 }: {
   label: string
-  value: string
+  amount: number
   hint?: string
   color: string
   bgTint: string
@@ -77,58 +80,78 @@ function KpiCard({
   return (
     <Card
       variant="borderless"
-      styles={{ body: { padding: '20px 22px' } }}
+      styles={{
+        body: {
+          padding: '22px 24px',
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+        },
+      }}
       style={{
         ...cardBaseStyle,
-        borderLeft: `5px solid ${color}`,
+        borderLeft: `4px solid ${color}`,
       }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 16,
+        }}
+      >
         <div style={{ minWidth: 0, flex: 1 }}>
-          <Typography.Text
-            type="secondary"
-            style={{
-              fontSize: 13,
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: 0.4,
-              display: 'block',
-              marginBottom: 6,
-            }}
-          >
-            {label}
-          </Typography.Text>
-          <div
-            style={{
-              fontSize: 26,
+          <Statistic
+            title={
+              <span
+                style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  textTransform: 'uppercase',
+                  letterSpacing: 0.5,
+                  color: '#8c8c8c',
+                }}
+              >
+                {label}
+              </span>
+            }
+            value={amount}
+            precision={2}
+            groupSeparator="."
+            decimalSeparator=","
+            suffix="TL"
+            valueStyle={{
+              fontSize: 27,
               fontWeight: 700,
               color,
-              lineHeight: 1.2,
-              marginBottom: 6,
+              lineHeight: 1.25,
               whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
             }}
-          >
-            {value}
-          </div>
+          />
           {hint && (
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            <Typography.Text
+              type="secondary"
+              style={{ fontSize: 12, display: 'block', marginTop: 6 }}
+              ellipsis
+            >
               {hint}
             </Typography.Text>
           )}
         </div>
+
         <div
           style={{
-            width: 52,
-            height: 52,
+            width: 54,
+            height: 54,
             borderRadius: 14,
             background: bgTint,
             color,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: 24,
+            fontSize: 25,
             flexShrink: 0,
           }}
         >
@@ -181,7 +204,14 @@ export function DashboardPage() {
 
   if (summaryQuery.isLoading || !data) {
     return (
-      <div style={{ background: '#f0f2f5', padding: 24, minHeight: 'calc(100vh - 64px)', margin: -16 }}>
+      <div
+        style={{
+          background: '#f0f2f5',
+          padding: 24,
+          minHeight: 'calc(100vh - 64px)',
+          margin: -16,
+        }}
+      >
         <Card loading variant="borderless" style={cardBaseStyle} />
       </div>
     )
@@ -231,7 +261,7 @@ export function DashboardPage() {
           alignItems: 'center',
           flexWrap: 'wrap',
           gap: 12,
-          marginBottom: 20,
+          marginBottom: 22,
         }}
       >
         <div>
@@ -239,7 +269,8 @@ export function DashboardPage() {
             {data.buildingName || 'Westalife Residence'}
           </Typography.Title>
           <Typography.Text type="secondary" style={{ fontSize: 13 }}>
-            {dayjs().format('DD MMMM YYYY')} · {data.apartmentCount} Bağımsız Bölüm · {data.activeMeterCount} Aktif Sayaç
+            {dayjs().format('DD.MM.YYYY')} · {data.apartmentCount} Bağımsız Bölüm ·{' '}
+            {data.activeMeterCount} Aktif Sayaç
           </Typography.Text>
         </div>
         <Space size={10}>
@@ -254,68 +285,95 @@ export function DashboardPage() {
         </Space>
       </div>
 
-      {/* 1. Üst KPI Kartları (Yeşil, Kırmızı, Mor, Turuncu) */}
+      {/* 1. Üst KPI Kartları (AntD Statistic + Sol İnce Çizgi: Yeşil, Kırmızı, Mor, Turuncu) */}
       <Row gutter={[20, 20]}>
-        <Col xs={24} sm={12} lg={6}>
-          <KpiCard
-            label="Toplam Tahsilat"
-            value={tl(totalMoneyIn)}
-            hint={
-              creditorCount > 0
-                ? `Banka girişi · ${creditorCount} alacaklı (${tl(totalCredit)})`
-                : 'Dönem içi toplam banka girişi'
-            }
-            color="#389e0d"
-            bgTint="#f6ffed"
-            icon={<RiseOutlined />}
-          />
+        <Col xs={24} sm={12} lg={6} style={{ display: 'flex' }}>
+          <div style={{ width: '100%' }}>
+            <KpiCard
+              label="Toplam Tahsilat"
+              amount={totalMoneyIn}
+              hint={
+                creditorCount > 0
+                  ? `Banka girişi · ${creditorCount} alacaklı (${tl(totalCredit)})`
+                  : 'Dönem içi toplam banka girişi'
+              }
+              color="#389e0d"
+              bgTint="#f6ffed"
+              icon={<RiseOutlined />}
+            />
+          </div>
         </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <KpiCard
-            label="Toplam Gider"
-            value={tl(totalMoneyOut)}
-            hint="Dönem içi toplam banka çıkışı"
-            color="#cf1322"
-            bgTint="#fff1f0"
-            icon={<FallOutlined />}
-          />
+        <Col xs={24} sm={12} lg={6} style={{ display: 'flex' }}>
+          <div style={{ width: '100%' }}>
+            <KpiCard
+              label="Toplam Gider"
+              amount={totalMoneyOut}
+              hint="Dönem içi toplam banka çıkışı"
+              color="#cf1322"
+              bgTint="#fff1f0"
+              icon={<FallOutlined />}
+            />
+          </div>
         </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <KpiCard
-            label="Aidat Borcu"
-            value={tl(aidatDebt)}
-            hint="Kalan anapara + gecikme faizi"
-            color="#722ed1"
-            bgTint="#f9f0ff"
-            icon={<AccountBookOutlined />}
-          />
+        <Col xs={24} sm={12} lg={6} style={{ display: 'flex' }}>
+          <div style={{ width: '100%' }}>
+            <KpiCard
+              label="Aidat Borcu"
+              amount={aidatDebt}
+              hint="Kalan anapara + gecikme faizi"
+              color="#722ed1"
+              bgTint="#f9f0ff"
+              icon={<AccountBookOutlined />}
+            />
+          </div>
         </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <KpiCard
-            label="Isınma Borcu"
-            value={tl(heatingDebt)}
-            hint="Kalan anapara + gecikme faizi"
-            color="#d46b08"
-            bgTint="#fff7e6"
-            icon={<FireOutlined />}
-          />
+        <Col xs={24} sm={12} lg={6} style={{ display: 'flex' }}>
+          <div style={{ width: '100%' }}>
+            <KpiCard
+              label="Isınma Borcu"
+              amount={heatingDebt}
+              hint="Kalan anapara + gecikme faizi"
+              color="#d46b08"
+              bgTint="#fff7e6"
+              icon={<FireOutlined />}
+            />
+          </div>
         </Col>
       </Row>
 
       {/* 2. Banka Hesapları (Sol) ve Aylık Nakit Akışı Alan Grafiği (Sağ) */}
       <BankPanel />
 
-      {/* 3. En Borçlu 5 Daire (List) ve Borç Dağılımı (Donut + Merkezde Toplam Borç) */}
+      {/* 3. En Borçlu 5 Daire (List) ve Borç Dağılımı (Büyük Donut + Merkezde Toplam Borç) */}
       <Row gutter={[20, 20]} style={{ marginTop: 20 }}>
-        <Col xs={24} lg={12}>
+        <Col xs={24} lg={12} style={{ display: 'flex' }}>
           <Card
             variant="borderless"
-            style={cardBaseStyle}
-            styles={{ body: { padding: '12px 24px 20px' } }}
+            style={{ ...cardBaseStyle, width: '100%' }}
+            styles={{
+              header: { padding: '16px 24px', borderBottom: '1px solid #f0f2f5' },
+              body: { padding: '16px 24px 24px', flex: 1 },
+            }}
             title={
-              <Space size={8}>
-                <WarningOutlined style={{ color: '#cf1322', fontSize: 18 }} />
-                <span style={{ fontWeight: 600, fontSize: 16 }}>En Borçlu 5 Daire</span>
+              <Space size={10}>
+                <div
+                  style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: 10,
+                    background: '#fff1f0',
+                    color: '#cf1322',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 17,
+                  }}
+                >
+                  <WarningOutlined />
+                </div>
+                <span style={{ fontWeight: 600, fontSize: 16, color: '#1f1f1f' }}>
+                  En Borçlu 5 Daire
+                </span>
               </Space>
             }
             extra={
@@ -323,9 +381,9 @@ export function DashboardPage() {
                 type="link"
                 size="small"
                 onClick={() => navigate('/payments')}
-                style={{ fontWeight: 500 }}
+                style={{ fontWeight: 500, padding: 0 }}
               >
-                Cari Hesaplar
+                Cari Hesaplar →
               </Button>
             }
           >
@@ -336,9 +394,9 @@ export function DashboardPage() {
                 renderItem={(a, index) => (
                   <List.Item
                     style={{
-                      padding: '14px 4px',
+                      padding: '16px 8px',
                       borderBottom:
-                        index === topDebtors.length - 1 ? 'none' : '1px solid #f0f0f0',
+                        index === topDebtors.length - 1 ? 'none' : '1px solid #f0f2f5',
                     }}
                     actions={[
                       <Tag
@@ -347,7 +405,7 @@ export function DashboardPage() {
                         style={{
                           fontSize: 15,
                           fontWeight: 700,
-                          padding: '5px 12px',
+                          padding: '6px 14px',
                           borderRadius: 8,
                           margin: 0,
                         }}
@@ -360,18 +418,19 @@ export function DashboardPage() {
                       avatar={
                         <Avatar
                           style={{
-                            backgroundColor: index === 0 ? '#cf1322' : index < 3 ? '#fa541c' : '#ff7875',
+                            backgroundColor:
+                              index === 0 ? '#cf1322' : index < 3 ? '#fa541c' : '#ff7875',
                             fontWeight: 700,
-                            fontSize: 14,
+                            fontSize: 15,
                           }}
-                          size={38}
+                          size={42}
                         >
                           {index + 1}
                         </Avatar>
                       }
                       title={
                         <Space size={8} wrap>
-                          <Typography.Text strong style={{ fontSize: 15 }}>
+                          <Typography.Text strong style={{ fontSize: 15, color: '#1f1f1f' }}>
                             Daire {a.doorNumber}
                           </Typography.Text>
                           {a.ownerName && (
@@ -382,11 +441,11 @@ export function DashboardPage() {
                         </Space>
                       }
                       description={
-                        <Space size={12} style={{ fontSize: 12 }}>
-                          <span style={{ color: '#722ed1' }}>
+                        <Space size={12} style={{ fontSize: 12, marginTop: 2 }} wrap>
+                          <span style={{ color: '#722ed1', fontWeight: 500 }}>
                             Aidat: {tl(a.aidatDebt ?? 0)}
                           </span>
-                          <span style={{ color: '#d46b08' }}>
+                          <span style={{ color: '#d46b08', fontWeight: 500 }}>
                             Isınma: {tl(a.heatingDebt ?? 0)}
                           </span>
                         </Space>
@@ -401,93 +460,167 @@ export function DashboardPage() {
           </Card>
         </Col>
 
-        <Col xs={24} lg={12}>
+        <Col xs={24} lg={12} style={{ display: 'flex' }}>
           <Card
             variant="borderless"
-            style={cardBaseStyle}
-            styles={{ body: { padding: '16px 24px 20px' } }}
+            style={{ ...cardBaseStyle, width: '100%' }}
+            styles={{
+              header: { padding: '16px 24px', borderBottom: '1px solid #f0f2f5' },
+              body: {
+                padding: '20px 24px 24px',
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+              },
+            }}
             title={
-              <Space size={8}>
-                <PieChartOutlined style={{ color: '#722ed1', fontSize: 18 }} />
-                <span style={{ fontWeight: 600, fontSize: 16 }}>Borç Dağılımı</span>
+              <Space size={10}>
+                <div
+                  style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: 10,
+                    background: '#f9f0ff',
+                    color: '#722ed1',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 17,
+                  }}
+                >
+                  <PieChartOutlined />
+                </div>
+                <span style={{ fontWeight: 600, fontSize: 16, color: '#1f1f1f' }}>
+                  Borç Dağılımı
+                </span>
               </Space>
             }
           >
             {mix.length > 0 ? (
-              <div style={{ position: 'relative', height: 270 }}>
-                <Pie
-                  data={mix}
-                  angleField="value"
-                  colorField="type"
-                  height={270}
-                  radius={0.92}
-                  innerRadius={0.68}
-                  legend={{ color: { position: 'bottom' } }}
-                  scale={{
-                    color: {
-                      domain: ['Aidat Borcu', 'Isınma Borcu'],
-                      range: ['#722ed1', '#d46b08'],
-                    },
-                  }}
-                  tooltip={{
-                    items: [{ channel: 'y', valueFormatter: (v: number) => tl(Number(v)) }],
-                  }}
-                />
-                {/* Donut Halkasının Tam Ortasında Toplam Borç Gösterimi */}
-                <div
-                  style={{
-                    position: 'absolute',
-                    top: '44%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    textAlign: 'center',
-                    pointerEvents: 'none',
-                    width: 170,
-                  }}
-                >
-                  <Typography.Text
-                    type="secondary"
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 600,
-                      textTransform: 'uppercase',
-                      letterSpacing: 0.6,
-                      display: 'block',
+              <div>
+                <div style={{ position: 'relative', height: 290 }}>
+                  <Pie
+                    data={mix}
+                    angleField="value"
+                    colorField="type"
+                    height={290}
+                    radius={0.94}
+                    innerRadius={0.7}
+                    legend={false}
+                    scale={{
+                      color: {
+                        domain: ['Aidat Borcu', 'Isınma Borcu'],
+                        range: ['#722ed1', '#d46b08'],
+                      },
                     }}
-                  >
-                    TOPLAM BORÇ
-                  </Typography.Text>
+                    tooltip={{
+                      items: [{ channel: 'y', valueFormatter: (v: number) => tl(Number(v)) }],
+                    }}
+                  />
+                  {/* Donut Halkasının Tam Ortasında Toplam Borç Gösterimi */}
                   <div
                     style={{
-                      fontSize: 19,
-                      fontWeight: 800,
-                      color: '#cf1322',
-                      lineHeight: 1.25,
-                      marginTop: 2,
+                      position: 'absolute',
+                      top: '50%',
+                      left: '50%',
+                      transform: 'translate(-50%, -50%)',
+                      textAlign: 'center',
+                      pointerEvents: 'none',
+                      width: 185,
                     }}
                   >
-                    {tl(totalDebt)}
+                    <Typography.Text
+                      type="secondary"
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        letterSpacing: 0.7,
+                        display: 'block',
+                      }}
+                    >
+                      Toplam Borç
+                    </Typography.Text>
+                    <div
+                      style={{
+                        fontSize: 21,
+                        fontWeight: 800,
+                        color: '#cf1322',
+                        lineHeight: 1.25,
+                        marginTop: 4,
+                      }}
+                    >
+                      {tl(totalDebt)}
+                    </div>
                   </div>
+                </div>
+
+                {/* Özel Renk Açıklaması (Legend) */}
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    gap: 28,
+                    marginTop: 8,
+                    marginBottom: 16,
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <Space size={8}>
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        width: 10,
+                        height: 10,
+                        borderRadius: '50%',
+                        background: '#722ed1',
+                      }}
+                    />
+                    <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+                      Aidat Borcu:
+                    </Typography.Text>
+                    <Typography.Text strong style={{ fontSize: 13, color: '#722ed1' }}>
+                      {tl(aidatDebt)}
+                    </Typography.Text>
+                  </Space>
+                  <Space size={8}>
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        width: 10,
+                        height: 10,
+                        borderRadius: '50%',
+                        background: '#d46b08',
+                      }}
+                    />
+                    <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+                      Isınma Borcu:
+                    </Typography.Text>
+                    <Typography.Text strong style={{ fontSize: 13, color: '#d46b08' }}>
+                      {tl(heatingDebt)}
+                    </Typography.Text>
+                  </Space>
                 </div>
               </div>
             ) : (
               <Empty description="Açık borç bulunmuyor." />
             )}
 
-            <Row gutter={[12, 12]} style={{ marginTop: 12 }}>
+            <Row gutter={[12, 12]}>
               <Col span={8}>
                 <div
                   style={{
                     background: '#fff1f0',
                     borderRadius: 10,
-                    padding: '10px 12px',
+                    padding: '12px 10px',
                     textAlign: 'center',
                   }}
                 >
                   <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                     Borçlu Daire
                   </Typography.Text>
-                  <div style={{ fontSize: 20, fontWeight: 700, color: '#cf1322' }}>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: '#cf1322', marginTop: 2 }}>
                     {debtorCount}
                   </div>
                 </div>
@@ -497,14 +630,14 @@ export function DashboardPage() {
                   style={{
                     background: '#f6ffed',
                     borderRadius: 10,
-                    padding: '10px 12px',
+                    padding: '12px 10px',
                     textAlign: 'center',
                   }}
                 >
                   <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                     Alacaklı Daire
                   </Typography.Text>
-                  <div style={{ fontSize: 20, fontWeight: 700, color: '#389e0d' }}>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: '#389e0d', marginTop: 2 }}>
                     {creditorCount}
                   </div>
                 </div>
@@ -514,14 +647,14 @@ export function DashboardPage() {
                   style={{
                     background: '#f5f5f5',
                     borderRadius: 10,
-                    padding: '10px 12px',
+                    padding: '12px 10px',
                     textAlign: 'center',
                   }}
                 >
                   <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                     Borcu Yok
                   </Typography.Text>
-                  <div style={{ fontSize: 20, fontWeight: 700, color: '#595959' }}>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: '#595959', marginTop: 2 }}>
                     {settledCount}
                   </div>
                 </div>
@@ -531,34 +664,74 @@ export function DashboardPage() {
         </Col>
       </Row>
 
-      {/* 4. En Alt Bölüm: Kayıp-Kaçak, Son Fatura ve Sağda Belirgin Sayaç Okuma Kartı */}
+      {/* 4. En Alt Bölüm: Kayıp-Kaçak, Son Fatura ve Sağda Belirgin Primary Sayaç Okuma Kartı */}
       <Row gutter={[20, 20]} style={{ marginTop: 20 }}>
-        <Col xs={24} md={8}>
+        <Col xs={24} md={8} style={{ display: 'flex' }}>
           <Card
             variant="borderless"
-            style={cardBaseStyle}
-            styles={{ body: { padding: 28 } }}
+            style={{ ...cardBaseStyle, width: '100%' }}
+            styles={{
+              header: { padding: '16px 28px', borderBottom: '1px solid #f0f2f5' },
+              body: {
+                padding: '28px 30px',
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                alignItems: 'center',
+              },
+            }}
             title={
-              <Space size={8}>
-                <DashboardOutlined style={{ color: lossColor(lossPercent), fontSize: 18 }} />
-                <span style={{ fontWeight: 600, fontSize: 16 }}>Kayıp-Kaçak Oranı</span>
+              <Space size={10}>
+                <div
+                  style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: 10,
+                    background: '#f6ffed',
+                    color: lossColor(lossPercent),
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 17,
+                  }}
+                >
+                  <DashboardOutlined />
+                </div>
+                <span style={{ fontWeight: 600, fontSize: 16, color: '#1f1f1f' }}>
+                  Kayıp-Kaçak Oranı
+                </span>
               </Space>
             }
           >
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 14,
+              }}
+            >
               <Progress
                 type="dashboard"
-                size={165}
+                size={175}
                 strokeWidth={10}
                 percent={Math.min(lossPercent, 100)}
                 strokeColor={lossColor(lossPercent)}
                 format={() => (
-                  <span style={{ fontSize: 22, fontWeight: 700, color: lossColor(lossPercent) }}>
-                    %{lossPercent.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  <span style={{ fontSize: 24, fontWeight: 700, color: lossColor(lossPercent) }}>
+                    %
+                    {lossPercent.toLocaleString('tr-TR', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}
                   </span>
                 )}
               />
-              <Tag color={lossPercent < 10 ? 'success' : lossPercent < 25 ? 'warning' : 'error'}>
+              <Tag
+                color={lossPercent < 10 ? 'success' : lossPercent < 25 ? 'warning' : 'error'}
+                style={{ padding: '4px 12px', borderRadius: 6, fontWeight: 500, margin: 0 }}
+              >
                 {lossPercent < 10
                   ? 'Normal Seviye (< %10)'
                   : lossPercent < 25
@@ -572,15 +745,40 @@ export function DashboardPage() {
           </Card>
         </Col>
 
-        <Col xs={24} md={9}>
+        <Col xs={24} md={9} style={{ display: 'flex' }}>
           <Card
             variant="borderless"
-            style={cardBaseStyle}
-            styles={{ body: { padding: 28 } }}
+            style={{ ...cardBaseStyle, width: '100%' }}
+            styles={{
+              header: { padding: '16px 28px', borderBottom: '1px solid #f0f2f5' },
+              body: {
+                padding: '28px 30px',
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+              },
+            }}
             title={
-              <Space size={8}>
-                <FileTextOutlined style={{ color: '#1677ff', fontSize: 18 }} />
-                <span style={{ fontWeight: 600, fontSize: 16 }}>Son Doğalgaz Faturası</span>
+              <Space size={10}>
+                <div
+                  style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: 10,
+                    background: '#e6f4ff',
+                    color: '#1677ff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 17,
+                  }}
+                >
+                  <FileTextOutlined />
+                </div>
+                <span style={{ fontWeight: 600, fontSize: 16, color: '#1f1f1f' }}>
+                  Son Doğalgaz Faturası
+                </span>
               </Space>
             }
             extra={
@@ -610,19 +808,30 @@ export function DashboardPage() {
             }
           >
             {hasInvoice ? (
-              <Space direction="vertical" size={16} style={{ width: '100%' }}>
+              <Space direction="vertical" size={18} style={{ width: '100%' }}>
                 <div
                   style={{
                     background: '#fafafa',
-                    padding: '14px 16px',
+                    padding: '16px 18px',
                     borderRadius: 10,
                     border: '1px solid #f0f0f0',
                   }}
                 >
-                  <Typography.Text type="secondary" style={{ fontSize: 12, display: 'block' }}>
+                  <Typography.Text
+                    type="secondary"
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 600,
+                      letterSpacing: 0.5,
+                      display: 'block',
+                    }}
+                  >
                     FATURA NUMARASI & DÖNEM
                   </Typography.Text>
-                  <Typography.Text strong style={{ fontSize: 16, display: 'block', marginTop: 2 }}>
+                  <Typography.Text
+                    strong
+                    style={{ fontSize: 16, display: 'block', marginTop: 4, color: '#1f1f1f' }}
+                  >
                     {data.lastInvoiceNumber}
                   </Typography.Text>
                   <Typography.Text type="secondary" style={{ fontSize: 13 }}>
@@ -634,30 +843,40 @@ export function DashboardPage() {
                   title="Fatura Toplam Tutarı"
                   value={data.lastInvoiceTotalAmount ?? 0}
                   precision={2}
+                  groupSeparator="."
+                  decimalSeparator=","
                   suffix="TL"
                   valueStyle={{ fontSize: 28, fontWeight: 700, color: '#1f1f1f' }}
                 />
 
                 <Space wrap size={[8, 8]}>
                   {data.lastInvoiceReconciled === true && (
-                    <Tag icon={<CheckCircleOutlined />} color="success" style={{ padding: '4px 10px' }}>
+                    <Tag
+                      icon={<CheckCircleOutlined />}
+                      color="success"
+                      style={{ padding: '4px 10px', borderRadius: 6 }}
+                    >
                       Kuruşu Kuruşuna Mutabık
                     </Tag>
                   )}
                   {data.lastInvoiceReconciled === false && (
-                    <Tag icon={<AlertOutlined />} color="error" style={{ padding: '4px 10px' }}>
+                    <Tag
+                      icon={<AlertOutlined />}
+                      color="error"
+                      style={{ padding: '4px 10px', borderRadius: 6 }}
+                    >
                       Mutabakatsız
                     </Tag>
                   )}
                   {data.lastInvoiceReconciled === null && (
-                    <Tag style={{ padding: '4px 10px' }}>Hesaplanmadı</Tag>
+                    <Tag style={{ padding: '4px 10px', borderRadius: 6 }}>Hesaplanmadı</Tag>
                   )}
                   {data.lastCalculationFailedMeterCount > 0 ? (
-                    <Tag color="warning" style={{ padding: '4px 10px' }}>
+                    <Tag color="warning" style={{ padding: '4px 10px', borderRadius: 6 }}>
                       {data.lastCalculationFailedMeterCount} daire okunamadı
                     </Tag>
                   ) : (
-                    <Tag color="processing" style={{ padding: '4px 10px' }}>
+                    <Tag color="processing" style={{ padding: '4px 10px', borderRadius: 6 }}>
                       Tüm daireler okundu
                     </Tag>
                   )}
@@ -669,35 +888,54 @@ export function DashboardPage() {
           </Card>
         </Col>
 
-        <Col xs={24} md={7}>
+        <Col xs={24} md={7} style={{ display: 'flex' }}>
           <Card
             variant="borderless"
             style={{
               ...cardBaseStyle,
-              background: 'linear-gradient(145deg, #ffffff 0%, #f0f7ff 100%)',
+              width: '100%',
+              background: 'linear-gradient(155deg, #ffffff 0%, #f0f7ff 100%)',
               borderTop: '4px solid #1677ff',
             }}
             styles={{
+              header: { padding: '16px 28px', borderBottom: '1px solid #e6f4ff' },
               body: {
-                padding: 28,
+                padding: '28px 30px',
+                flex: 1,
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'space-between',
-                height: 'calc(100% - 56px)',
+                gap: 20,
               },
             }}
             title={
-              <Space size={8}>
-                <ThunderboltOutlined style={{ color: '#1677ff', fontSize: 18 }} />
-                <span style={{ fontWeight: 600, fontSize: 16 }}>Uzaktan Sayaç Okuma</span>
+              <Space size={10}>
+                <div
+                  style={{
+                    width: 34,
+                    height: 34,
+                    borderRadius: 10,
+                    background: '#e6f4ff',
+                    color: '#1677ff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 17,
+                  }}
+                >
+                  <ThunderboltOutlined />
+                </div>
+                <span style={{ fontWeight: 600, fontSize: 16, color: '#1f1f1f' }}>
+                  Uzaktan Sayaç Okuma
+                </span>
               </Space>
             }
           >
             <div>
               <div
                 style={{
-                  width: 56,
-                  height: 56,
+                  width: 60,
+                  height: 60,
                   borderRadius: 16,
                   background: '#e6f4ff',
                   color: '#1677ff',
@@ -713,9 +951,12 @@ export function DashboardPage() {
               <Typography.Title level={5} style={{ marginTop: 0, marginBottom: 8 }}>
                 Izar Center M-Bus Sorgusu
               </Typography.Title>
-              <Typography.Paragraph type="secondary" style={{ fontSize: 13, marginBottom: 24 }}>
-                Binadaki aktif <strong>{data.activeMeterCount}</strong> kalorimetre sayacını Izar Center
-                üzerinden anlık olarak sorgular ve endeksleri kaydeder.
+              <Typography.Paragraph
+                type="secondary"
+                style={{ fontSize: 13, marginBottom: 0, lineHeight: 1.6 }}
+              >
+                Binadaki aktif <strong>{data.activeMeterCount}</strong> kalorimetre sayacını Izar
+                Center üzerinden anlık olarak sorgular ve endeksleri kaydeder.
               </Typography.Paragraph>
             </div>
 
@@ -727,11 +968,11 @@ export function DashboardPage() {
               loading={readingMutation.isPending}
               onClick={() => readingMutation.mutate()}
               style={{
-                height: 54,
-                fontSize: 16,
+                height: 56,
+                fontSize: 17,
                 fontWeight: 600,
                 borderRadius: 10,
-                boxShadow: '0 6px 16px rgba(22, 119, 255, 0.32)',
+                boxShadow: '0 6px 18px rgba(22, 119, 255, 0.35)',
               }}
             >
               Sayaçları Şimdi Oku

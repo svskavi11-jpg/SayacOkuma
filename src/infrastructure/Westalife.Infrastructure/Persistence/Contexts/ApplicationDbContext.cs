@@ -36,6 +36,9 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<RoleAssignment> RoleAssignments => Set<RoleAssignment>();
     public DbSet<WaiverOffset> WaiverOffsets => Set<WaiverOffset>();
     public DbSet<ResidentDocument> ResidentDocuments => Set<ResidentDocument>();
+    public DbSet<NotificationTemplate> NotificationTemplates => Set<NotificationTemplate>();
+    public DbSet<NotificationLog> NotificationLogs => Set<NotificationLog>();
+    public DbSet<NoticePdfAccessToken> NoticePdfAccessTokens => Set<NoticePdfAccessToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

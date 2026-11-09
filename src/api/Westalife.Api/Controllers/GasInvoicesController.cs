@@ -145,15 +145,46 @@ public class GasInvoicesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
-    public async Task<IActionResult> GetNoticePdf(Guid id, [FromQuery] Guid? apartmentId, CancellationToken cancellationToken)
+    public async Task<IActionResult> GetNoticePdf(
+        Guid id,
+        [FromQuery] Guid? apartmentId,
+        [FromQuery] bool? showDebtBreakdown,
+        [FromQuery] bool? showDebtTable,
+        CancellationToken cancellationToken)
     {
-        var data = await _mediator.Send(new GetNoticeReportQuery(id), cancellationToken);
+        var data = await _mediator.Send(
+            new GetNoticeReportQuery(id, showDebtBreakdown, showDebtTable), cancellationToken);
+        var fileName = $"BireyselGiderBildirimi-{data.PeriodName}.pdf";
+        var path = Path.Combine(Path.GetTempPath(), $"notice-{Guid.NewGuid():N}.pdf");
+        try
+        {
+            await using (var write = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.Read, 81920, FileOptions.Asynchronous))
+            {
+                if (apartmentId is null)
+                {
+                    IndividualNoticePdfDocument.GenerateAll(data, _reportingOptions, write);
+                }
+                else
+                {
+                    IndividualNoticePdfDocument.GenerateSingle(data, _reportingOptions, apartmentId.Value, write);
+                }
+            }
+        }
+        catch
+        {
+            if (System.IO.File.Exists(path))
+            {
+                System.IO.File.Delete(path);
+            }
 
-        var pdf = apartmentId is null
-            ? IndividualNoticePdfDocument.GenerateAll(data, _reportingOptions)
-            : IndividualNoticePdfDocument.GenerateSingle(data, _reportingOptions, apartmentId.Value);
+            throw;
+        }
 
-        return File(pdf, "application/pdf", $"BireyselGiderBildirimi-{data.PeriodName}.pdf");
+        var read = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, FileOptions.Asynchronous | FileOptions.DeleteOnClose);
+        return new FileStreamResult(read, "application/pdf")
+        {
+            FileDownloadName = fileName,
+        };
     }
 
     /// <summary>Yönetici borç listesi Excel çıktısı (genel toplam mutabakat satırı dahil).</summary>

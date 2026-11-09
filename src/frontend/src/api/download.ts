@@ -8,9 +8,12 @@ import type { ProblemDetails } from '../types/api'
  * Content-Disposition header'ından dosya adını çıkarır (yoksa fallback ad kullanılır).
  * Hata durumunda blob içindeki ProblemDetails JSON'u parse edilip notification gösterilir.
  */
-export async function downloadFile(url: string, fallbackName: string): Promise<void> {
+export async function downloadFile(url: string, fallbackName: string, timeoutMs?: number): Promise<void> {
   try {
-    const response = await apiClient.get<Blob>(url, { responseType: 'blob' })
+    const response = await apiClient.get<Blob>(url, {
+      responseType: 'blob',
+      timeout: timeoutMs,
+    })
 
     const disposition = response.headers['content-disposition'] as string | undefined
     let fileName = fallbackName

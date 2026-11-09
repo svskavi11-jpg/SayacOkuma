@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Button, Card, DatePicker, Input, Select, Space, Table, Tabs, Tag, Typography } from 'antd'
+import { Button, Card, Checkbox, DatePicker, Input, Select, Space, Table, Tabs, Tag, Typography } from 'antd'
 import {
   AuditOutlined,
   DownloadOutlined,
@@ -15,6 +15,7 @@ import type {
   CalculationResultResponse,
   GasInvoiceListItem,
   BudgetSettingsDTO,
+  NoticeSettingsDTO,
 } from '../../types/api'
 import {
   AuditApartmentTrackingTab,
@@ -39,6 +40,9 @@ export function ReportsPage() {
   const [search, setSearch] = useState('')
   const [onlyFailed, setOnlyFailed] = useState(false)
   const [financeYear, setFinanceYear] = useState(dayjs().year())
+  const [showDebtBreakdown, setShowDebtBreakdown] = useState<boolean | null>(null)
+  const [showDebtTable, setShowDebtTable] = useState<boolean | null>(null)
+  const [noticePageSize, setNoticePageSize] = useState(50)
   const { range } = useManagementPeriodRange()
 
   const activeFrom = range[0].format('YYYY-MM-DD')
@@ -49,6 +53,22 @@ export function ReportsPage() {
     queryFn: async () => (await apiClient.get<BudgetSettingsDTO>('/settings/budget')).data,
   })
   const budgetEnabled = budgetSettingsQuery.data?.isBudgetTrackingEnabled ?? false
+
+  const noticeSettingsQuery = useQuery({
+    queryKey: ['notice-settings'],
+    queryFn: async () => (await apiClient.get<NoticeSettingsDTO>('/settings/notice')).data,
+  })
+  const debtBreakdownOn = showDebtBreakdown ?? noticeSettingsQuery.data?.showDebtBreakdownOnPdf ?? true
+  const debtTableOn = showDebtTable ?? noticeSettingsQuery.data?.showDebtTableOnPdf ?? true
+
+  const noticePdfUrl = (invoiceId: string, apartmentId?: string) => {
+    const params = new URLSearchParams({
+      showDebtBreakdown: String(debtBreakdownOn),
+      showDebtTable: String(debtTableOn),
+    })
+    if (apartmentId) params.set('apartmentId', apartmentId)
+    return `/gas-invoices/${invoiceId}/reports/notice.pdf?${params.toString()}`
+  }
 
   const invoicesQuery = useQuery({
     queryKey: ['gas-invoices'],
@@ -172,13 +192,23 @@ export function ReportsPage() {
 
                 {selectedInvoice && (
                   <Space wrap>
+                    <Checkbox
+                      checked={debtBreakdownOn}
+                      onChange={(e) => setShowDebtBreakdown(e.target.checked)}
+                    >
+                      Geçmiş Borç Detaylarını Göster
+                    </Checkbox>
+                    <Checkbox checked={debtTableOn} onChange={(e) => setShowDebtTable(e.target.checked)}>
+                      Faiz Dökümü Tablosunu Göster
+                    </Checkbox>
                     <Button
                       type="primary"
                       icon={<FilePdfOutlined />}
                       onClick={() =>
                         void downloadFile(
-                          `/gas-invoices/${selectedInvoice.id}/reports/notice.pdf`,
+                          noticePdfUrl(selectedInvoice.id),
                           `BireyselGiderBildirimi-${selectedInvoice.invoiceNumber}.pdf`,
+                          300_000,
                         )
                       }
                     >
@@ -224,7 +254,12 @@ export function ReportsPage() {
                       rowKey="apartmentInvoiceId"
                       size="small"
                       dataSource={filteredRows}
-                      pagination={{ pageSize: 12 }}
+                      pagination={{
+                        pageSize: noticePageSize,
+                        showSizeChanger: true,
+                        pageSizeOptions: ['12', '50', '100'],
+                        onChange: (_page, size) => setNoticePageSize(size),
+                      }}
                       columns={[
                         {
                           title: 'Kapı',
@@ -251,8 +286,9 @@ export function ReportsPage() {
                               icon={<DownloadOutlined />}
                               onClick={() =>
                                 void downloadFile(
-                                  `/gas-invoices/${selectedInvoiceId}/reports/notice.pdf?apartmentId=${r.apartmentId}`,
+                                  noticePdfUrl(selectedInvoiceId!, r.apartmentId),
                                   `BireyselGiderBildirimi-Daire${r.doorNumber}.pdf`,
+                                  300_000,
                                 )
                               }
                             >

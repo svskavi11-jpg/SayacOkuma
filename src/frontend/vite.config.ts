@@ -11,6 +11,8 @@ export default defineConfig({
       '/api': {
         target: process.env.VITE_API_PROXY_TARGET ?? 'http://localhost:5199',
         changeOrigin: true,
+        timeout: 300_000,
+        proxyTimeout: 300_000,
         // Dev'de anahtar tanimliysa (VITE_API_KEY) proxy ekler; prod'da bunu nginx yapar (bundle'a girmez).
         headers: process.env.VITE_API_KEY ? { 'X-Api-Key': process.env.VITE_API_KEY } : {},
       },

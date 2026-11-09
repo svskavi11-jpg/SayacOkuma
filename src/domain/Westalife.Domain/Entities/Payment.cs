@@ -30,6 +30,9 @@ public class Payment : BaseEntity
     /// <summary>Açıklama / dekont no gibi serbest metin. İsteğe bağlı.</summary>
     public string? Description { get; private set; }
 
+    /// <summary>Banka dekont / işlem referans numarası (mükerrer tahsilat kontrolü için). İsteğe bağlı.</summary>
+    public string? DocumentNumber { get; private set; }
+
     /// <summary>Tahsilatı giren görevli. Faz 7'de JWT claim'den okunacak.</summary>
     public string ReceivedBy { get; private set; } = string.Empty;
 
@@ -86,7 +89,8 @@ public class Payment : BaseEntity
         Guid? legalResponsibleOwnerId = null,
         LedgerDebtType? targetDebtType = null,
         Guid? targetOwnerId = null,
-        Guid? bankAccountId = null)
+        Guid? bankAccountId = null,
+        string? documentNumber = null)
     {
         if (apartmentId == Guid.Empty)
             throw new ArgumentException("Daire kimliği (apartmentId) zorunludur.", nameof(apartmentId));
@@ -100,10 +104,15 @@ public class Payment : BaseEntity
         if (paymentDate > DateOnly.FromDateTime(DateTime.Today))
             throw new ArgumentException(DomainConstants.Payment.PaymentDateFuture, nameof(paymentDate));
 
+        var normalizedDocNo = string.IsNullOrWhiteSpace(documentNumber) ? null : documentNumber.Trim();
+        if (normalizedDocNo is not null && normalizedDocNo.Length > DomainConstants.Payment.DocumentNumberMaxLength)
+            throw new ArgumentException(DomainConstants.Payment.DocumentNumberTooLong, nameof(documentNumber));
+
         ApartmentId = apartmentId;
         PaymentDate = paymentDate;
         Amount = decimal.Round(amount, 2);
         Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
+        DocumentNumber = normalizedDocNo;
         ReceivedBy = string.IsNullOrWhiteSpace(receivedBy)
             ? DomainConstants.Payment.DefaultReceivedBy
             : receivedBy.Trim();

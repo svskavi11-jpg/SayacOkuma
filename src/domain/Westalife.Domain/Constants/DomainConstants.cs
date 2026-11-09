@@ -214,6 +214,7 @@ public static class DomainConstants
     {
         public const int DescriptionMaxLength = 500;
         public const int ReceivedByMaxLength = 100;
+        public const int DocumentNumberMaxLength = 100;
 
         public const decimal AmountMax = 10_000_000m;
         public const string AmountMustBePositive = "Tahsilat tutarı sıfırdan büyük olmalıdır.";
@@ -224,6 +225,8 @@ public static class DomainConstants
         public const string NotFound = "Tahsilat kaydı bulunamadı.";
         public const string CancellationReasonRequired = "İptal gerekçesi zorunludur.";
         public const int CancellationReasonMaxLength = 500;
+        public const string DocumentNumberTooLong = "Dekont numarası en fazla 100 karakter olabilir.";
+        public const string DocumentNumberDuplicate = "Bu dekont numarasına ait aktif bir tahsilat kaydı zaten mevcut.";
 
         /// <summary>Faz 7'ye kadar (JWT yok) tahsilatı giren kullanıcı boş bırakılırsa kullanılır.</summary>
         public const string DefaultReceivedBy = "Yönetici";
@@ -500,5 +503,61 @@ public static class DomainConstants
         public const string AidatPeriodOverlap = "Aidat dönemleri çakışıyor: seçilen dönem, mevcut bir aidat tahakkuku dönemine denk geliyor.";
         public const string AidatEqualAmountRequired = "Eşit dağıtımda daire başına tutar (EqualAmount) sıfırdan büyük olmalıdır.";
         public const string AidatTariffNotActive = "Pasif durumdaki tarife daireye atanamaz — önce tarifeyi aktif edin.";
+    }
+
+    /// <summary>Çok kanallı bildirim (e-posta, SMS, WhatsApp).</summary>
+    public static class Notification
+    {
+        public const int NameMaxLength = 100;
+        public const int SubjectMaxLength = 200;
+        public const int BodyMaxLength = 4000;
+        public const int AddressMaxLength = 200;
+        public const int ErrorMaxLength = 1000;
+        public const int SecretMaxLength = 500;
+        public const int HostMaxLength = 200;
+        public const int HeaderMaxLength = 20;
+        public const int ProviderMaxLength = 40;
+        public const int PhoneNumberIdMaxLength = 40;
+        public const int SmtpPortDefault = 587;
+
+        public const string NameRequired = "Şablon adı zorunludur.";
+        public const string BodyRequired = "Mesaj metni zorunludur.";
+        public const string SubjectTooLong = "E-posta konusu en fazla 200 karakter olabilir.";
+        public const string ChannelInvalid = "Bildirim kanalı geçersiz.";
+        public const string StatusInvalid = "Bildirim durumu geçersiz.";
+        public const string ApartmentsRequired = "En az bir daire seçilmelidir.";
+        public const string TemplateOrBodyRequired = "Şablon seçin veya mesaj metni yazın.";
+        public const string SmtpPortInvalid = "SMTP portu 1 ile 65535 arasında olmalıdır.";
+        public const string RecipientMissing = "Alıcı adresi yok.";
+        public const string ApartmentNotFound = "Daire bulunamadı.";
+        public const string TemplateNotFound = "Bildirim şablonu bulunamadı.";
+        public const string TemplateNameExists = "Bu kanalda aynı adlı bir şablon zaten var.";
+        public const string TemplateChannelMismatch = "Seçilen şablon bu kanala ait değil.";
+        public const string SettingsNotFound = "Sistem ayarları bulunamadı.";
+        public const string SmsProviderNetgsm = "Netgsm";
+        public const string DefaultEmailSubject = "Westalife Bildirim";
+        public const string SimulatedLog = "Simüle edildi";
+
+        public const string DefaultBody =
+            "Sayın [AdSoyad], [DaireNo] numaralı dairenizin [Donem] dönemi bakiyesi [Tutar] tutarındadır. Westalife Residence yönetimi.";
+
+        public const string DefaultAidatBody =
+            "Sayın [AdSoyad], [DaireNo] numaralı dairenizin kalan aidat borcu [AidatBorc] tutarındadır. Bu dönem aidatı: [BuDonemAidat]. Westalife Residence yönetimi.";
+
+        public const string DefaultHeatingBody =
+            "Sayın [AdSoyad], [DaireNo] numaralı dairenizin kalan ısınma borcu [IsinmaBorc] tutarındadır. Bu dönem ısınma: [BuDonemIsinma]. Westalife Residence yönetimi.";
+
+        public const string DefaultAllDebtorsBody =
+            "Sayın [AdSoyad], [DaireNo] numaralı dairenizin toplam borcu [Tutar] tutarındadır (Aidat: [AidatBorc], Isınma: [IsinmaBorc]). Westalife Residence yönetimi.";
+
+        public const string DefaultHeatingWithPdfBody =
+            "Sayın [AdSoyad], [DaireNo] numaralı dairenizin [MevcutAy] ısınma bildirimi hazır. Kalan ısınma borcu: [IsinmaBorc]. Faturanız: [PdfLink] Westalife Residence yönetimi.";
+
+        public const string PurposeInvalid = "Bildirim türü geçersiz.";
+        public const string NoReadingForPeriod = "Bu döneme ait okuma verisi yok, bildirim gönderilemez.";
+        public const string PdfTokenInvalid = "PDF erişim bağlantısı geçersiz veya süresi dolmuş.";
+        public const string PdfInvoiceRequired = "PDF eklemek için gaz faturası seçilmelidir.";
+        public const int PublicBaseUrlMaxLength = 300;
+        public const int PdfTokenDays = 30;
     }
 }

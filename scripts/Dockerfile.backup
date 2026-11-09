@@ -1,0 +1,22 @@
+# PostgreSQL 18 ile aynı major — pg_dump uyumu
+FROM postgres:18-alpine
+
+RUN apk add --no-cache tzdata \
+    && cp /usr/share/zoneinfo/Europe/Istanbul /etc/localtime \
+    && echo "Europe/Istanbul" > /etc/timezone
+
+ENV TZ=Europe/Istanbul \
+    BACKUP_DIR=/backups \
+    BACKUP_RETENTION_DAYS=30 \
+    BACKUP_CRON="0 3 * * *" \
+    POSTGRES_HOST=db \
+    POSTGRES_PORT=5432
+
+COPY scripts/pg-backup.sh /scripts/pg-backup.sh
+COPY scripts/backup-entrypoint.sh /scripts/backup-entrypoint.sh
+RUN chmod +x /scripts/pg-backup.sh /scripts/backup-entrypoint.sh \
+    && mkdir -p /backups
+
+VOLUME ["/backups"]
+
+ENTRYPOINT ["/scripts/backup-entrypoint.sh"]

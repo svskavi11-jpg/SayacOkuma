@@ -1,3 +1,4 @@
+using Westalife.Application.Features.Notifications;
 using Westalife.Application.Features.Settings.BudgetSettings;
 using Westalife.Application.Features.Settings.InterestSettings;
 using Westalife.Application.Features.Settings.ManagementPeriodSettings;
@@ -157,5 +158,18 @@ public class SettingsController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> UpdateRoleFeeSettings(
         [FromBody] UpdateRoleFeeSettingsCommand command, CancellationToken cancellationToken) =>
+        Ok(await _mediator.Send(command, cancellationToken));
+
+    /// <summary>SMTP, SMS ve WhatsApp kimlik bilgileri. Şifre ve token yanıtta dönmez.</summary>
+    [HttpGet("notifications")]
+    [ProducesResponseType(typeof(NotificationSettingsResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetNotificationSettings(CancellationToken cancellationToken) =>
+        Ok(await _mediator.Send(new GetNotificationSettingsQuery(), cancellationToken));
+
+    [HttpPut("notifications")]
+    [ProducesResponseType(typeof(NotificationSettingsResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> UpdateNotificationSettings(
+        [FromBody] UpdateNotificationSettingsCommand command, CancellationToken cancellationToken) =>
         Ok(await _mediator.Send(command, cancellationToken));
 }

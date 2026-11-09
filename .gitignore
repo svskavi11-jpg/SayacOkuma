@@ -17,6 +17,7 @@ publish/
 project.lock.json
 *.nuget.props
 *.nuget.targets
+.nuget-packages/
 
 # OS
 Thumbs.db

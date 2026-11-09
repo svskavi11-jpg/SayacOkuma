@@ -12,6 +12,7 @@ import {
   SettingOutlined,
   MoneyCollectOutlined,
   TeamOutlined,
+  MessageOutlined,
 } from '@ant-design/icons'
 import { registerNotifier } from '../api/notifier'
 
@@ -35,6 +36,7 @@ const menuItems = [
   { key: '/budget',     icon: <AccountBookOutlined />, label: 'Bütçe ve Giderler' },
   { key: '/bank-accounts', icon: <BankOutlined />, label: 'Banka Hesapları' },
   { key: '/reports',    icon: <BarChartOutlined />,    label: 'Raporlar' },
+  { key: '/notifications', icon: <MessageOutlined />, label: 'Bildirim Merkezi' },
   { key: '/settings',   icon: <SettingOutlined />,     label: 'Ayarlar' },
 ]
 

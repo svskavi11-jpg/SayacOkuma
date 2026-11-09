@@ -13,7 +13,11 @@ public sealed record CalculateCostDistributionResult(
     int ApartmentCount,
     int FailedMeterCount,
     decimal TotalDistributedAmount,
-    decimal InvoiceTotalAmount)
+    decimal InvoiceTotalAmount,
+    Guid GasInvoiceId,
+    IReadOnlyList<Guid> ChargedApartmentIds,
+    bool CanNotify,
+    string? NotifyBlockReason)
 {
     public bool Reconciled => TotalDistributedAmount == InvoiceTotalAmount;
 }

@@ -5,7 +5,9 @@ using Westalife.Application.Common.Interfaces;
 using Westalife.Application.Common.Models;
 using Westalife.Application.Features.Apartments.Commands.ImportMetersFromExcel;
 using Westalife.Application.Features.MeterReadings.Commands.ImportReadingsFromExcel;
+using Westalife.Application.Features.Payments.Commands.ParseBankStatement;
 using Westalife.Infrastructure.Metering.Readers;
+using Westalife.Infrastructure.Notifications;
 using Westalife.Infrastructure.Persistence.Contexts;
 using Westalife.Infrastructure.Storage;
 
@@ -38,6 +40,16 @@ public static class DependencyInjection
             : residentDocumentRoot;
         services.AddSingleton<IResidentDocumentStore>(_ => new LocalResidentDocumentStore(documentRoot));
 
+        services.AddHttpClient(nameof(SmsNotificationService));
+        services.AddHttpClient(nameof(WhatsAppNotificationService));
+        services.AddScoped<EmailNotificationService>();
+        services.AddScoped<SmsNotificationService>();
+        services.AddScoped<WhatsAppNotificationService>();
+        services.AddScoped<INotificationService>(sp => sp.GetRequiredService<EmailNotificationService>());
+        services.AddScoped<INotificationService>(sp => sp.GetRequiredService<SmsNotificationService>());
+        services.AddScoped<INotificationService>(sp => sp.GetRequiredService<WhatsAppNotificationService>());
+        services.AddScoped<INoticePdfGenerator, Reporting.Pdf.NoticePdfGenerator>();
+
         return services;
     }
 
@@ -55,6 +67,7 @@ public static class DependencyInjection
 
         services.AddScoped<IExcelMeterImportParser, Reporting.Excel.ExcelMeterImportParser>();
         services.AddScoped<IExcelReadingImportParser, Reporting.Excel.ExcelReadingImportParser>();
+        services.AddScoped<IBankStatementParser, Reporting.Excel.BankStatementParser>();
         services.AddScoped<IMbusConnectionTester, Metering.Connections.MbusConnectionTester>();
 
         services.AddSingleton<MeterReaderFactory>();

@@ -60,6 +60,12 @@ public static class IndividualNoticePdfDocument
     public static byte[] GenerateSingle(NoticeReportData data, ReportingOptions options, Guid apartmentId) =>
         CreateDocument(data, options, apartmentId).GeneratePdf();
 
+    public static void GenerateAll(NoticeReportData data, ReportingOptions options, Stream destination) =>
+        CreateDocument(data, options, singleApartmentId: null).GeneratePdf(destination);
+
+    public static void GenerateSingle(NoticeReportData data, ReportingOptions options, Guid apartmentId, Stream destination) =>
+        CreateDocument(data, options, apartmentId).GeneratePdf(destination);
+
     /// <summary>PDF belgesini oluşturur (önizleme/test için görüntüye de çevrilebilir).</summary>
     public static Document CreateDocument(NoticeReportData data, ReportingOptions options, Guid? singleApartmentId)
     {
@@ -141,71 +147,83 @@ public static class IndividualNoticePdfDocument
             col.Item().PaddingTop(12).Element(c => ComposePersonalDistribution(c, data, row));
             col.Item().PaddingTop(12).Element(c => ComposeBuildingDistribution(c, data));
             col.Item().PaddingTop(12).Element(c => ComposeReadingValues(c, row));
-            col.Item().PaddingTop(12).Element(c => ComposeDebtBreakdown(c, row));
+            if (data.ShowDebtTable)
+            {
+                col.Item().PaddingTop(12).Element(c => ComposeDebtBreakdown(c, row));
+            }
             col.Item().PaddingTop(12).Element(c => ComposeNotes(c, data));
         });
     }
 
     private static void ComposeInfoBlocks(IContainer content, NoticeReportData data, NoticeRow row)
     {
-        // Toplam ödenecek tutar: dairenin payı (Sabit + Tüketim) + varsa okuma hizmet bedeli.
-        var payable = row.TotalAmount + data.ReadingServiceFeeAmount;
+        var culture = CultureInfo.GetCultureInfo("tr-TR");
+        var lg = row.Ledger;
+        var periodInvoice = lg?.CurrentPeriodInvoiceRemaining ?? row.TotalAmount;
+        var amountDue = lg?.AmountDue ?? (row.TotalAmount > 0m ? row.TotalAmount : 0m);
+        var pastDebts = Math.Max(0m, amountDue - periodInvoice);
 
         content.Row(r =>
         {
-            r.RelativeItem(5).Column(c =>
+            r.RelativeItem(6).PaddingRight(12).Column(c =>
             {
-                c.Item().Text($"DAİRE {row.DoorNumber}").Bold().FontSize(10);
-                c.Item().PaddingTop(10).Text(data.BuildingName.ToUpper(CultureInfo.GetCultureInfo("tr-TR"))).Bold();
-                c.Item().Text(data.BuildingAddress);
-            });
-            r.RelativeItem(5).Column(c =>
-            {
-                if (row.Ledger is null)
+                c.Item().Text($"DAİRE {row.DoorNumber}").Bold().FontSize(11);
+                c.Item().PaddingTop(8).Text(data.BuildingName.ToUpper(culture)).Bold().FontSize(10);
+                c.Item().Text(data.BuildingAddress).FontSize(9);
+                if (data.ShowDebtBreakdown)
                 {
-                    // Cari hesap özeti yoksa (test/geriye uyum): eski tek satırlı künye.
-                    c.Item().Element(x => InfoLine(x, "Abone No", data.SubscriberNumber));
-                    c.Item().Element(x => InfoLine(x, "Daire", row.DoorNumber));
-                    c.Item().Element(x => InfoLine(x, "Dönem", $"{data.PeriodFrom:dd.MM.yyyy} - {data.PeriodTo:dd.MM.yyyy}"));
-                    c.Item().Element(x => InfoLine(x, "Ödenen Süre", $"{data.DaysInPeriod} Gün"));
-                    c.Item().Element(x => InfoLine(x, "Oluşturma Tarihi",
-                        data.IssueDate.ToString("dd.MM.yyyy", CultureInfo.GetCultureInfo("tr-TR"))));
-                    c.Item().Element(x => InfoLine(x, "Son Ödeme Tarihi",
-                        data.DueDate.ToString("dd.MM.yyyy", CultureInfo.GetCultureInfo("tr-TR")), bold: true));
-                    c.Item().Element(x => InfoLine(x, "Toplam Ödenecek Tutar", $"{Fmt(payable)} TL", bold: true, large: true));
-                    return;
+                    c.Item().PaddingTop(10).Element(x => MoneyLine(x, "Önceki Dönemden Devreden Anapara", lg?.OpeningBalancePrincipalRemaining ?? 0m));
+                    c.Item().Element(x => MoneyLine(x, "Devreden Geçmiş Faiz", lg?.OpeningBalanceInterestRemaining ?? 0m));
+                    c.Item().Element(x => MoneyLine(x, "İşlemiş Gecikme Faizi", lg?.InterestAccrued ?? 0m));
+                    c.Item().PaddingTop(8).Element(x => MoneyLine(x, "Geçmiş Borçlar", pastDebts));
                 }
+                c.Item().PaddingTop(data.ShowDebtBreakdown ? 2 : 10).Element(x => MoneyLine(x, "Bu Dönem Faturası", periodInvoice, emphasis: true));
+                if (data.ShowDebtBreakdown)
+                {
+                    c.Item().PaddingTop(2).Element(x => MoneyLine(x, "Toplam Ödenecek Tutar", amountDue, emphasis: true));
+                    if (lg is { CreditBalance: > 0m })
+                    {
+                        c.Item().PaddingTop(2).Text($"Dairenizin {Fmt(lg.CreditBalance)} TL alacağı bulunmaktadır.")
+                            .FontSize(8).Italic();
+                    }
+                }
+            });
 
-                // Etap 6.8: Cari hesap entegre künye — devir bakiyesi (anapara/faiz) + işlemiş faiz + güncel bakiye.
-                var lg = row.Ledger;
+            r.RelativeItem(5).Column(c =>
+            {
                 c.Item().Element(x => InfoLine(x, "Abone No", data.SubscriberNumber));
                 c.Item().Element(x => InfoLine(x, "Daire", row.DoorNumber));
                 c.Item().Element(x => InfoLine(x, "Dönem", $"{data.PeriodFrom:dd.MM.yyyy} - {data.PeriodTo:dd.MM.yyyy}"));
                 c.Item().Element(x => InfoLine(x, "Ödenen Süre", $"{data.DaysInPeriod} Gün"));
-                c.Item().Element(x => InfoLine(x, "Oluşturma Tarihi",
-                    data.IssueDate.ToString("dd.MM.yyyy", CultureInfo.GetCultureInfo("tr-TR"))));
-                c.Item().Element(x => InfoLine(x, "Son Ödeme Tarihi",
-                    data.DueDate.ToString("dd.MM.yyyy", CultureInfo.GetCultureInfo("tr-TR")), bold: true));
-                c.Item().Element(x => InfoLine(x, "Önceki Dönemden Devreden Anapara", $"{Fmt(lg.OpeningBalancePrincipalRemaining)} TL"));
-                c.Item().Element(x => InfoLine(x, "Devreden Geçmiş Faiz", $"{Fmt(lg.OpeningBalanceInterestRemaining)} TL"));
-                c.Item().Element(x => InfoLine(x, "Bu Dönem Faturası", $"{Fmt(row.TotalAmount + data.ReadingServiceFeeAmount)} TL"));
-                c.Item().Element(x => InfoLine(x, "İşlemiş Gecikme Faizi", $"{Fmt(lg.InterestAccrued)} TL"));
-                // Güncel bakiye = cari hesap toplamı + bu dönemin okuma hizmet bedeli (ledger dışı tek kalem).
-                var grandTotal = lg.TotalBalance + data.ReadingServiceFeeAmount;
-                c.Item().Element(x => InfoLine(x, "Toplam Ödenecek Tutar (Güncel Bakiye)", $"{Fmt(grandTotal)} TL", bold: true, large: true));
+                c.Item().Element(x => InfoLine(x, "Oluşturma Tarihi", data.IssueDate.ToString("dd.MM.yyyy", culture)));
+                c.Item().Element(x => InfoLine(x, "Son Ödeme Tarihi", data.DueDate.ToString("dd.MM.yyyy", culture), bold: true));
+                c.Item().PaddingTop(4).Element(x => MoneyLine(x, "Bu Dönem Faturası", periodInvoice, emphasis: true));
             });
         });
     }
 
-    /// <summary>Sağ künye satırı: etiket sağa yaslı, değer solda (referans formdaki gibi).</summary>
+    private static void MoneyLine(IContainer container, string label, decimal amount, bool emphasis = false)
+    {
+        InfoLine(container, label, $"{Fmt(amount)} TL", bold: emphasis, large: emphasis);
+    }
+
+    /// <summary>Künye satırı: etiket solda, tutar sağda.</summary>
     private static void InfoLine(IContainer container, string label, string value, bool bold = false, bool large = false)
     {
-        container.Row(r =>
+        var size = large ? 12f : 9f;
+        container.PaddingVertical(1).Row(r =>
         {
-            r.RelativeItem(5).AlignRight().PaddingRight(6).Text(label).FontSize(large ? 10 : 9);
-            r.RelativeItem(4).Text(t =>
+            r.RelativeItem().AlignLeft().Text(t =>
             {
-                var span = t.Span(value).FontSize(large ? 11 : 9);
+                var span = t.Span(label).FontSize(large ? 11 : 9);
+                if (bold)
+                {
+                    span.Bold();
+                }
+            });
+            r.ConstantItem(120).AlignRight().Text(t =>
+            {
+                var span = t.Span(value).FontSize(size);
                 if (bold)
                 {
                     span.Bold();

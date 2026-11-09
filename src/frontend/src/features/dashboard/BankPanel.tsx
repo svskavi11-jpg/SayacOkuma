@@ -1,5 +1,6 @@
+import type { CSSProperties } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Button, Card, Col, Empty, Row, Space, Tag, Typography } from 'antd'
+import { Button, Card, Col, Empty, Row, Space, Statistic, Tag, Typography } from 'antd'
 import {
   ArrowDownOutlined,
   ArrowUpOutlined,
@@ -12,7 +13,8 @@ import { useNavigate } from 'react-router-dom'
 import { apiClient } from '../../api/client'
 import type { BankDashboard, BankDashboardAccount } from '../../types/api'
 
-const tl = (value: number) => value.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })
+const tl = (value: number) =>
+  `${value.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} TL`
 
 const MONTHS = [
   'Ocak',
@@ -29,22 +31,45 @@ const MONTHS = [
   'Aralık',
 ]
 
-const cardStyle: React.CSSProperties = {
+const panelCardStyle: CSSProperties = {
   borderRadius: 12,
-  boxShadow: '0 4px 16px rgba(15, 23, 42, 0.06)',
+  boxShadow: '0 4px 18px rgba(15, 23, 42, 0.06)',
   border: 'none',
   height: '100%',
+  display: 'flex',
+  flexDirection: 'column',
 }
 
-function getBankAccentColor(bankName: string, index: number): string {
+function getBankTheme(bankName: string, index: number): {
+  accent: string
+  bgTint: string
+  badgeBg: string
+} {
   const normalized = bankName.toLocaleLowerCase('tr-TR')
-  if (normalized.includes('garanti')) return '#237804'
-  if (normalized.includes('teb')) return '#0958d9'
-  if (normalized.includes('iş') || normalized.includes('isbank')) return '#1d39c4'
-  if (normalized.includes('ziraat')) return '#cf1322'
-  if (normalized.includes('akbank')) return '#d4380d'
-  if (normalized.includes('yapı') || normalized.includes('yapi')) return '#0050b3'
-  const palette = ['#1677ff', '#13c2c2', '#722ed1', '#eb2f96']
+  if (normalized.includes('garanti')) {
+    return { accent: '#389e0d', bgTint: '#f6ffed', badgeBg: '#d9f7be' }
+  }
+  if (normalized.includes('teb')) {
+    return { accent: '#0958d9', bgTint: '#f0f5ff', badgeBg: '#bae0ff' }
+  }
+  if (normalized.includes('iş') || normalized.includes('isbank')) {
+    return { accent: '#1d39c4', bgTint: '#f0f5ff', badgeBg: '#d6e4ff' }
+  }
+  if (normalized.includes('ziraat')) {
+    return { accent: '#cf1322', bgTint: '#fff1f0', badgeBg: '#ffccc7' }
+  }
+  if (normalized.includes('akbank')) {
+    return { accent: '#d4380d', bgTint: '#fff2e8', badgeBg: '#ffd8bf' }
+  }
+  if (normalized.includes('yapı') || normalized.includes('yapi')) {
+    return { accent: '#0050b3', bgTint: '#e6f4ff', badgeBg: '#bae0ff' }
+  }
+  const palette = [
+    { accent: '#1677ff', bgTint: '#f0f5ff', badgeBg: '#bae0ff' },
+    { accent: '#13c2c2', bgTint: '#e6fffb', badgeBg: '#b5f5ec' },
+    { accent: '#722ed1', bgTint: '#f9f0ff', badgeBg: '#efdbff' },
+    { accent: '#eb2f96', bgTint: '#fff0f6', badgeBg: '#ffd6e7' },
+  ]
   return palette[index % palette.length]
 }
 
@@ -78,27 +103,45 @@ export function BankPanel() {
 
   return (
     <Row gutter={[20, 20]} style={{ marginTop: 20 }}>
-      {/* Sol Taraf: Banka Hesapları Kartları */}
-      <Col xs={24} lg={9}>
+      {/* Sol Taraf: Banka Hesapları Küçük Şık Özet Kartları */}
+      <Col xs={24} lg={9} style={{ display: 'flex' }}>
         <Card
           variant="borderless"
-          style={cardStyle}
-          styles={{ body: { padding: 20 } }}
+          style={{ ...panelCardStyle, width: '100%' }}
+          styles={{
+            header: { padding: '16px 24px', borderBottom: '1px solid #f0f2f5' },
+            body: { padding: 24, flex: 1, display: 'flex', flexDirection: 'column', gap: 16 },
+          }}
           title={
-            <Space size={8}>
-              <BankOutlined style={{ color: '#1677ff', fontSize: 18 }} />
-              <span style={{ fontWeight: 600, fontSize: 16 }}>Banka Hesapları</span>
+            <Space size={10}>
+              <div
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 10,
+                  background: '#e6f4ff',
+                  color: '#1677ff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 17,
+                }}
+              >
+                <BankOutlined />
+              </div>
+              <span style={{ fontWeight: 600, fontSize: 16, color: '#1f1f1f' }}>
+                Banka Hesapları
+              </span>
             </Space>
           }
           extra={
             <Button
               type="link"
               size="small"
-              icon={<BankOutlined />}
               onClick={() => navigate('/bank-accounts')}
-              style={{ fontWeight: 500 }}
+              style={{ fontWeight: 500, padding: 0 }}
             >
-              Tüm Hesaplar
+              Tüm Hesaplar →
             </Button>
           }
           loading={banksQuery.isLoading}
@@ -106,147 +149,210 @@ export function BankPanel() {
           {accounts.length === 0 ? (
             <Empty description="Tanımlı banka hesabı bulunmuyor." />
           ) : (
-            <Space direction="vertical" size={14} style={{ width: '100%' }}>
-              {/* Toplam Banka Mevcudu Özeti */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, flex: 1 }}>
+              {/* Toplam Banka Mevcudu Üst Özet Kartı */}
               <div
                 style={{
-                  background: 'linear-gradient(135deg, #f0f5ff 0%, #e6f4ff 100%)',
-                  borderRadius: 10,
-                  padding: '14px 16px',
-                  border: '1px solid #bae0ff',
+                  background: 'linear-gradient(135deg, #0958d9 0%, #1677ff 100%)',
+                  borderRadius: 12,
+                  padding: '18px 20px',
+                  color: '#fff',
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
+                  boxShadow: '0 6px 16px rgba(22, 119, 255, 0.22)',
                 }}
               >
                 <div>
-                  <Typography.Text type="secondary" style={{ fontSize: 12, fontWeight: 500 }}>
-                    TOPLAM BANKA MEVCUDU
-                  </Typography.Text>
                   <div
                     style={{
-                      fontSize: 24,
-                      fontWeight: 700,
-                      color: (data?.totalCurrentBalance ?? 0) < 0 ? '#cf1322' : '#0958d9',
-                      lineHeight: 1.25,
-                      marginTop: 2,
+                      fontSize: 11,
+                      fontWeight: 600,
+                      textTransform: 'uppercase',
+                      letterSpacing: 0.7,
+                      opacity: 0.85,
+                      marginBottom: 4,
                     }}
                   >
+                    Toplam Banka Mevcudu
+                  </div>
+                  <div style={{ fontSize: 26, fontWeight: 800, lineHeight: 1.2, letterSpacing: -0.3 }}>
                     {tl(data?.totalCurrentBalance ?? 0)}
                   </div>
-                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                    Dönem Başı Devir: {tl(data?.totalOpeningBalance ?? 0)}
-                  </Typography.Text>
+                  <div style={{ fontSize: 12, opacity: 0.85, marginTop: 6 }}>
+                    Dönem Başı Devir: <strong>{tl(data?.totalOpeningBalance ?? 0)}</strong>
+                  </div>
                 </div>
                 <div
                   style={{
-                    width: 44,
-                    height: 44,
+                    width: 48,
+                    height: 48,
                     borderRadius: 12,
-                    background: '#1677ff',
+                    background: 'rgba(255, 255, 255, 0.18)',
                     color: '#fff',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: 20,
-                    boxShadow: '0 4px 10px rgba(22, 119, 255, 0.25)',
+                    fontSize: 22,
+                    flexShrink: 0,
                   }}
                 >
                   <WalletOutlined />
                 </div>
               </div>
 
-              {/* Tekil Banka Hesap Kartları (Garanti, TEB vb.) */}
-              {accounts.map((account, idx) => {
-                const accent = getBankAccentColor(account.bankName, idx)
-                return (
-                  <div
-                    key={account.id}
-                    style={{
-                      background: '#fafafa',
-                      borderRadius: 10,
-                      padding: '14px 16px',
-                      border: '1px solid #f0f0f0',
-                      borderLeft: `4px solid ${accent}`,
-                      transition: 'all 0.2s ease',
-                    }}
-                  >
-                    <div
+              {/* Banka Hesapları (Garanti, TEB vb.) Küçük Şık Özet Kartları */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {accounts.map((account, idx) => {
+                  const theme = getBankTheme(account.bankName, idx)
+                  return (
+                    <Card
+                      key={account.id}
+                      size="small"
+                      variant="borderless"
+                      styles={{ body: { padding: '16px 18px' } }}
                       style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'flex-start',
-                        gap: 12,
-                        marginBottom: 10,
+                        borderRadius: 12,
+                        background: '#ffffff',
+                        border: '1px solid #f0f2f5',
+                        borderLeft: `4px solid ${theme.accent}`,
+                        boxShadow: '0 2px 10px rgba(15, 23, 42, 0.04)',
                       }}
                     >
-                      <div style={{ minWidth: 0 }}>
-                        <Typography.Text strong style={{ fontSize: 15, display: 'block' }} ellipsis>
-                          {accountLabel(account, accounts)}
-                        </Typography.Text>
-                        <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                          {account.accountName} · Devir: {tl(account.openingBalance)}
-                        </Typography.Text>
-                      </div>
-                      <Tag
-                        color={account.currentBalance < 0 ? 'error' : 'success'}
+                      <div
                         style={{
-                          margin: 0,
-                          fontSize: 14,
-                          fontWeight: 700,
-                          padding: '3px 10px',
-                          borderRadius: 6,
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          gap: 12,
+                          marginBottom: 12,
                         }}
                       >
-                        {tl(account.currentBalance)}
-                      </Tag>
-                    </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+                          <div
+                            style={{
+                              width: 40,
+                              height: 40,
+                              borderRadius: 10,
+                              background: theme.bgTint,
+                              color: theme.accent,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: 18,
+                              fontWeight: 700,
+                              flexShrink: 0,
+                            }}
+                          >
+                            <BankOutlined />
+                          </div>
+                          <div style={{ minWidth: 0 }}>
+                            <Typography.Text
+                              strong
+                              style={{ fontSize: 15, color: '#1f1f1f', display: 'block' }}
+                              ellipsis
+                            >
+                              {accountLabel(account, accounts)}
+                            </Typography.Text>
+                            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                              {account.accountName} · Devir: {tl(account.openingBalance)}
+                            </Typography.Text>
+                          </div>
+                        </div>
 
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        gap: 8,
-                        paddingTop: 8,
-                        borderTop: '1px dashed #e8e8e8',
-                        fontSize: 12,
-                      }}
-                    >
-                      <span style={{ color: '#389e0d', fontWeight: 500 }}>
-                        <ArrowUpOutlined style={{ marginRight: 4 }} />
-                        Giren: {tl(account.moneyIn)}
-                      </span>
-                      <span style={{ color: '#cf1322', fontWeight: 500 }}>
-                        <ArrowDownOutlined style={{ marginRight: 4 }} />
-                        Çıkan: {tl(account.moneyOut)}
-                      </span>
-                    </div>
-                  </div>
-                )
-              })}
-            </Space>
+                        <Statistic
+                          value={account.currentBalance}
+                          precision={2}
+                          groupSeparator="."
+                          decimalSeparator=","
+                          suffix="TL"
+                          valueStyle={{
+                            fontSize: 18,
+                            fontWeight: 700,
+                            color: account.currentBalance < 0 ? '#cf1322' : theme.accent,
+                            whiteSpace: 'nowrap',
+                          }}
+                        />
+                      </div>
+
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          gap: 8,
+                          paddingTop: 10,
+                          borderTop: '1px dashed #f0f0f0',
+                        }}
+                      >
+                        <Tag
+                          bordered={false}
+                          color="success"
+                          style={{ margin: 0, fontSize: 12, fontWeight: 500, borderRadius: 6 }}
+                        >
+                          <ArrowUpOutlined style={{ marginRight: 4 }} />
+                          Giren: {tl(account.moneyIn)}
+                        </Tag>
+                        <Tag
+                          bordered={false}
+                          color="error"
+                          style={{ margin: 0, fontSize: 12, fontWeight: 500, borderRadius: 6 }}
+                        >
+                          <ArrowDownOutlined style={{ marginRight: 4 }} />
+                          Çıkan: {tl(account.moneyOut)}
+                        </Tag>
+                      </div>
+                    </Card>
+                  )
+                })}
+              </div>
+            </div>
           )}
         </Card>
       </Col>
 
-      {/* Sağ Taraf: Aylık Gelir-Gider Alan Grafiği (Area Chart) */}
-      <Col xs={24} lg={15}>
+      {/* Sağ Taraf: Aylık Gelir-Gider Yumuşatılmış Alan Grafiği (Area Chart) */}
+      <Col xs={24} lg={15} style={{ display: 'flex' }}>
         <Card
           variant="borderless"
-          style={cardStyle}
-          styles={{ body: { padding: 20 } }}
+          style={{ ...panelCardStyle, width: '100%' }}
+          styles={{
+            header: { padding: '16px 24px', borderBottom: '1px solid #f0f2f5' },
+            body: { padding: 24, flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' },
+          }}
           title={
-            <Space size={8}>
-              <LineChartOutlined style={{ color: '#389e0d', fontSize: 18 }} />
-              <span style={{ fontWeight: 600, fontSize: 16 }}>
-                {data?.year ?? new Date().getFullYear()} Yılı Aylık Nakit Akışı Trendi
-              </span>
+            <Space size={10}>
+              <div
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 10,
+                  background: '#f6ffed',
+                  color: '#389e0d',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 17,
+                }}
+              >
+                <LineChartOutlined />
+              </div>
+              <div>
+                <span style={{ fontWeight: 600, fontSize: 16, color: '#1f1f1f', display: 'block' }}>
+                  {data?.year ?? new Date().getFullYear()} Yılı Aylık Nakit Akışı Trendi
+                </span>
+              </div>
             </Space>
           }
           extra={
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              Bankası seçilen hareketler (iptaller hariç)
-            </Typography.Text>
+            <Space size={8} wrap>
+              <Tag bordered={false} color="success" style={{ borderRadius: 6, fontWeight: 500 }}>
+                Toplam Giriş: {tl(data?.totalMoneyIn ?? 0)}
+              </Tag>
+              <Tag bordered={false} color="error" style={{ borderRadius: 6, fontWeight: 500 }}>
+                Toplam Çıkış: {tl(data?.totalMoneyOut ?? 0)}
+              </Tag>
+            </Space>
           }
           loading={banksQuery.isLoading}
         >
@@ -259,8 +365,13 @@ export function BankPanel() {
               yField="amount"
               colorField="kind"
               shapeField="smooth"
-              height={310}
-              legend={{ color: { position: 'top' } }}
+              height={340}
+              legend={{
+                color: {
+                  position: 'top',
+                  layout: { justifyContent: 'flex-end' },
+                },
+              }}
               scale={{
                 color: {
                   domain: ['Tahsilat (Giren)', 'Gider (Çıkan)'],
@@ -268,22 +379,30 @@ export function BankPanel() {
                 },
               }}
               style={{
-                fillOpacity: 0.16,
+                fillOpacity: 0.18,
               }}
               line={{
                 shapeField: 'smooth',
                 style: {
-                  lineWidth: 2.5,
+                  lineWidth: 3,
                 },
               }}
               axis={{
+                x: {
+                  labelAutoRotate: false,
+                },
                 y: {
                   labelFormatter: (value: number) =>
-                    `${Number(value).toLocaleString('tr-TR', { maximumFractionDigits: 0 })} ₺`,
+                    `${Number(value).toLocaleString('tr-TR', { maximumFractionDigits: 0 })} TL`,
                 },
               }}
               tooltip={{
-                items: [{ channel: 'y', valueFormatter: (value: number) => tl(Number(value)) }],
+                items: [
+                  {
+                    channel: 'y',
+                    valueFormatter: (value: number) => tl(Number(value)),
+                  },
+                ],
               }}
             />
           )}

@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Westalife.Api.Infrastructure;
+using Westalife.Application.Features.Notifications;
 using Westalife.Application.Features.Reports;
 using Westalife.Infrastructure.Reporting.Excel;
 using Westalife.Infrastructure.Reporting.Pdf;
@@ -17,6 +18,19 @@ public class ReportsController : ControllerBase
     private readonly IMediator _mediator;
 
     public ReportsController(IMediator mediator) => _mediator = mediator;
+
+    /// <summary>SMS bildirimlerindeki güvenli token ile bireysel gider bildirimi PDF.</summary>
+    [HttpGet("notice.pdf")]
+    [Produces("application/pdf")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GetNoticePdfByToken(
+        [FromQuery] Guid token,
+        CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(new GetNoticePdfByTokenQuery(token), cancellationToken);
+        return File(result.Content, "application/pdf", result.FileName);
+    }
 
     [HttpGet("income-expense")]
     [ProducesResponseType(typeof(AuditIncomeExpenseReport), StatusCodes.Status200OK)]

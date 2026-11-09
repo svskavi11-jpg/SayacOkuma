@@ -14,7 +14,10 @@ namespace Westalife.Application.Features.GasInvoices.Queries.GetNoticeReport;
 /// Danfoss "Bireysel Gider Bildirimi" formunun veri kaynağı (docs/DANFOSS_NOTICE_TEMPLATE.md).
 /// Birim fiyatlar: sabit = Σ Fixed ÷ Σ m², tüketim = Σ Consumption ÷ Σ kWh (formdaki 6 ondalık gösterim).
 /// </summary>
-public sealed record GetNoticeReportQuery(Guid GasInvoiceId) : IRequest<NoticeReportData>;
+public sealed record GetNoticeReportQuery(
+    Guid GasInvoiceId,
+    bool? ShowDebtBreakdown = null,
+    bool? ShowDebtTable = null) : IRequest<NoticeReportData>;
 
 public sealed record NoticeReportData(
     string CompanyName,
@@ -41,7 +44,9 @@ public sealed record NoticeReportData(
     byte[]? LeftLogo = null,
     byte[]? RightLogo = null,
     int LeftLogoHeightMm = DomainConstants.AppSettings.LogoHeightMmDefault,
-    int RightLogoHeightMm = DomainConstants.AppSettings.LogoHeightMmDefault);
+    int RightLogoHeightMm = DomainConstants.AppSettings.LogoHeightMmDefault,
+    bool ShowDebtBreakdown = true,
+    bool ShowDebtTable = true);
 
 public sealed record NoticeRow(
     Guid ApartmentId,
@@ -72,14 +77,79 @@ public sealed record NoticeLedgerSummary(
     /// <summary>Hesaplama günü itibarıyla toplam işlemiş gecikme faizi (anapara + fatura kalanlarından).</summary>
     decimal InterestAccrued,
 
-    /// <summary>Güncel toplam bakiye (pozitif = borçlu).</summary>
+    /// <summary>Güncel toplam bakiye (pozitif = borçlu, negatif = alacak).</summary>
     decimal TotalBalance,
 
     /// <summary>Uygulanan yıllık faiz oranı (%).</summary>
     decimal AnnualInterestRate,
 
     /// <summary>Gecikmiş borç/faiz dökümü satırları (kalanı veya işleyen faizi 0 olmayanlar).</summary>
-    IReadOnlyList<NoticeDebtRow> Debts);
+    IReadOnlyList<NoticeDebtRow> Debts,
+
+    /// <summary>Bu gaz faturasına ait ısınma satırının kalan anaparası. Tam tahsilde 0.</summary>
+    decimal CurrentPeriodInvoiceRemaining = 0m,
+
+    /// <summary>PDF'te gösterilen ödenecek tutar. Asla negatif değildir.</summary>
+    decimal AmountDue = 0m,
+
+    /// <summary>Dairenin alacağı. Bakiye borçsa 0.</summary>
+    decimal CreditBalance = 0m)
+{
+    public static decimal DueAmount(decimal totalBalance) => totalBalance > 0m ? totalBalance : 0m;
+
+    public static decimal CreditAmount(decimal totalBalance) => totalBalance < 0m ? -totalBalance : 0m;
+
+    public static decimal RemainingForInvoice(IEnumerable<LedgerLine> lines, Guid apartmentInvoiceId)
+    {
+        return lines
+            .Where(l => l.Type == LedgerDebtType.Invoice && SameInvoice(l.SourceId, apartmentInvoiceId))
+            .Sum(l => l.RemainingPrincipal);
+    }
+
+    /// <summary>
+    /// Bu dönem faturası, tahakkuk oluştuktan sonraki tahsilatlarla kapanır.
+    /// Daha eski bir ödemenin FIFO artığı bu satırı sıfırlamaz; defter bakiyesinden düşülen
+    /// kısım toplama geri eklenir.
+    /// </summary>
+    public static (decimal Remaining, decimal AddBack) ResolveCurrentPeriod(
+        decimal invoicePrincipal,
+        DateOnly chargeDate,
+        IEnumerable<LedgerLine> lines,
+        Guid apartmentInvoiceId)
+    {
+        var matches = lines
+            .Where(l => l.Type == LedgerDebtType.Invoice && SameInvoice(l.SourceId, apartmentInvoiceId))
+            .ToList();
+
+        if (matches.Count == 0)
+        {
+            return (invoicePrincipal, invoicePrincipal);
+        }
+
+        var settledAfterCharge = matches
+            .SelectMany(l => l.Allocations)
+            .Where(a => a.PaymentDate >= chargeDate)
+            .Sum(a => a.AllocatedAmount);
+        var remaining = Math.Max(0m, invoicePrincipal - settledAfterCharge);
+        var ledgerRemaining = matches.Sum(l => Math.Max(0m, l.RemainingPrincipal));
+        return (remaining, Math.Max(0m, remaining - ledgerRemaining));
+    }
+
+    private static bool SameInvoice(string sourceId, Guid apartmentInvoiceId) =>
+        Guid.TryParse(sourceId, out var parsed) && parsed == apartmentInvoiceId;
+}
+
+public readonly record struct NoticeIndexPoint(Guid ApartmentId, DateTimeOffset ReadingDateUtc, decimal IndexValue);
+
+/// <summary>
+/// İlk okuma yalnızca dönem başlamadan önceki son gerçek endekstir.
+/// Geçmiş kayıt yoksa uydurma değer üretilmez.
+/// </summary>
+public static class NoticeReadingIndex
+{
+    public static (decimal? FirstIndex, decimal? LastIndex) Resolve(decimal? previousIndex, decimal? lastIndex) =>
+        (previousIndex, lastIndex);
+}
 
 public sealed record NoticeDebtRow(
     string Period,
@@ -98,6 +168,21 @@ public sealed class GetNoticeReportQueryHandler : IRequestHandler<GetNoticeRepor
     {
         _db = db;
         _reportingOptions = reportingOptions.Value;
+    }
+
+    private static DateOnly ChargeDate(DateTimeOffset calculatedOnUtc)
+    {
+        TimeZoneInfo tz;
+        try
+        {
+            tz = TimeZoneInfo.FindSystemTimeZoneById("Europe/Istanbul");
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            tz = TimeZoneInfo.FindSystemTimeZoneById("Turkey Standard Time");
+        }
+
+        return DateOnly.FromDateTime(TimeZoneInfo.ConvertTime(calculatedOnUtc, tz).Date);
     }
 
     public async Task<NoticeReportData> Handle(GetNoticeReportQuery request, CancellationToken cancellationToken)
@@ -135,22 +220,31 @@ public sealed class GetNoticeReportQueryHandler : IRequestHandler<GetNoticeRepor
             throw new DomainException("Bu fatura için hesaplama sonucu bulunamadı. Önce dağıtımı hesaplayın.");
         }
 
-        // Daire başına dönem okuma değerleri: ilk/son kümülatif endeks (kWh).
-        var readingStats = await
+        // Son okuma: fatura penceresindeki en güncel endeks.
+        // İlk okuma: dönem başlangıcından hemen önceki gerçek endeks. Geçmiş yoksa boş kalır.
+        var periodReadings = await
             (from reading in _db.MeterReadings
              join meter in _db.Meters on reading.MeterId equals meter.Id
              where meter.ApartmentId != null
                 && reading.ReadingDateUtc >= invoice.ReadingDateFrom
                 && reading.ReadingDateUtc < invoice.ReadingDateTo
-             group reading by meter.ApartmentId!.Value into g
-             select new
-             {
-                 ApartmentId = g.Key,
-                 FirstIndex = g.Min(r => r.IndexValue),
-                 LastIndex = g.Max(r => r.IndexValue),
-                 LastReadingDate = g.Max(r => r.ReadingDateUtc)
-             })
-            .ToDictionaryAsync(x => x.ApartmentId, cancellationToken);
+             select new NoticeIndexPoint(meter.ApartmentId!.Value, reading.ReadingDateUtc, reading.IndexValue))
+            .ToListAsync(cancellationToken);
+
+        var priorReadings = await
+            (from reading in _db.MeterReadings
+             join meter in _db.Meters on reading.MeterId equals meter.Id
+             where meter.ApartmentId != null
+                && reading.ReadingDateUtc < invoice.ReadingDateFrom
+             select new NoticeIndexPoint(meter.ApartmentId!.Value, reading.ReadingDateUtc, reading.IndexValue))
+            .ToListAsync(cancellationToken);
+
+        var lastByApartment = periodReadings
+            .GroupBy(r => r.ApartmentId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(r => r.ReadingDateUtc).ThenByDescending(r => r.IndexValue).First());
+        var previousByApartment = priorReadings
+            .GroupBy(r => r.ApartmentId)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(r => r.ReadingDateUtc).ThenByDescending(r => r.IndexValue).First().IndexValue);
 
         // ── Etap 6.8: Cari hesap (Ledger) özetleri — künye + gecikmiş borç/faiz dökümü ──
         // Her daire için LedgerService çalıştırılır (72 daire için tek batch yüklemesi — N+1 yok).
@@ -171,7 +265,19 @@ public sealed class GetNoticeReportQueryHandler : IRequestHandler<GetNoticeRepor
 
         var allPayments = await _db.Payments
             .AsNoTracking()
+            .Include(p => p.Allocations)
             .Where(p => apartmentIds.Contains(p.ApartmentId))
+            .ToListAsync(cancellationToken);
+
+        var allCharges = await _db.AidatCharges
+            .AsNoTracking()
+            .Include(c => c.AidatInvoice)
+            .Where(c => apartmentIds.Contains(c.ApartmentId))
+            .ToListAsync(cancellationToken);
+
+        var allWaivers = await _db.WaiverOffsets
+            .AsNoTracking()
+            .Where(w => apartmentIds.Contains(w.ApartmentId))
             .ToListAsync(cancellationToken);
 
         var ledgerMap = new Dictionary<Guid, NoticeLedgerSummary>();
@@ -181,7 +287,14 @@ public sealed class GetNoticeReportQueryHandler : IRequestHandler<GetNoticeRepor
             var apartmentInvoices = allInvoices.Where(i => i.ApartmentId == apartmentId).ToList();
             var apartmentPayments = allPayments.Where(p => p.ApartmentId == apartmentId).ToList();
 
-            var ledger = LedgerService.Calculate(apartment, apartmentInvoices, apartmentPayments, annualRate, asOfToday);
+            var ledger = LedgerService.Calculate(
+                apartment,
+                apartmentInvoices,
+                apartmentPayments,
+                annualRate,
+                asOfToday,
+                allCharges.Where(c => c.ApartmentId == apartmentId),
+                allWaivers.Where(w => w.ApartmentId == apartmentId));
 
             // Döküm satırları: kalanı veya işleyen faizi 0 olmayan borçlar.
             var debts = ledger.Lines
@@ -195,6 +308,13 @@ public sealed class GetNoticeReportQueryHandler : IRequestHandler<GetNoticeRepor
                     InterestAccrued: l.InterestAccrued))
                 .ToList();
 
+            var currentInvoice = rows.First(r => r.Row.ApartmentId == apartmentId).Row;
+            var (periodRemaining, addBack) = NoticeLedgerSummary.ResolveCurrentPeriod(
+                currentInvoice.TotalAmount,
+                ChargeDate(currentInvoice.CalculatedOnUtc),
+                ledger.Lines,
+                currentInvoice.Id);
+            var adjustedBalance = ledger.TotalBalance + addBack;
             ledgerMap[apartmentId] = new NoticeLedgerSummary(
                 OpeningBalancePrincipalRemaining: ledger.Lines
                     .Where(l => l.Type == LedgerDebtType.OpeningBalancePrincipal)
@@ -205,12 +325,21 @@ public sealed class GetNoticeReportQueryHandler : IRequestHandler<GetNoticeRepor
                 InterestAccrued: ledger.TotalInterestAccrued,
                 TotalBalance: ledger.TotalBalance,
                 AnnualInterestRate: annualRate,
-                Debts: debts);
+                Debts: debts,
+                CurrentPeriodInvoiceRemaining: periodRemaining,
+                AmountDue: NoticeLedgerSummary.DueAmount(adjustedBalance),
+                CreditBalance: NoticeLedgerSummary.CreditAmount(adjustedBalance));
         }
 
         var noticeRows = rows.Select(r =>
         {
-            readingStats.TryGetValue(r.Row.ApartmentId, out var stats);
+            NoticeIndexPoint? last = lastByApartment.TryGetValue(r.Row.ApartmentId, out var lastPoint)
+                ? lastPoint
+                : null;
+            var previous = previousByApartment.TryGetValue(r.Row.ApartmentId, out var priorIndex)
+                ? priorIndex
+                : (decimal?)null;
+            var indexes = NoticeReadingIndex.Resolve(previous, last?.IndexValue);
             return new NoticeRow(
                 r.Row.ApartmentId,
                 r.DoorNumber,
@@ -218,9 +347,9 @@ public sealed class GetNoticeReportQueryHandler : IRequestHandler<GetNoticeRepor
                 r.SerialNumber,
                 r.Row.SquareMetersUsed,
                 r.Row.ConsumptionKWhUsed,
-                stats?.FirstIndex,
-                stats?.LastIndex,
-                stats?.LastReadingDate,
+                indexes.FirstIndex,
+                indexes.LastIndex,
+                last?.ReadingDateUtc,
                 r.Row.FixedAmount,
                 r.Row.ConsumptionAmount,
                 r.Row.TotalAmount,
@@ -278,6 +407,8 @@ public sealed class GetNoticeReportQueryHandler : IRequestHandler<GetNoticeRepor
             settings?.LogoLeft,
             settings?.LogoRight,
             settings?.LogoLeftHeightMm ?? DomainConstants.AppSettings.LogoHeightMmDefault,
-            settings?.LogoRightHeightMm ?? DomainConstants.AppSettings.LogoHeightMmDefault);
+            settings?.LogoRightHeightMm ?? DomainConstants.AppSettings.LogoHeightMmDefault,
+            request.ShowDebtBreakdown ?? settings?.ShowDebtBreakdownOnPdf ?? true,
+            request.ShowDebtTable ?? settings?.ShowDebtTableOnPdf ?? true);
     }
 }

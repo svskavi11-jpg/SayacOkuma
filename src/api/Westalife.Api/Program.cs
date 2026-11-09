@@ -1,11 +1,14 @@
-using Scalar.AspNetCore;
-using Serilog;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Scalar.AspNetCore;
+using Serilog;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Westalife.Api.Infrastructure;
 using Westalife.Application;
 using Westalife.Infrastructure;
-using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,10 +18,12 @@ builder.Host.UseSerilog((context, services, loggerConfiguration) => loggerConfig
     .ReadFrom.Services(services)
     .Enrich.FromLogContext());
 
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException("ConnectionStrings:DefaultConnection ayari eksik.");
+
 // Infrastructure: DbContext (PostgreSQL UTF-8/tr-TR) + meter reading engine (M-Bus/Simulator).
 builder.Services.AddInfrastructure(
-    builder.Configuration.GetConnectionString("DefaultConnection")
-        ?? throw new InvalidOperationException("ConnectionStrings:DefaultConnection ayari eksik."),
+    connectionString,
     builder.Configuration["ResidentDocuments:RootPath"]);
 
 // Application: CQRS (MediatR) + FluentValidation pipeline.
@@ -29,6 +34,9 @@ builder.Services.AddApplication();
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
         options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
+
+builder.Services.AddHealthChecks()
+    .AddCheck<PostgresHealthCheck>("postgresql", tags: ["ready", "db"]);
 
 // CORS: dev ortamında Vite geliştirme sunucusuna izin ver (prod'da nginx aynı origin'den sunar — CORS gerekmez).
 builder.Services.AddCors(options =>
@@ -62,7 +70,15 @@ if (!builder.Environment.IsDevelopment() && string.IsNullOrWhiteSpace(builder.Co
 
 var app = builder.Build();
 
-app.UseSerilogRequestLogging();
+app.UseMiddleware<TraceIdLogEnrichmentMiddleware>();
+
+app.UseSerilogRequestLogging(options =>
+{
+    options.EnrichDiagnosticContext = (diagnosticContext, httpContext) =>
+    {
+        diagnosticContext.Set("TraceId", httpContext.TraceIdentifier);
+    };
+});
 
 app.UseExceptionHandler();
 app.UseStatusCodePages();
@@ -84,7 +100,32 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-// Konteyner HEALTHCHECK icin minimal saglik ucu (db bagimliligi yok - hizli yanit).
-app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
+// Konteyner HEALTHCHECK: uygulama + PostgreSQL. /health API anahtarından muaftır (/api dışı).
+app.MapHealthChecks("/health", new HealthCheckOptions
+{
+    ResponseWriter = WriteHealthResponseAsync,
+});
 
 app.Run();
+
+static Task WriteHealthResponseAsync(HttpContext context, HealthReport report)
+{
+    context.Response.ContentType = "application/json; charset=utf-8";
+    context.Response.StatusCode = report.Status == HealthStatus.Healthy
+        ? StatusCodes.Status200OK
+        : StatusCodes.Status503ServiceUnavailable;
+
+    var payload = new
+    {
+        status = report.Status.ToString(),
+        checks = report.Entries.Select(entry => new
+        {
+            name = entry.Key,
+            status = entry.Value.Status.ToString(),
+            durationMs = entry.Value.Duration.TotalMilliseconds,
+            error = entry.Value.Exception?.Message,
+        }),
+    };
+
+    return context.Response.WriteAsync(JsonSerializer.Serialize(payload));
+}

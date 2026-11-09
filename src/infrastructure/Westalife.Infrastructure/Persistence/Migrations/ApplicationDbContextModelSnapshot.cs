@@ -2016,11 +2016,66 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<bool>("NotificationTestMode")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("PublicBaseUrl")
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
                     b.Property<decimal>("ReadingServiceFee")
                         .ValueGeneratedOnAdd()
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)")
                         .HasDefaultValue(0m);
+
+                    b.Property<bool>("ShowDebtBreakdownOnPdf")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
+                    b.Property<bool>("ShowDebtTableOnPdf")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true);
+
+                    b.Property<string>("SmsHeader")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<string>("SmsPassword")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("SmsProvider")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasDefaultValue("Netgsm");
+
+                    b.Property<string>("SmsUser")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("SmtpHost")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("SmtpPassword")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<int>("SmtpPort")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(587);
+
+                    b.Property<string>("SmtpUser")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
 
                     b.Property<string>("TcpHost")
                         .HasColumnType("text");
@@ -2033,6 +2088,14 @@ namespace Westalife.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("UsbPortName")
                         .HasColumnType("text");
+
+                    b.Property<string>("WhatsAppPhoneNumberId")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)");
+
+                    b.Property<string>("WhatsAppToken")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
 
                     b.HasKey("Id");
 
@@ -2063,7 +2126,12 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             LogoLeftHeightMm = 17,
                             LogoRightHeightMm = 17,
                             MeterConnectionType = "Simulator",
+                            NotificationTestMode = false,
                             ReadingServiceFee = 0m,
+                            ShowDebtBreakdownOnPdf = true,
+                            ShowDebtTableOnPdf = true,
+                            SmsProvider = "Netgsm",
+                            SmtpPort = 587,
                             TcpPort = 2000,
                             UsbBaudRate = 2400
                         });
@@ -2673,6 +2741,155 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                     b.ToTable("MeterReadingAuditLogs", (string)null);
                 });
 
+            modelBuilder.Entity("Westalife.Domain.Entities.NoticePdfAccessToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ApartmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset>("CreatedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("GasInvoiceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTimeOffset?>("LastModifiedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("Token")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Token")
+                        .IsUnique()
+                        .HasDatabaseName("IX_NoticePdfAccessTokens_Token");
+
+                    b.HasIndex("GasInvoiceId", "ApartmentId")
+                        .HasDatabaseName("IX_NoticePdfAccessTokens_Invoice_Apartment");
+
+                    b.ToTable("NoticePdfAccessTokens", (string)null);
+                });
+
+            modelBuilder.Entity("Westalife.Domain.Entities.NotificationLog", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ApartmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Channel")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("CreatedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<DateTimeOffset?>("LastModifiedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<string>("RecipientAddress")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTimeOffset>("SentAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApartmentId");
+
+                    b.HasIndex("SentAt")
+                        .HasDatabaseName("IX_NotificationLogs_SentAt");
+
+                    b.ToTable("NotificationLogs", (string)null);
+                });
+
+            modelBuilder.Entity("Westalife.Domain.Entities.NotificationTemplate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
+                    b.Property<int>("Channel")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("CreatedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset?>("LastModifiedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Subject")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Channel", "Name")
+                        .IsUnique()
+                        .HasDatabaseName("IX_NotificationTemplates_Channel_Name");
+
+                    b.ToTable("NotificationTemplates", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("11111111-1111-1111-1111-111111111101"),
+                            Body = "Sayın [AdSoyad], [DaireNo] numaralı dairenizin [Donem] dönemi bakiyesi [Tutar] tutarındadır. Westalife Residence yönetimi.",
+                            Channel = 1,
+                            CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Name = "Aidat hatırlatma",
+                            Subject = "Aidat ve bakiye hatırlatması"
+                        },
+                        new
+                        {
+                            Id = new Guid("11111111-1111-1111-1111-111111111102"),
+                            Body = "Sayın [AdSoyad], [DaireNo] numaralı dairenizin [Donem] dönemi bakiyesi [Tutar] tutarındadır. Westalife Residence yönetimi.",
+                            Channel = 2,
+                            CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Name = "Aidat hatırlatma"
+                        },
+                        new
+                        {
+                            Id = new Guid("11111111-1111-1111-1111-111111111103"),
+                            Body = "Sayın [AdSoyad], [DaireNo] numaralı dairenizin [Donem] dönemi bakiyesi [Tutar] tutarındadır. Westalife Residence yönetimi.",
+                            Channel = 3,
+                            CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            Name = "Aidat hatırlatma"
+                        });
+                });
+
             modelBuilder.Entity("Westalife.Domain.Entities.Payment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2706,6 +2923,10 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
+                    b.Property<string>("DocumentNumber")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
                     b.Property<bool>("IsCancelled")
                         .HasColumnType("boolean");
 
@@ -2736,6 +2957,10 @@ namespace Westalife.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("BankAccountId")
                         .HasDatabaseName("IX_Payments_BankAccountId");
+
+                    b.HasIndex("DocumentNumber")
+                        .HasDatabaseName("IX_Payments_DocumentNumber_Active")
+                        .HasFilter("\"IsCancelled\" = false AND \"DocumentNumber\" IS NOT NULL");
 
                     b.HasIndex("LegalResponsibleOwnerId");
 
@@ -3159,6 +3384,17 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                         .IsRequired();
 
                     b.Navigation("MeterReading");
+                });
+
+            modelBuilder.Entity("Westalife.Domain.Entities.NotificationLog", b =>
+                {
+                    b.HasOne("Westalife.Domain.Entities.Apartment", "Apartment")
+                        .WithMany()
+                        .HasForeignKey("ApartmentId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Apartment");
                 });
 
             modelBuilder.Entity("Westalife.Domain.Entities.Payment", b =>

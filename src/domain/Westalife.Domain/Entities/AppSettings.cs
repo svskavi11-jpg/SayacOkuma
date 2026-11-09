@@ -66,6 +66,12 @@ public class AppSettings : BaseEntity
     /// <summary>Faturada abone no boşsa kullanılacak varsayılan abone numarası.</summary>
     public string? DefaultSubscriberNumber { get; private set; }
 
+    /// <summary>Künyede devreden borç ve işlemiş faiz satırları basılsın mı?</summary>
+    public bool ShowDebtBreakdownOnPdf { get; private set; } = true;
+
+    /// <summary>PDF sonunda gecikmiş borç ve faiz dökümü tablosu basılsın mı?</summary>
+    public bool ShowDebtTableOnPdf { get; private set; } = true;
+
     // --- Faz 6.8: Gecikme faizi ayarları ---
 
     /// <summary>Gecikme faizi işletilsin mi? (varsayılan kapalı).</summary>
@@ -165,7 +171,8 @@ public class AppSettings : BaseEntity
     /// <summary>Bildirim formu metin/sayısal ayarlarını günceller (logolar ayrı metotlarla yönetilir).</summary>
     public void UpdateNoticeSettings(
         string? leftTitle, string? rightTitle, int dueDateDays, decimal readingServiceFee,
-        string? defaultNote, string? defaultSubscriberNumber)
+        string? defaultNote, string? defaultSubscriberNumber,
+        bool showDebtBreakdownOnPdf = true, bool showDebtTableOnPdf = true)
     {
         if (dueDateDays < 0 || dueDateDays > DomainConstants.AppSettings.DueDateDaysMax)
         {
@@ -183,6 +190,8 @@ public class AppSettings : BaseEntity
         ReadingServiceFee = decimal.Round(readingServiceFee, 2);
         DefaultNoticeNote = Normalize(defaultNote);
         DefaultSubscriberNumber = Normalize(defaultSubscriberNumber);
+        ShowDebtBreakdownOnPdf = showDebtBreakdownOnPdf;
+        ShowDebtTableOnPdf = showDebtTableOnPdf;
         LastModifiedOn = DateTimeOffset.UtcNow;
     }
 
@@ -376,6 +385,102 @@ public class AppSettings : BaseEntity
         LastModifiedOn = DateTimeOffset.UtcNow;
     }
 
+    // --- Çok kanallı bildirim (SMTP, SMS, WhatsApp) ---
+
+    public bool NotificationTestMode { get; private set; }
+
+    public string? SmtpHost { get; private set; }
+
+    public int SmtpPort { get; private set; } = DomainConstants.Notification.SmtpPortDefault;
+
+    public string? SmtpUser { get; private set; }
+
+    public string? SmtpPassword { get; private set; }
+
+    public string SmsProvider { get; private set; } = DomainConstants.Notification.SmsProviderNetgsm;
+
+    public string? SmsUser { get; private set; }
+
+    public string? SmsPassword { get; private set; }
+
+    public string? SmsHeader { get; private set; }
+
+    public string? WhatsAppToken { get; private set; }
+
+    public string? WhatsAppPhoneNumberId { get; private set; }
+
+    /// <summary>SMS PDF linklerinin üretildiği genel site adresi (örn. https://yonetim.ornek.com).</summary>
+    public string? PublicBaseUrl { get; private set; }
+
+    /// <summary>
+    /// İletişim ayarlarını günceller. Boş şifre veya token gelirse kayıtlı sır korunur.
+    /// </summary>
+    public void UpdateNotificationSettings(
+        bool testMode,
+        string? publicBaseUrl,
+        string? smtpHost,
+        int smtpPort,
+        string? smtpUser,
+        string? smtpPassword,
+        string? smsProvider,
+        string? smsUser,
+        string? smsPassword,
+        string? smsHeader,
+        string? whatsAppToken,
+        string? whatsAppPhoneNumberId)
+    {
+        if (smtpPort < DomainConstants.AppSettings.TcpPortMin || smtpPort > DomainConstants.AppSettings.TcpPortMax)
+        {
+            throw new ArgumentException(DomainConstants.Notification.SmtpPortInvalid, nameof(smtpPort));
+        }
+
+        NotificationTestMode = testMode;
+        PublicBaseUrl = NormalizePublicBaseUrl(publicBaseUrl);
+        SmtpHost = Normalize(smtpHost);
+        SmtpPort = smtpPort;
+        SmtpUser = Normalize(smtpUser);
+        if (!string.IsNullOrWhiteSpace(smtpPassword))
+        {
+            SmtpPassword = smtpPassword.Trim();
+        }
+
+        SmsProvider = string.IsNullOrWhiteSpace(smsProvider)
+            ? DomainConstants.Notification.SmsProviderNetgsm
+            : smsProvider.Trim();
+        SmsUser = Normalize(smsUser);
+        if (!string.IsNullOrWhiteSpace(smsPassword))
+        {
+            SmsPassword = smsPassword.Trim();
+        }
+
+        SmsHeader = Normalize(smsHeader);
+        if (!string.IsNullOrWhiteSpace(whatsAppToken))
+        {
+            WhatsAppToken = whatsAppToken.Trim();
+        }
+
+        WhatsAppPhoneNumberId = Normalize(whatsAppPhoneNumberId);
+        LastModifiedOn = DateTimeOffset.UtcNow;
+    }
+
     private static string? Normalize(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static string? NormalizePublicBaseUrl(string? value)
+    {
+        var trimmed = Normalize(value);
+        if (trimmed is null)
+        {
+            return null;
+        }
+
+        if (trimmed.Length > DomainConstants.Notification.PublicBaseUrlMaxLength)
+        {
+            throw new ArgumentException(
+                $"Genel site adresi en fazla {DomainConstants.Notification.PublicBaseUrlMaxLength} karakter olabilir.",
+                nameof(value));
+        }
+
+        return trimmed.TrimEnd('/');
+    }
 }

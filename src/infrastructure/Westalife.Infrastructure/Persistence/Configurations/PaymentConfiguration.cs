@@ -19,6 +19,9 @@ public class PaymentConfiguration : IEntityTypeConfiguration<Payment>
         builder.Property(p => p.Description)
             .HasMaxLength(DomainConstants.Payment.DescriptionMaxLength);
 
+        builder.Property(p => p.DocumentNumber)
+            .HasMaxLength(DomainConstants.Payment.DocumentNumberMaxLength);
+
         builder.Property(p => p.ReceivedBy)
             .IsRequired()
             .HasMaxLength(DomainConstants.Payment.ReceivedByMaxLength);
@@ -66,5 +69,9 @@ public class PaymentConfiguration : IEntityTypeConfiguration<Payment>
 
         builder.HasIndex(p => p.BankAccountId)
             .HasDatabaseName("IX_Payments_BankAccountId");
+
+        builder.HasIndex(p => p.DocumentNumber)
+            .HasDatabaseName("IX_Payments_DocumentNumber_Active")
+            .HasFilter("\"IsCancelled\" = false AND \"DocumentNumber\" IS NOT NULL");
     }
 }

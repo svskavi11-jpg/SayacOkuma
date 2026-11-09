@@ -34,6 +34,9 @@ public interface IApplicationDbContext
     DbSet<RoleAssignment> RoleAssignments { get; }
     DbSet<WaiverOffset> WaiverOffsets { get; }
     DbSet<ResidentDocument> ResidentDocuments { get; }
+    DbSet<NotificationTemplate> NotificationTemplates { get; }
+    DbSet<NotificationLog> NotificationLogs { get; }
+    DbSet<NoticePdfAccessToken> NoticePdfAccessTokens { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 

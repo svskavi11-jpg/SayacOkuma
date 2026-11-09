@@ -1,15 +1,17 @@
 import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Button, Card, DatePicker, Form, Input, InputNumber, Modal, Popconfirm, Space, Table, Tabs, Tag, message } from "antd"
-import { EditOutlined, PlusOutlined } from "@ant-design/icons"
+import { EditOutlined, FileExcelOutlined, PlusOutlined } from "@ant-design/icons"
 import type { ColumnsType } from "antd/es/table"
 import dayjs, { type Dayjs } from "dayjs"
 import { apiClient } from "../../api/client"
 import { formatDate } from "../../utils/dateUtils"
 import type { BankAccountListItem } from "../../types/api"
 import { BankTransactionsTab } from "./BankTransactionsTab"
+import { BankStatementImportModal } from "./BankStatementImportModal"
 
-const tl = (value: number) => value.toLocaleString("tr-TR", { style: "currency", currency: "TRY" })
+const tl = (value: number) =>
+  `${value.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} TL`
 
 interface BankAccountForm {
   bankName: string
@@ -24,6 +26,7 @@ export function BankAccountsPage() {
   const queryClient = useQueryClient()
   const [form] = Form.useForm<BankAccountForm>()
   const [open, setOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
   const [editing, setEditing] = useState<BankAccountListItem | null>(null)
 
   const accountsQuery = useQuery({
@@ -137,64 +140,92 @@ export function BankAccountsPage() {
   ]
 
   return (
-    <Card title="Banka Hesapları">
-    <Tabs
-      items={[
-        {
-          key: "accounts",
-          label: "Hesaplar",
-          children: (
-    <Space direction="vertical" size={16} style={{ width: "100%" }}>
-      <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>Hesap Ekle</Button>
-      <Table
-        rowKey="id"
-        size="small"
-        loading={accountsQuery.isLoading}
-        dataSource={accountsQuery.data ?? []}
-        columns={columns}
-        pagination={{ pageSize: 12 }}
-        locale={{ emptyText: "Banka hesabı yok." }}
+    <Card
+      title="Banka Hesapları"
+      extra={
+        <Button
+          type="primary"
+          icon={<FileExcelOutlined />}
+          onClick={() => setImportOpen(true)}
+          style={{ background: "#389e0d", borderColor: "#389e0d" }}
+        >
+          Ekstre Yükle (Akıllı Eşleştirme)
+        </Button>
+      }
+    >
+      <Tabs
+        items={[
+          {
+            key: "accounts",
+            label: "Hesaplar",
+            children: (
+              <Space direction="vertical" size={16} style={{ width: "100%" }}>
+                <Space>
+                  <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+                    Hesap Ekle
+                  </Button>
+                  <Button icon={<FileExcelOutlined />} onClick={() => setImportOpen(true)}>
+                    Ekstre Yükle
+                  </Button>
+                </Space>
+                <Table
+                  rowKey="id"
+                  size="small"
+                  loading={accountsQuery.isLoading}
+                  dataSource={accountsQuery.data ?? []}
+                  columns={columns}
+                  pagination={{ pageSize: 12 }}
+                  locale={{ emptyText: "Banka hesabı yok." }}
+                />
+                <Modal
+                  title={editing ? "Hesabı düzenle" : "Hesap ekle"}
+                  open={open}
+                  confirmLoading={saveMutation.isPending}
+                  okText="Kaydet"
+                  cancelText="Vazgeç"
+                  onCancel={() => {
+                    setOpen(false)
+                    setEditing(null)
+                    form.resetFields()
+                  }}
+                  onOk={() => form.validateFields().then((values) => saveMutation.mutate(values))}
+                >
+                  <Form form={form} layout="vertical">
+                    <Form.Item name="bankName" label="Banka adı" rules={[{ required: true, message: "Banka adı zorunludur." }]}>
+                      <Input maxLength={100} />
+                    </Form.Item>
+                    <Form.Item name="accountName" label="Hesap adı" rules={[{ required: true, message: "Hesap adı zorunludur." }]}>
+                      <Input maxLength={100} placeholder="Vadesiz, POS" />
+                    </Form.Item>
+                    <Form.Item name="accountNumber" label="Hesap numarası" rules={[{ required: true, message: "Hesap numarası zorunludur." }]}>
+                      <Input maxLength={34} />
+                    </Form.Item>
+                    <Form.Item name="iban" label="IBAN">
+                      <Input maxLength={32} placeholder="TR ile başlar, boş kalabilir" />
+                    </Form.Item>
+                    <Form.Item name="openingDate" label="Devir tarihi" rules={[{ required: true, message: "Devir tarihi zorunludur." }]}>
+                      <DatePicker format="DD.MM.YYYY" style={{ width: "100%" }} disabledDate={(date) => date.isAfter(dayjs(), "day")} />
+                    </Form.Item>
+                    <Form.Item name="openingBalance" label="Devir bakiyesi" rules={[{ required: true, message: "Devir bakiyesi zorunludur." }]}>
+                      <InputNumber min={0} precision={2} decimalSeparator="," addonAfter="TL" style={{ width: "100%" }} />
+                    </Form.Item>
+                  </Form>
+                </Modal>
+              </Space>
+            ),
+          },
+          {
+            key: "movements",
+            label: "Hareketler ve Virman",
+            children: <BankTransactionsTab />,
+          },
+        ]}
       />
-      <Modal
-        title={editing ? "Hesabı düzenle" : "Hesap ekle"}
-        open={open}
-        confirmLoading={saveMutation.isPending}
-        okText="Kaydet"
-        cancelText="Vazgeç"
-        onCancel={() => { setOpen(false); setEditing(null); form.resetFields() }}
-        onOk={() => form.validateFields().then((values) => saveMutation.mutate(values))}
-      >
-        <Form form={form} layout="vertical">
-          <Form.Item name="bankName" label="Banka adı" rules={[{ required: true, message: "Banka adı zorunludur." }]}>
-            <Input maxLength={100} />
-          </Form.Item>
-          <Form.Item name="accountName" label="Hesap adı" rules={[{ required: true, message: "Hesap adı zorunludur." }]}>
-            <Input maxLength={100} placeholder="Vadesiz, POS" />
-          </Form.Item>
-          <Form.Item name="accountNumber" label="Hesap numarası" rules={[{ required: true, message: "Hesap numarası zorunludur." }]}>
-            <Input maxLength={34} />
-          </Form.Item>
-          <Form.Item name="iban" label="IBAN">
-            <Input maxLength={32} placeholder="TR ile başlar, boş kalabilir" />
-          </Form.Item>
-          <Form.Item name="openingDate" label="Devir tarihi" rules={[{ required: true, message: "Devir tarihi zorunludur." }]}>
-            <DatePicker format="DD.MM.YYYY" style={{ width: "100%" }} disabledDate={(date) => date.isAfter(dayjs(), "day")} />
-          </Form.Item>
-          <Form.Item name="openingBalance" label="Devir bakiyesi" rules={[{ required: true, message: "Devir bakiyesi zorunludur." }]}>
-            <InputNumber min={0} precision={2} decimalSeparator="," addonAfter="TL" style={{ width: "100%" }} />
-          </Form.Item>
-        </Form>
-      </Modal>
-    </Space>
-          ),
-        },
-        {
-          key: "movements",
-          label: "Hareketler ve Virman",
-          children: <BankTransactionsTab />,
-        },
-      ]}
-    />
+
+      <BankStatementImportModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+      />
     </Card>
   )
 }

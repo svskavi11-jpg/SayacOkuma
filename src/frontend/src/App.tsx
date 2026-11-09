@@ -10,6 +10,7 @@ import { FormerResidentsPage } from './features/residents/FormerResidentsPage'
 import { ReportsPage } from './features/reports/ReportsPage'
 import { BudgetPage } from './features/budget/BudgetPage'
 import { SettingsPage } from './features/settings/SettingsPage'
+import { NotificationsPage } from './features/notifications/NotificationsPage'
 import { BankAccountsPage } from './features/bankAccounts/BankAccountsPage'
 
 export default function App() {
@@ -26,6 +27,7 @@ export default function App() {
         <Route path="/budget" element={<BudgetPage />} />
         <Route path="/bank-accounts" element={<BankAccountsPage />} />
         <Route path="/reports" element={<ReportsPage />} />
+        <Route path="/notifications" element={<NotificationsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
       </Route>
     </Routes>

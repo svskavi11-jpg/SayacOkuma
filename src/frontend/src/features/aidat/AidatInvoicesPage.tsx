@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  Alert, Button, Card, Col, DatePicker, Form, Input, InputNumber, Popconfirm, Row, Select, Space, Statistic, Table, Tag, Tooltip, Typography, message,
+  Alert, Button, Card, Col, DatePicker, Form, Input, InputNumber, Modal, Popconfirm, Row, Select, Space, Statistic, Table, Tag, Tooltip, Typography, message,
 } from 'antd'
 import { EyeOutlined, StopOutlined, ThunderboltOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
@@ -59,17 +59,51 @@ export function AidatInvoicesPage() {
     onSuccess: (data) => setPreview(data),
   })
 
+  const notifyMutation = useMutation({
+    mutationFn: async (apartmentIds: string[]) =>
+      (
+        await apiClient.post('/notifications', {
+          apartmentIds,
+          channel: 'Sms',
+          purpose: 'Aidat',
+          includePdf: false,
+        })
+      ).data as { sent: number; failed: number; simulated: number },
+    onSuccess: (result) => {
+      void queryClient.invalidateQueries({ queryKey: ['notification-logs'] })
+      message.success(
+        `Aidat bildirimi bitti. Başarılı: ${result.sent}, Başarısız: ${result.failed}, Simüle: ${result.simulated}.`,
+      )
+    },
+  })
+
   const createMutation = useMutation({
     mutationFn: async (req: CreateAidatInvoiceRequest) =>
       (await apiClient.post<CreateAidatInvoiceResult>('/aidat/invoices', req)).data,
     onSuccess: (result) => {
       void queryClient.invalidateQueries({ queryKey: ['aidat-invoices'] })
+      void queryClient.invalidateQueries({ queryKey: ['apartments'] })
       setPreview(null)
       form.resetFields()
       message.success(
         `Tahakkuk oluşturuldu: ${result.chargeCount} daire, toplam ${tl(result.totalAmount)}` +
         (result.skippedCount > 0 ? ` (${result.skippedCount} daire atlandı — tarifesiz/m² yok).` : '.'),
       )
+
+      if (!result.canNotify) {
+        if (result.notifyBlockReason) {
+          Modal.warning({ title: 'Bildirim gönderilemez', content: result.notifyBlockReason })
+        }
+        return
+      }
+
+      Modal.confirm({
+        title: 'Aidat bildirimi gönderilsin mi?',
+        content: `Hesaplama bitti. Tahakkuk gören ${result.chargedApartmentIds.length} daireye SMS aidat bildirimi gönderilsin mi?`,
+        okText: 'Evet, gönder',
+        cancelText: 'Hayır',
+        onOk: () => notifyMutation.mutateAsync(result.chargedApartmentIds),
+      })
     },
   })
 

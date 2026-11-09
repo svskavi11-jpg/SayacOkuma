@@ -2,7 +2,9 @@ using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Westalife.Api.Infrastructure;
 using Westalife.Application.Features.Payments.Commands.CancelPayment;
+using Westalife.Application.Features.Payments.Commands.CreateBulkPayment;
 using Westalife.Application.Features.Payments.Commands.DeletePayment;
+using Westalife.Application.Features.Payments.Commands.ParseBankStatement;
 using Westalife.Application.Features.Payments.Commands.RecordPayment;
 using Westalife.Application.Features.Payments.Commands.UpdatePayment;
 using Westalife.Application.Features.Payments.Queries.GetCashFlow;
@@ -55,6 +57,45 @@ public class PaymentsController : ControllerBase
 
         var result = await _mediator.Send(command, ct);
         return CreatedAtAction(nameof(GetPayments), new { apartmentId = result.ApartmentId }, result);
+    }
+
+    /// <summary>
+    /// Banka ekstresini (.xlsx / .csv) ayrıştırır, daire ve borç türü tahminleriyle
+    /// önizleme listesi döner. Veritabanına kayıt YAZMAZ.
+    /// </summary>
+    [HttpPost("bank-statement/parse")]
+    [ProducesResponseType(typeof(BankStatementParseResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> ParseBankStatement(IFormFile file, CancellationToken ct)
+    {
+        if (file is null || file.Length == 0)
+        {
+            return BadRequest(new ProblemDetails
+            {
+                Title = ApiConstants.Titles.ValidationFailed,
+                Detail = "Ekstre dosyası yüklenmedi veya boş.",
+                Status = StatusCodes.Status400BadRequest
+            });
+        }
+
+        await using var stream = file.OpenReadStream();
+        var result = await _mediator.Send(new ParseBankStatementCommand(stream, file.FileName), ct);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Önizleme ekranında onaylanan banka ekstresi satırlarını toplu tahsilat olarak kaydeder.
+    /// </summary>
+    [HttpPost("bulk")]
+    [ProducesResponseType(typeof(CreateBulkPaymentResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> CreateBulkPayments(
+        [FromBody] CreateBulkPaymentCommand command,
+        CancellationToken ct)
+    {
+        var result = await _mediator.Send(command, ct);
+        return Ok(result);
     }
 
     /// <summary>Yanlış girilen tahsilatı düzeltir. Mahsup cari hesapta yeniden hesaplanır.</summary>

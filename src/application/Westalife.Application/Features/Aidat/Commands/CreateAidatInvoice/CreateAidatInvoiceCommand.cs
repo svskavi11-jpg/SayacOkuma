@@ -33,7 +33,10 @@ public sealed record CreateAidatInvoiceResult(
     int ChargeCount,
     int SkippedCount,
     decimal TotalAmount,
-    IReadOnlyList<CreateAidatInvoiceSkippedApartment> SkippedApartments);
+    IReadOnlyList<CreateAidatInvoiceSkippedApartment> SkippedApartments,
+    IReadOnlyList<Guid> ChargedApartmentIds,
+    bool CanNotify,
+    string? NotifyBlockReason);
 
 public sealed class CreateAidatInvoiceCommandValidator : AbstractValidator<CreateAidatInvoiceCommand>
 {
@@ -214,6 +217,8 @@ public sealed class CreateAidatInvoiceCommandHandler : IRequestHandler<CreateAid
 
         await WaiverOffsetSyncService.SyncAllAsync(_db, cancellationToken);
 
+        var chargedIds = invoice.Charges.Select(c => c.ApartmentId).Distinct().ToList();
+        var canNotify = chargedIds.Count > 0;
         return new CreateAidatInvoiceResult(
             invoice.Id,
             invoice.PeriodStart,
@@ -223,7 +228,10 @@ public sealed class CreateAidatInvoiceCommandHandler : IRequestHandler<CreateAid
             invoice.Charges.Count,
             skipped.Count,
             invoice.TotalAmount,
-            skipped);
+            skipped,
+            chargedIds,
+            canNotify,
+            canNotify ? null : "Bu dönem için tahakkuk edilen daire yok, bildirim gönderilemez.");
     }
 
     private static void AssignHibritOwner(Apartment apartment, AidatCharge charge)

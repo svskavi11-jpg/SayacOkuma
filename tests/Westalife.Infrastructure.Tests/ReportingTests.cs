@@ -4,6 +4,8 @@ using Westalife.Application.Common.Models;
 using Westalife.Application.Features.GasInvoices.Queries.GetNoticeReport;
 using Westalife.Domain.Constants;
 using Westalife.Domain.Exceptions;
+using Westalife.Domain.Entities;
+using Westalife.Domain.Services.Ledger;
 using Westalife.Infrastructure.Reporting.Excel;
 using Westalife.Infrastructure.Reporting.Pdf;
 using Xunit;
@@ -151,5 +153,111 @@ public class ReportingTests
         var totalRow = ws.RowsUsed().Last();
         Assert.Equal(5545.20m, totalRow.Cell(8).GetValue<decimal>());
         Assert.Contains("MUTABIK", totalRow.Cell(9).GetString());
+    }
+
+    [Fact]
+    public void NoticeAmounts_ZeroPaidHeating_CreditShowsZeroDue_DebtorStaysPositive()
+    {
+        var invoiceId = Guid.NewGuid();
+        var paidLine = new LedgerLine(
+            LedgerDebtType.Invoice, invoiceId.ToString(), "Isınma", new DateOnly(2026, 11, 9),
+            7193.18m, 7193.18m, 0m, 0m, 0m, []);
+
+        Assert.Equal(0m, NoticeLedgerSummary.RemainingForInvoice([paidLine], invoiceId));
+        Assert.Equal(0m, NoticeLedgerSummary.DueAmount(-1500.50m));
+        Assert.Equal(1500.50m, NoticeLedgerSummary.CreditAmount(-1500.50m));
+        Assert.Equal(7193.18m, NoticeLedgerSummary.DueAmount(7193.18m));
+        Assert.Equal(0m, NoticeLedgerSummary.CreditAmount(7193.18m));
+
+        var credit = new NoticeLedgerSummary(0, 0, 0, -1500.50m, 0, [], 0m, 0m, 1500.50m);
+        var row = Row(65, 100m, 1000m) with { Ledger = credit };
+        var pdf = IndividualNoticePdfDocument.GenerateSingle(BuildData([row], 1100m), Options(), row.ApartmentId);
+        Assert.Equal("%PDF", System.Text.Encoding.Latin1.GetString(pdf, 0, 4));
+    }
+
+    [Fact]
+    public void ReadingIndex_UsesOnlyPriorMeterReading_NeverDerivesFromConsumption()
+    {
+        var fromPrior = NoticeReadingIndex.Resolve(48486m, 49024m);
+        Assert.Equal(48486m, fromPrior.FirstIndex);
+        Assert.Equal(49024m, fromPrior.LastIndex);
+        Assert.Equal(538m, fromPrior.LastIndex - fromPrior.FirstIndex);
+
+        var noHistory = NoticeReadingIndex.Resolve(null, 49024m);
+        Assert.Null(noHistory.FirstIndex);
+        Assert.Equal(49024m, noHistory.LastIndex);
+    }
+
+    [Fact]
+    public void GenerateAll_WritesPdfHeaderToStream()
+    {
+        var rows = new List<NoticeRow>();
+        for (var i = 1; i <= 72; i++)
+        {
+            rows.Add(Row(i, 10m, 67m));
+        }
+
+        using var stream = new MemoryStream();
+        IndividualNoticePdfDocument.GenerateAll(BuildData(rows, rows.Sum(r => r.TotalAmount)), Options(), stream);
+
+        Assert.True(stream.Length > 10_000);
+        Assert.Equal("%PDF", System.Text.Encoding.Latin1.GetString(stream.GetBuffer(), 0, 4));
+    }
+
+    [Fact]
+    public void HiddenDebtFlags_StillProducePdf_WithoutTheDebtTable()
+    {
+        var ledger = new NoticeLedgerSummary(1000m, 50m, 25m, 1075m, 0m, [], 200m, 1075m, 0m);
+        var row = Row(1, 100m, 1000m) with { Ledger = ledger };
+        var shown = BuildData([row], 1100m);
+        var hidden = shown with { ShowDebtBreakdown = false, ShowDebtTable = false };
+
+        var shownPdf = IndividualNoticePdfDocument.GenerateSingle(shown, Options(), row.ApartmentId);
+        var hiddenPdf = IndividualNoticePdfDocument.GenerateSingle(hidden, Options(), row.ApartmentId);
+
+        Assert.Equal("%PDF", System.Text.Encoding.Latin1.GetString(hiddenPdf, 0, 4));
+        Assert.True(hiddenPdf.Length < shownPdf.Length);
+    }
+
+    [Fact]
+    public void CurrentPeriod_IgnoresPaymentsBookedBeforeTheCharge()
+    {
+        var invoiceId = Guid.NewGuid();
+        var earlyPayment = new LedgerLine(
+            LedgerDebtType.Invoice,
+            invoiceId.ToString("N"),
+            "Isınma",
+            new DateOnly(2026, 11, 24),
+            398.81m,
+            398.81m,
+            0m,
+            0m,
+            0m,
+            [new AllocationDetail(Guid.NewGuid(), new DateOnly(2026, 7, 18), 398.81m, AllocationTarget.Invoice)]);
+
+        var (remaining, addBack) = NoticeLedgerSummary.ResolveCurrentPeriod(
+            398.81m, new DateOnly(2026, 10, 8), [earlyPayment], invoiceId);
+
+        Assert.Equal(398.81m, remaining);
+        Assert.Equal(398.81m, addBack);
+        Assert.Equal(2720.11m, NoticeLedgerSummary.DueAmount(2321.30m + addBack));
+
+        var settled = new LedgerLine(
+            LedgerDebtType.Invoice,
+            invoiceId.ToString(),
+            "Isınma",
+            new DateOnly(2026, 11, 24),
+            398.81m,
+            398.81m,
+            0m,
+            0m,
+            0m,
+            [new AllocationDetail(Guid.NewGuid(), new DateOnly(2026, 10, 8), 398.81m, AllocationTarget.Invoice)]);
+
+        var (paidRemaining, paidAddBack) = NoticeLedgerSummary.ResolveCurrentPeriod(
+            398.81m, new DateOnly(2026, 10, 8), [settled], invoiceId);
+
+        Assert.Equal(0m, paidRemaining);
+        Assert.Equal(0m, paidAddBack);
     }
 }

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Button, Card, Col, Form, Input, InputNumber, Row, Slider, Space, Typography, Upload, message } from 'antd'
+import { Button, Card, Col, Form, Input, InputNumber, Row, Slider, Space, Switch, Typography, Upload, message } from 'antd'
 import { DeleteOutlined, UploadOutlined } from '@ant-design/icons'
 import { useState } from 'react'
 import { apiClient } from '../../api/client'
@@ -264,6 +264,23 @@ export function NoticeSettingsCard() {
           extra="Faturaya özel not girilmediyse formun 'Ek Açıklamalar' bölümüne basılır."
         >
           <Input.TextArea rows={3} maxLength={1000} showCount />
+        </Form.Item>
+
+        <Form.Item
+          name="showDebtBreakdownOnPdf"
+          label="Geçmiş borç detaylarını göster"
+          valuePropName="checked"
+          extra="Kapalıyken künyede yalnızca toplam ödenecek tutar ve bu dönem faturası kalır."
+        >
+          <Switch />
+        </Form.Item>
+        <Form.Item
+          name="showDebtTableOnPdf"
+          label="Faiz dökümü tablosunu göster"
+          valuePropName="checked"
+          extra="Kapalıyken alttaki gecikmiş borç tablosu basılmaz."
+        >
+          <Switch />
         </Form.Item>
 
         <Button type="primary" htmlType="submit" loading={save.isPending}>

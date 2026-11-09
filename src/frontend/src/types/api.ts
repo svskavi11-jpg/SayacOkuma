@@ -131,6 +131,10 @@ export interface CalculateDistributionResult {
   totalDistributedAmount: number
   invoiceTotalAmount: number
   reconciled: boolean
+  gasInvoiceId: string
+  chargedApartmentIds: string[]
+  canNotify: boolean
+  notifyBlockReason: string | null
 }
 
 export interface AddGasInvoiceRequest {
@@ -174,6 +178,8 @@ export interface NoticeSettingsDTO {
   hasRightLogo: boolean
   logoLeftHeightMm: number
   logoRightHeightMm: number
+  showDebtBreakdownOnPdf: boolean
+  showDebtTableOnPdf: boolean
 }
 
 export interface MbusConnectionTestResult {
@@ -644,6 +650,9 @@ export interface CreateAidatInvoiceResult {
   skippedCount: number
   totalAmount: number
   skippedApartments: AidatSkippedApartment[]
+  chargedApartmentIds: string[]
+  canNotify: boolean
+  notifyBlockReason: string | null
 }
 
 export interface AidatPreviewRow {
@@ -1032,4 +1041,137 @@ export interface BankReconciliationReport {
   moneyOut: number
   closing: number
   movements: BankMovementRow[]
+}
+
+
+// ── Akıllı Banka Ekstresi İçe Aktarma ve Otomatik Eşleştirme ─────────────────
+
+export type BankStatementRowStatus =
+  | 'Ready'
+  | 'UnmatchedApartment'
+  | 'Duplicate'
+  | 'InvalidRow'
+
+export interface BankStatementPreviewDto {
+  rowNumber: number
+  paymentDate: string | null
+  description: string
+  documentNumber: string | null
+  amount: number
+  matchedApartmentId: string | null
+  matchedDoorNumber: string | null
+  matchedResidentId: string | null
+  matchedResidentName: string | null
+  matchedResidentType: string | null
+  suggestedDebtType: PaymentTargetDebtType | null
+  status: BankStatementRowStatus
+  warningMessage: string | null
+}
+
+export interface BankStatementParseResult {
+  rows: BankStatementPreviewDto[]
+  fileErrors: string[]
+  totalRows: number
+  readyCount: number
+  unmatchedCount: number
+  duplicateCount: number
+  invalidCount: number
+}
+
+export interface CreateBulkPaymentItemDto {
+  apartmentId: string
+  paymentDate: string
+  amount: number
+  description: string | null
+  documentNumber: string | null
+  targetDebtType: PaymentTargetDebtType | null
+}
+
+export interface CreateBulkPaymentRequest {
+  bankAccountId: string | null
+  receivedBy: string | null
+  items: CreateBulkPaymentItemDto[]
+}
+
+export interface CreateBulkPaymentResult {
+  createdCount: number
+  skippedDuplicateCount: number
+  totalCreatedAmount: number
+  createdPaymentIds: string[]
+}
+
+export type NotificationChannel = 'Email' | 'Sms' | 'WhatsApp'
+export type NotificationDeliveryStatus = 'Sent' | 'Failed' | 'Simulated'
+export type NotificationPurpose = 'General' | 'Aidat' | 'Heating' | 'AllDebtors'
+
+export interface NotificationSettingsDTO {
+  testMode: boolean
+  publicBaseUrl: string | null
+  smtpHost: string | null
+  smtpPort: number
+  smtpUser: string | null
+  smtpPasswordSet: boolean
+  smsProvider: string
+  smsUser: string | null
+  smsPasswordSet: boolean
+  smsHeader: string | null
+  whatsAppTokenSet: boolean
+  whatsAppPhoneNumberId: string | null
+}
+
+export interface NotificationSettingsUpdate {
+  testMode: boolean
+  publicBaseUrl?: string | null
+  smtpHost?: string | null
+  smtpPort: number
+  smtpUser?: string | null
+  smtpPassword?: string | null
+  smsProvider?: string | null
+  smsUser?: string | null
+  smsPassword?: string | null
+  smsHeader?: string | null
+  whatsAppToken?: string | null
+  whatsAppPhoneNumberId?: string | null
+}
+
+export interface NotificationTemplateItem {
+  id: string
+  name: string
+  channel: NotificationChannel
+  subject: string | null
+  body: string
+}
+
+export interface NotificationLogItem {
+  id: string
+  apartmentId: string
+  doorNumber: string
+  channel: NotificationChannel
+  recipientAddress: string
+  message: string
+  sentAt: string
+  status: NotificationDeliveryStatus
+  errorMessage: string | null
+}
+
+export interface NotificationPreview {
+  recipientName: string
+  recipientAddress: string | null
+  subject: string | null
+  body: string
+  hasRecipient: boolean
+}
+
+export interface SendManualNotificationResult {
+  sent: number
+  failed: number
+  simulated: number
+  purpose: NotificationPurpose
+  logs: NotificationLogItem[]
+}
+
+export interface NotificationPlaceholderItem {
+  token: string
+  description: string
+  example: string
 }
