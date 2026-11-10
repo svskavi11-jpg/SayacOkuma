@@ -1,3 +1,4 @@
+import { AppModal } from '../../components/AppModal'
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -470,7 +471,7 @@ export function BankStatementImportModal({
   ]
 
   return (
-    <Modal
+    <AppModal
       open={open}
       onCancel={handleResetAndClose}
       width={1220}
@@ -690,6 +691,6 @@ export function BankStatementImportModal({
           </div>
         )}
       </Space>
-    </Modal>
+    </AppModal>
   )
 }

@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useAuth } from '../auth/AuthContext'
 import {
   Alert,
   Button,
@@ -15,8 +16,10 @@ import {
 } from 'antd'
 import { ApiOutlined } from '@ant-design/icons'
 import { apiClient } from '../../api/client'
+import { IfPermission } from '../auth/IfPermission'
 import type { AppSettingsDTO, MbusConnectionTestResult } from '../../types/api'
 import { NoticeSettingsCard } from './NoticeSettingsCard'
+import { AppearanceSettingsCard } from './AppearanceSettingsCard'
 import { InterestSettingsCard } from './InterestSettingsCard'
 import { BudgetSettingsCard } from './BudgetSettingsCard'
 import { ManagementPeriodSettingsCard } from './ManagementPeriodSettingsCard'
@@ -25,12 +28,18 @@ import { NotificationSettingsCard } from './NotificationSettingsCard'
 
 /** Ayarlar sayfası: şirket/bina adı ve 30/70 oranları. Toplam tam %100 olmalıdır. */
 export function SettingsPage() {
+  const { hasPermission } = useAuth()
+  const canGeneral = hasPermission('Settings.General')
+  const canMbus = hasPermission('Settings.MBus')
+  const canNotification = hasPermission('Settings.Notification')
+  const needsMain = canGeneral || canMbus
   const queryClient = useQueryClient()
   const [form] = Form.useForm<AppSettingsDTO>()
 
   const settingsQuery = useQuery({
     queryKey: ['settings'],
     queryFn: async () => (await apiClient.get<AppSettingsDTO>('/settings')).data,
+    enabled: needsMain,
   })
 
   // Hook'lar koşulsuz çağrılmalı (rules of hooks).
@@ -72,17 +81,18 @@ export function SettingsPage() {
     (fixed ?? initial?.fixedCostRatio ?? 0) + (consumption ?? initial?.consumptionRatio ?? 0)
   const sumValid = Math.round(sum * 100) === 100
 
-  if (settingsQuery.isLoading || !initial) {
-    return <Card loading style={{ maxWidth: 800 }} />
-  }
-
   return (
     <>
+    <IfPermission code="Settings.General"><AppearanceSettingsCard /></IfPermission>
+    {needsMain && (settingsQuery.isLoading || !initial) && <Card loading style={{ maxWidth: 800 }} />}
+    {needsMain && initial && !settingsQuery.isLoading && (
     <Card title="Ayarlar" style={{ maxWidth: 800 }}>
+      {canGeneral && (
       <Typography.Paragraph type="secondary">
         Şirket adı PDF başlıklarında, bina adı tüm ekran ve raporlarda kullanılır.
         Oranlar hesaplama motorunun temelidir — toplam tam %100 olmalıdır.
       </Typography.Paragraph>
+      )}
       <Form
         form={form}
         layout="vertical"
@@ -92,39 +102,43 @@ export function SettingsPage() {
         <Form.Item
           name="companyName"
           label="Şirket Adı (PDF başlığı)"
-          rules={[{ required: true, message: 'Şirket adı zorunludur.' }]}
+          hidden={!canGeneral}
+          rules={canGeneral ? [{ required: true, message: 'Şirket adı zorunludur.' }] : []}
         >
           <Input maxLength={100} />
         </Form.Item>
         <Form.Item
           name="buildingName"
           label="Bina Adı"
-          rules={[{ required: true, message: 'Bina adı zorunludur.' }]}
+          hidden={!canGeneral}
+          rules={canGeneral ? [{ required: true, message: 'Bina adı zorunludur.' }] : []}
         >
           <Input maxLength={200} />
         </Form.Item>
         <Row gutter={16}>
-          <Col span={12}>
+          <Col xs={24} md={12}>
             <Form.Item
               name="fixedCostRatio"
               label="Sabit Gider Oranı"
-              rules={[{ required: true, message: 'Sabit gider oranı zorunludur.' }]}
+              hidden={!canGeneral}
+              rules={canGeneral ? [{ required: true, message: 'Sabit gider oranı zorunludur.' }] : []}
             >
               <InputNumber style={{ width: '100%' }} min={0.01} max={0.99} step={0.01} decimalSeparator="," addonAfter="oran (0,30 = %30)" />
             </Form.Item>
           </Col>
-          <Col span={12}>
+          <Col xs={24} md={12}>
             <Form.Item
               name="consumptionRatio"
               label="Tüketim Gider Oranı"
-              rules={[{ required: true, message: 'Tüketim oranı zorunludur.' }]}
+              hidden={!canGeneral}
+              rules={canGeneral ? [{ required: true, message: 'Tüketim oranı zorunludur.' }] : []}
             >
               <InputNumber style={{ width: '100%' }} min={0.01} max={0.99} step={0.01} decimalSeparator="," addonAfter="oran (0,70 = %70)" />
             </Form.Item>
           </Col>
         </Row>
 
-        <Divider orientation="left">M-Bus Donanım Ayarları</Divider>
+        {canMbus && <Divider orientation="left">M-Bus Donanım Ayarları</Divider>}
         {testMutation.data && (
           <Alert
             type={testMutation.data.success ? 'success' : 'error'}
@@ -134,7 +148,7 @@ export function SettingsPage() {
             style={{ marginBottom: 16 }}
           />
         )}
-        <Form.Item name="meterConnectionType" label="Bağlantı Tipi">
+        <Form.Item name="meterConnectionType" label="Bağlantı Tipi" hidden={!canMbus}>
           <Select
             options={[
               { value: 'Simulator', label: 'Simulator (test verisi)' },
@@ -143,42 +157,45 @@ export function SettingsPage() {
             ]}
           />
         </Form.Item>
-        {meterConnectionType === 'Tcp' && (
+        {(canMbus ? meterConnectionType === 'Tcp' : true) && (
           <Row gutter={16}>
-            <Col span={14}>
+            <Col xs={24} md={14}>
               <Form.Item
                 name="tcpHost"
                 label="Izar Center IP Adresi / Host"
-                rules={[{ required: true, message: 'IP adresi zorunludur.' }]}
+                hidden={!canMbus || meterConnectionType !== 'Tcp'}
+                rules={canMbus && meterConnectionType === 'Tcp' ? [{ required: true, message: 'IP adresi zorunludur.' }] : []}
               >
                 <Input placeholder="192.168.1.50" />
               </Form.Item>
             </Col>
-            <Col span={10}>
-              <Form.Item name="tcpPort" label="Port">
+            <Col xs={24} md={10}>
+              <Form.Item name="tcpPort" label="Port" hidden={!canMbus || meterConnectionType !== 'Tcp'}>
                 <InputNumber style={{ width: '100%' }} min={1} max={65535} decimalSeparator="," />
               </Form.Item>
             </Col>
           </Row>
         )}
-        {meterConnectionType === 'Usb' && (
+        {(canMbus ? meterConnectionType === 'Usb' : true) && (
           <Row gutter={16}>
-            <Col span={14}>
+            <Col xs={24} md={14}>
               <Form.Item
                 name="usbPortName"
                 label="COM Portu"
-                rules={[{ required: true, message: 'COM portu zorunludur.' }]}
+                hidden={!canMbus || meterConnectionType !== 'Usb'}
+                rules={canMbus && meterConnectionType === 'Usb' ? [{ required: true, message: 'COM portu zorunludur.' }] : []}
               >
                 <Input placeholder="COM3" />
               </Form.Item>
             </Col>
-            <Col span={10}>
-              <Form.Item name="usbBaudRate" label="Baud Rate">
+            <Col xs={24} md={10}>
+              <Form.Item name="usbBaudRate" label="Baud Rate" hidden={!canMbus || meterConnectionType !== 'Usb'}>
                 <InputNumber style={{ width: '100%' }} min={300} step={300} decimalSeparator="," />
               </Form.Item>
             </Col>
           </Row>
         )}
+        <IfPermission code="Settings.MBus">
         <Button
           icon={<ApiOutlined />}
           loading={testMutation.isPending}
@@ -187,29 +204,42 @@ export function SettingsPage() {
         >
           Bağlantıyı Test Et
         </Button>
-        <Typography.Paragraph>
+        </IfPermission>
+        {canGeneral && <Typography.Paragraph>
           Toplam:{' '}
           <Typography.Text type={sumValid ? 'success' : 'danger'} strong>
             %{(sum * 100).toFixed(2)}
           </Typography.Text>{' '}
           {sumValid ? '(geçerli ✔)' : '(toplam %100 olmalıdır!)'}
-        </Typography.Paragraph>
+        </Typography.Paragraph>}
+        {(canGeneral || canMbus) && (
         <Button
           type="primary"
           htmlType="submit"
-          disabled={!sumValid}
+          disabled={canGeneral && !sumValid}
           loading={saveMutation.isPending}
         >
           Kaydet
         </Button>
+        )}
       </Form>
     </Card>
-    <ManagementPeriodSettingsCard />
-    <RoleFeeSettingsCard />
-    <InterestSettingsCard />
-    <BudgetSettingsCard />
-    <NoticeSettingsCard />
-    <NotificationSettingsCard />
+    )}
+    <IfPermission code="Settings.General">
+      <ManagementPeriodSettingsCard />
+      <RoleFeeSettingsCard />
+      <InterestSettingsCard />
+      <BudgetSettingsCard />
+      <NoticeSettingsCard />
+    </IfPermission>
+    {canNotification && <NotificationSettingsCard />}
+    {!needsMain && !canNotification && (
+      <Card style={{ maxWidth: 800 }}>
+        <Typography.Paragraph style={{ marginBottom: 0 }}>
+          Personel hesapları Roller ekranından açılır.
+        </Typography.Paragraph>
+      </Card>
+    )}
     </>
   )
 }

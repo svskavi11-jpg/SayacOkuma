@@ -1,14 +1,20 @@
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
 using Serilog;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Westalife.Api.Infrastructure;
 using Westalife.Application;
+using Westalife.Domain.Constants;
 using Westalife.Infrastructure;
+using Westalife.Infrastructure.Auth;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -62,6 +68,36 @@ builder.Services.AddOpenApi();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
+var signingKey = builder.Configuration["Auth:SigningKey"];
+if (!builder.Environment.IsDevelopment() && string.IsNullOrWhiteSpace(signingKey))
+{
+    throw new InvalidOperationException("Auth:SigningKey ayari prod ortaminda zorunludur.");
+}
+
+if (!string.IsNullOrWhiteSpace(signingKey))
+{
+    builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+        .AddJwtBearer(options =>
+        {
+            options.MapInboundClaims = false;
+            options.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuer = true,
+                ValidateAudience = true,
+                ValidateLifetime = true,
+                ValidateIssuerSigningKey = true,
+                ValidIssuer = builder.Configuration["Auth:Issuer"] ?? "westalife",
+                ValidAudience = builder.Configuration["Auth:Audience"] ?? "westalife",
+                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingKey)),
+                RoleClaimType = DomainConstants.Auth.RoleClaim,
+                NameClaimType = DomainConstants.Auth.UserIdClaim
+            };
+        });
+
+    builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
+    builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
+}
+
 // Prod'da API anahtari zorunlu: eksikse uygulama acilmaz (guvensiz acik API'yi onler).
 if (!builder.Environment.IsDevelopment() && string.IsNullOrWhiteSpace(builder.Configuration[ApiKeyMiddleware.ConfigKey]))
 {
@@ -96,9 +132,13 @@ app.UseCors();
 
 app.UseMiddleware<ApiKeyMiddleware>();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+await IdentitySeeder.SeedAsync(app.Services);
+await PermissionSeeder.SeedAsync(app.Services);
 
 // Konteyner HEALTHCHECK: uygulama + PostgreSQL. /health API anahtarından muaftır (/api dışı).
 app.MapHealthChecks("/health", new HealthCheckOptions

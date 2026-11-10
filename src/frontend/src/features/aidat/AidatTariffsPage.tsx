@@ -1,9 +1,11 @@
+import { AppModal } from '../../components/AppModal'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Alert, Button, Card, Form, Input, InputNumber, Modal, Space, Table, Tag, Typography, message } from 'antd'
 import { EditOutlined, MoneyCollectOutlined, PlusOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { apiClient } from '../../api/client'
+import { useAuth } from '../auth/AuthContext'
 import type {
   AidatTariffItem,
   AssignTariffBySquareMetersResult,
@@ -16,6 +18,9 @@ const fmtOne = (v: number) => v.toLocaleString('tr-TR', { minimumFractionDigits:
 /** Faz 6.9: Aidat tarife tanımlama ekranı ("1+1 C" → 32,1 m² → 2.000,00 TL/ay). */
 export function AidatTariffsPage() {
   const queryClient = useQueryClient()
+  const { hasPermission } = useAuth()
+  const canCreate = hasPermission('Invoices.Create')
+  const canEdit = hasPermission('Invoices.Edit')
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<AidatTariffItem | null>(null)
   const [form] = Form.useForm()
@@ -90,11 +95,12 @@ export function AidatTariffsPage() {
     { title: 'Atanmış Daire', dataIndex: 'apartmentCount', width: 120, align: 'right' },
     {
       title: 'İşlem',
+      fixed: 'right',
       width: 220,
       render: (_: unknown, r: AidatTariffItem) => (
         <Space size={4}>
-          <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)}>Düzenle</Button>
-          <Button
+          {canEdit && <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)}>Düzenle</Button>}
+          {canEdit && <Button
             size="small"
             icon={<MoneyCollectOutlined />}
             disabled={!r.isActive}
@@ -104,7 +110,7 @@ export function AidatTariffsPage() {
             }}
           >
             Daireleri Ata
-          </Button>
+          </Button>}
         </Space>
       ),
     },
@@ -114,10 +120,11 @@ export function AidatTariffsPage() {
     <Card
       title="Aidat Tarifeleri"
       extra={
-        <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>Tarife Ekle</Button>
+        canCreate ? <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>Tarife Ekle</Button> : null
       }
     >
       <Table
+        scroll={{ x: 'max-content' }}
         rowKey="id"
         size="small"
         columns={columns}
@@ -127,7 +134,7 @@ export function AidatTariffsPage() {
         locale={{ emptyText: 'Henüz tarife tanımlanmamış.' }}
       />
 
-      <Modal
+      <AppModal
         title={editing ? 'Tarife Düzenle' : 'Yeni Tarife'}
         open={modalOpen}
         onCancel={() => { setModalOpen(false); setEditing(null); form.resetFields() }}
@@ -174,10 +181,10 @@ export function AidatTariffsPage() {
             m² dağıtımında birim fiyat bu tarifenin tutarından türetilir.
           </Typography.Text>
         </Form>
-      </Modal>
+      </AppModal>
 
       {/* Faz 6.9: Toplu tarife atama — m²'si eşleşen tüm dairelere */}
-      <Modal
+      <AppModal
         title={`Daireleri Ata — ${assignFor?.name ?? ''}`}
         open={assignFor !== null}
         onCancel={() => setAssignFor(null)}
@@ -207,7 +214,7 @@ export function AidatTariffsPage() {
             <InputNumber style={{ width: '100%' }} min={0.1} max={1000} precision={2} decimalSeparator="," addonAfter="m²" />
           </Form.Item>
         </Form>
-      </Modal>
+      </AppModal>
     </Card>
   )
 }

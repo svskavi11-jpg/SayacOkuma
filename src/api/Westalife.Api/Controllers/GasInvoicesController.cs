@@ -1,6 +1,8 @@
-﻿using Westalife.Application.Features.GasInvoices.Commands.InvoiceFinance;
+using Westalife.Application.Features.GasInvoices.Commands.InvoiceFinance;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Westalife.Domain.Constants;
 using Microsoft.Extensions.Options;
 using Westalife.Api.Infrastructure;
 using Westalife.Application.Common.Models;
@@ -34,6 +36,7 @@ public class GasInvoicesController : ControllerBase
     }
 
     /// <summary>Akmercan bina doğalgaz faturasını sisteme girer (Toplam Ödenecek Tutar = 30/70 dağıtımın temeli).</summary>
+    [HasPermission(Permissions.Invoices.Create)]
     [HttpPost]
     [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
@@ -46,6 +49,7 @@ public class GasInvoicesController : ControllerBase
     }
 
     /// <summary>Fatura listesi (yeniden hesaplama durumuyla birlikte).</summary>
+    [HasPermission(Permissions.Invoices.View)]
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<GasInvoiceListItem>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetGasInvoices(CancellationToken cancellationToken)
@@ -55,6 +59,7 @@ public class GasInvoicesController : ControllerBase
     }
 
     /// <summary>Tek faturanın tüm düzenlenebilir alanları (Etap 6.7 — "Düzenle" Modal'ı veri kaynağı).</summary>
+    [HasPermission(Permissions.Invoices.View)]
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(GasInvoiceDetailItem), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -68,6 +73,7 @@ public class GasInvoicesController : ControllerBase
     /// Fatura düzenleme (Etap 6.7). Kilitli dönemde 409; hesaplaması olan faturada
     /// HasCalculationWarning=true döner (kullanıcı "yeniden hesaplayın" uyarısı görür).
     /// </summary>
+    [HasPermission(Permissions.Invoices.Edit)]
     [HttpPut("{id:guid}")]
     [ProducesResponseType(typeof(UpdateGasInvoiceResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
@@ -81,6 +87,7 @@ public class GasInvoicesController : ControllerBase
     }
 
     /// <summary>Dönemi kilitler. Bildirim ve son ödeme tarihi bu anda kesinleşir; faiz vadeden sonra işler.</summary>
+    [HasPermission(Permissions.Invoices.Edit)]
     [HttpPost("{id:guid}/lock")]
     [ProducesResponseType(typeof(LockPeriodResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
@@ -96,6 +103,7 @@ public class GasInvoicesController : ControllerBase
     }
 
     /// <summary>Dönem kilidini açar (Faz 7'de TenantAdmin yetkisi gerekecektir).</summary>
+    [HasPermission(Permissions.Invoices.Edit)]
     [HttpPost("{id:guid}/unlock")]
     [ProducesResponseType(typeof(LockPeriodResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -106,6 +114,7 @@ public class GasInvoicesController : ControllerBase
     }
 
     /// <summary>Fatura dönemi için 30/70 gider dağıtımını hesaplar ve kaydeder (yeniden hesaplamada eski satırlar superseded olur).</summary>
+    [HasPermission(Permissions.Invoices.Calculate)]
     [HttpPost("{id:guid}/calculate")]
     [ProducesResponseType(typeof(CalculateCostDistributionResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -117,6 +126,7 @@ public class GasInvoicesController : ControllerBase
     }
 
     /// <summary>Faturanın güncel daire borç listesi (72 satır + mutabakat kontrolü).</summary>
+    [HasPermission(Permissions.Invoices.View)]
     [HttpGet("{id:guid}/calculation")]
     [ProducesResponseType(typeof(GetCalculationResultResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -127,6 +137,7 @@ public class GasInvoicesController : ControllerBase
     }
 
     /// <summary>S3: Bina Kayıp-Kaçak / Ortak Alan Tüketimi raporu (yalnızca yönetim panosu).</summary>
+    [HasPermission(Permissions.Invoices.View)]
     [HttpGet("{id:guid}/loss-report")]
     [ProducesResponseType(typeof(BuildingLossReportResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -140,6 +151,7 @@ public class GasInvoicesController : ControllerBase
     /// Danfoss formu: Bireysel Gider Bildirimi PDF. apartmentId verilirse tek daire (1 sayfa),
     /// verilmezse tüm bina (72 sayfa). Üretim öncesi mutabakat invariant'ı zorunludur.
     /// </summary>
+    [HasPermission(Permissions.Reports.GasNotifications)]
     [HttpGet("{id:guid}/reports/notice.pdf")]
     [Produces("application/pdf")]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -188,6 +200,7 @@ public class GasInvoicesController : ControllerBase
     }
 
     /// <summary>Yönetici borç listesi Excel çıktısı (genel toplam mutabakat satırı dahil).</summary>
+    [HasPermission(Permissions.Reports.GasNotifications)]
     [HttpGet("{id:guid}/reports/borclar.xlsx")]
     [Produces("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -203,6 +216,7 @@ public class GasInvoicesController : ControllerBase
     }
 
     /// <summary>Faz 6.8: faturanın son ödeme tarihini günceller. Kilitli dönemde reddedilir.</summary>
+    [HasPermission(Permissions.Invoices.Edit)]
     [HttpPut("{id:guid}/due-date")]
     [ProducesResponseType(typeof(InvoiceFinanceResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
@@ -212,6 +226,7 @@ public class GasInvoicesController : ControllerBase
         Ok(await _mediator.Send(command with { InvoiceId = id }, cancellationToken));
 
     /// <summary>Faz 6.8: faturanın doğalgaz firmasına ödendi bilgisini (ve ödeme tarihini) işaretler.</summary>
+    [HasPermission(Permissions.Invoices.Edit)]
     [HttpPut("{id:guid}/paid")]
     [ProducesResponseType(typeof(InvoiceFinanceResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]

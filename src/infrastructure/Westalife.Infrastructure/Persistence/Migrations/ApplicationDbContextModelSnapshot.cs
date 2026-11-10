@@ -22,6 +22,109 @@ namespace Westalife.Infrastructure.Persistence.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ClaimType")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ClaimValue")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("RoleId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RoleId");
+
+                    b.ToTable("AspNetRoleClaims", (string)null);
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<System.Guid>", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ClaimType")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ClaimValue")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("AspNetUserClaims", (string)null);
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<System.Guid>", b =>
+                {
+                    b.Property<string>("LoginProvider")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ProviderKey")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ProviderDisplayName")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("LoginProvider", "ProviderKey");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("AspNetUserLogins", (string)null);
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserRole<System.Guid>", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("RoleId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("UserId", "RoleId");
+
+                    b.HasIndex("RoleId");
+
+                    b.ToTable("AspNetUserRoles", (string)null);
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<System.Guid>", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("LoginProvider")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Name")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Value")
+                        .HasColumnType("text");
+
+                    b.HasKey("UserId", "LoginProvider", "Name");
+
+                    b.ToTable("AspNetUserTokens", (string)null);
+                });
+
             modelBuilder.Entity("Westalife.Domain.Entities.AidatCharge", b =>
                 {
                     b.Property<Guid>("Id")
@@ -112,6 +215,9 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Title")
                         .HasMaxLength(120)
                         .HasColumnType("character varying(120)");
@@ -124,6 +230,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("DueDate")
                         .HasDatabaseName("IX_AidatInvoices_DueDate");
+
+                    b.HasIndex("TenantId");
 
                     b.HasIndex("PeriodStart", "PeriodEnd")
                         .HasDatabaseName("IX_AidatInvoices_Period");
@@ -161,11 +269,16 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                         .HasPrecision(9, 2)
                         .HasColumnType("numeric(9,2)");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
 
                     b.HasIndex("Name")
                         .IsUnique()
                         .HasDatabaseName("UX_AidatTariffs_Name");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("AidatTariffs", (string)null);
                 });
@@ -214,6 +327,9 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                         .HasColumnType("numeric(18,2)")
                         .HasDefaultValue(0m);
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(100)
@@ -224,6 +340,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                     b.HasIndex("AidatTariffId");
 
                     b.HasIndex("OpeningBalanceOwnerId");
+
+                    b.HasIndex("TenantId");
 
                     b.HasIndex("BuildingId", "DoorNumber")
                         .IsUnique();
@@ -240,6 +358,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 1"
                         },
                         new
@@ -251,6 +370,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 2"
                         },
                         new
@@ -262,6 +382,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 3"
                         },
                         new
@@ -273,6 +394,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 4"
                         },
                         new
@@ -284,6 +406,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 5"
                         },
                         new
@@ -295,6 +418,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 6"
                         },
                         new
@@ -306,6 +430,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 7"
                         },
                         new
@@ -317,6 +442,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 8"
                         },
                         new
@@ -328,6 +454,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 9"
                         },
                         new
@@ -339,6 +466,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 10"
                         },
                         new
@@ -350,6 +478,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 11"
                         },
                         new
@@ -361,6 +490,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 12"
                         },
                         new
@@ -372,6 +502,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 13"
                         },
                         new
@@ -383,6 +514,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 14"
                         },
                         new
@@ -394,6 +526,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 15"
                         },
                         new
@@ -405,6 +538,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 16"
                         },
                         new
@@ -416,6 +550,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 17"
                         },
                         new
@@ -427,6 +562,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 18"
                         },
                         new
@@ -438,6 +574,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 19"
                         },
                         new
@@ -449,6 +586,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 20"
                         },
                         new
@@ -460,6 +598,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 21"
                         },
                         new
@@ -471,6 +610,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 22"
                         },
                         new
@@ -482,6 +622,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 23"
                         },
                         new
@@ -493,6 +634,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 24"
                         },
                         new
@@ -504,6 +646,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 25"
                         },
                         new
@@ -515,6 +658,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 26"
                         },
                         new
@@ -526,6 +670,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 27"
                         },
                         new
@@ -537,6 +682,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 28"
                         },
                         new
@@ -548,6 +694,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 29"
                         },
                         new
@@ -559,6 +706,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 30"
                         },
                         new
@@ -570,6 +718,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 31"
                         },
                         new
@@ -581,6 +730,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 32"
                         },
                         new
@@ -592,6 +742,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 33"
                         },
                         new
@@ -603,6 +754,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 34"
                         },
                         new
@@ -614,6 +766,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 35"
                         },
                         new
@@ -625,6 +778,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 36"
                         },
                         new
@@ -636,6 +790,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 37"
                         },
                         new
@@ -647,6 +802,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 38"
                         },
                         new
@@ -658,6 +814,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 39"
                         },
                         new
@@ -669,6 +826,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 40"
                         },
                         new
@@ -680,6 +838,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 41"
                         },
                         new
@@ -691,6 +850,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 42"
                         },
                         new
@@ -702,6 +862,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 43"
                         },
                         new
@@ -713,6 +874,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 44"
                         },
                         new
@@ -724,6 +886,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 45"
                         },
                         new
@@ -735,6 +898,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 46"
                         },
                         new
@@ -746,6 +910,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 47"
                         },
                         new
@@ -757,6 +922,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 48"
                         },
                         new
@@ -768,6 +934,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 49"
                         },
                         new
@@ -779,6 +946,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 50"
                         },
                         new
@@ -790,6 +958,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 51"
                         },
                         new
@@ -801,6 +970,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 52"
                         },
                         new
@@ -812,6 +982,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 53"
                         },
                         new
@@ -823,6 +994,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 54"
                         },
                         new
@@ -834,6 +1006,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 55"
                         },
                         new
@@ -845,6 +1018,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 56"
                         },
                         new
@@ -856,6 +1030,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 57"
                         },
                         new
@@ -867,6 +1042,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 58"
                         },
                         new
@@ -878,6 +1054,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 59"
                         },
                         new
@@ -889,6 +1066,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 60"
                         },
                         new
@@ -900,6 +1078,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 61"
                         },
                         new
@@ -911,6 +1090,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 62"
                         },
                         new
@@ -922,6 +1102,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 63"
                         },
                         new
@@ -933,6 +1114,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 64"
                         },
                         new
@@ -944,6 +1126,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 65"
                         },
                         new
@@ -955,6 +1138,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 66"
                         },
                         new
@@ -966,6 +1150,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 67"
                         },
                         new
@@ -977,6 +1162,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 68"
                         },
                         new
@@ -988,6 +1174,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 69"
                         },
                         new
@@ -999,6 +1186,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 70"
                         },
                         new
@@ -1010,6 +1198,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 71"
                         },
                         new
@@ -1021,6 +1210,7 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             IsActive = true,
                             OpeningBalanceInterest = 0m,
                             OpeningBalancePrincipal = 0m,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
                             Title = "Daire 72"
                         });
                 });
@@ -1841,6 +2031,9 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                         .HasColumnType("integer")
                         .HasDefaultValue(1);
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTimeOffset>("ValidFrom")
                         .HasColumnType("timestamp with time zone");
 
@@ -1852,12 +2045,101 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                     b.HasIndex("ApartmentId")
                         .HasDatabaseName("IX_ApartmentOwners_ApartmentId");
 
+                    b.HasIndex("TenantId");
+
                     b.HasIndex("ApartmentId", "ValidFrom")
                         .HasDatabaseName("IX_ApartmentOwners_ApartmentId_ValidFrom");
 
                     b.ToTable("ApartmentOwners", null, t =>
                         {
                             t.HasCheckConstraint("CK_ApartmentOwners_Period", "\"ValidFrom\" < COALESCE(\"ValidTo\", 'infinity'::timestamptz)");
+                        });
+                });
+
+            modelBuilder.Entity("Westalife.Domain.Entities.AppRole", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ConcurrencyStamp")
+                        .IsConcurrencyToken()
+                        .HasColumnType("text");
+
+                    b.Property<string>("DisplayName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<bool>("IsSystem")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("NormalizedName")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NormalizedName")
+                        .IsUnique()
+                        .HasDatabaseName("RoleNameIndex");
+
+                    b.HasIndex("TenantId");
+
+                    b.ToTable("AspNetRoles", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0000-0000000000a1"),
+                            ConcurrencyStamp = "role-superadmin",
+                            DisplayName = "Süper Yönetici",
+                            IsSystem = true,
+                            Name = "SuperAdmin",
+                            NormalizedName = "SUPERADMIN"
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0000-0000000000a2"),
+                            ConcurrencyStamp = "role-tenantadmin",
+                            DisplayName = "Site yöneticisi",
+                            IsSystem = true,
+                            Name = "TenantAdmin",
+                            NormalizedName = "TENANTADMIN"
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0000-0000000000a3"),
+                            ConcurrencyStamp = "role-accountant",
+                            DisplayName = "Muhasebe",
+                            IsSystem = true,
+                            Name = "Accountant",
+                            NormalizedName = "ACCOUNTANT"
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0000-0000000000a4"),
+                            ConcurrencyStamp = "role-meterreader",
+                            DisplayName = "Sayaç okuyucu",
+                            IsSystem = true,
+                            Name = "MeterReader",
+                            NormalizedName = "METERREADER"
+                        },
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0000-0000000000a5"),
+                            ConcurrencyStamp = "role-resident",
+                            DisplayName = "Sakin",
+                            IsSystem = true,
+                            Name = "Resident",
+                            NormalizedName = "RESIDENT"
                         });
                 });
 
@@ -2083,6 +2365,16 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                     b.Property<int>("TcpPort")
                         .HasColumnType("integer");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Theme")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("teal");
+
                     b.Property<int>("UsbBaudRate")
                         .HasColumnType("integer");
 
@@ -2098,6 +2390,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(500)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("AppSettings", (string)null);
 
@@ -2133,8 +2427,90 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             SmsProvider = "Netgsm",
                             SmtpPort = 587,
                             TcpPort = 2000,
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02"),
+                            Theme = "teal",
                             UsbBaudRate = 2400
                         });
+                });
+
+            modelBuilder.Entity("Westalife.Domain.Entities.AppUser", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("AccessFailedCount")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid?>("ApartmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ConcurrencyStamp")
+                        .IsConcurrencyToken()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<bool>("EmailConfirmed")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("FullName")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)");
+
+                    b.Property<bool>("LockoutEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset?>("LockoutEnd")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("NormalizedEmail")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("NormalizedUserName")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.Property<string>("PasswordHash")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PhoneNumber")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("PhoneNumberConfirmed")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("SecurityStamp")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("TwoFactorEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("UserName")
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApartmentId");
+
+                    b.HasIndex("NormalizedEmail")
+                        .HasDatabaseName("EmailIndex");
+
+                    b.HasIndex("NormalizedUserName")
+                        .IsUnique()
+                        .HasDatabaseName("UserNameIndex");
+
+                    b.HasIndex("TenantId");
+
+                    b.ToTable("AspNetUsers", (string)null);
                 });
 
             modelBuilder.Entity("Westalife.Domain.Entities.BankAccount", b =>
@@ -2178,6 +2554,9 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                     b.Property<DateOnly>("OpeningDate")
                         .HasColumnType("date");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
 
                     b.HasIndex("AccountNumber")
@@ -2188,6 +2567,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                         .IsUnique()
                         .HasDatabaseName("IX_BankAccounts_Iban")
                         .HasFilter("\"Iban\" IS NOT NULL");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("BankAccounts", (string)null);
                 });
@@ -2262,10 +2643,15 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset?>("LastModifiedOn")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
                     b.Property<int>("Year")
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
 
                     b.HasIndex("Year", "Category")
                         .IsUnique()
@@ -2292,10 +2678,15 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset?>("LockedOn")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
                     b.Property<int>("Year")
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
 
                     b.HasIndex("Year")
                         .IsUnique()
@@ -2327,6 +2718,9 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid>("ToBudgetItemId")
                         .HasColumnType("uuid");
 
@@ -2336,6 +2730,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("FromBudgetItemId");
+
+                    b.HasIndex("TenantId");
 
                     b.HasIndex("ToBudgetItemId");
 
@@ -2374,7 +2770,12 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("Buildings", (string)null);
 
@@ -2386,7 +2787,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             FixedCostRatio = 0.30m,
                             IsActive = true,
-                            Name = "Westalife Residence"
+                            Name = "Westalife Residence",
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02")
                         });
                 });
 
@@ -2430,6 +2832,9 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset?>("LastModifiedOn")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
 
                     b.HasIndex("BankAccountId")
@@ -2442,6 +2847,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("IX_Expenses_ExpenseDate");
 
                     b.HasIndex("FundAidatInvoiceId");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("Expenses", (string)null);
                 });
@@ -2529,6 +2936,9 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
                     b.Property<decimal>("TotalAmount")
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)");
@@ -2548,6 +2958,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("PaidOn")
                         .HasDatabaseName("IX_GasInvoices_PaidOn");
+
+                    b.HasIndex("TenantId");
 
                     b.HasIndex("ReadingDateFrom", "ReadingDateTo")
                         .HasDatabaseName("IX_GasInvoices_ReadingPeriod");
@@ -2576,10 +2988,15 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset?>("LastModifiedOn")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
                     b.Property<int>("Year")
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
 
                     b.HasIndex("Year", "Category")
                         .IsUnique()
@@ -2622,6 +3039,9 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
                     b.Property<int>("Type")
                         .HasColumnType("integer");
 
@@ -2632,6 +3052,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                     b.HasIndex("SerialNumber")
                         .IsUnique()
                         .HasDatabaseName("UX_Meters_SerialNumber");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("Meters", (string)null);
                 });
@@ -2815,12 +3237,17 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ApartmentId");
 
                     b.HasIndex("SentAt")
                         .HasDatabaseName("IX_NotificationLogs_SentAt");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("NotificationLogs", (string)null);
                 });
@@ -2854,7 +3281,12 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
 
                     b.HasIndex("Channel", "Name")
                         .IsUnique()
@@ -2870,7 +3302,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             Channel = 1,
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             Name = "Aidat hatırlatma",
-                            Subject = "Aidat ve bakiye hatırlatması"
+                            Subject = "Aidat ve bakiye hatırlatması",
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02")
                         },
                         new
                         {
@@ -2878,7 +3311,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             Body = "Sayın [AdSoyad], [DaireNo] numaralı dairenizin [Donem] dönemi bakiyesi [Tutar] tutarındadır. Westalife Residence yönetimi.",
                             Channel = 2,
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
-                            Name = "Aidat hatırlatma"
+                            Name = "Aidat hatırlatma",
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02")
                         },
                         new
                         {
@@ -2886,7 +3320,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                             Body = "Sayın [AdSoyad], [DaireNo] numaralı dairenizin [Donem] dönemi bakiyesi [Tutar] tutarındadır. Westalife Residence yönetimi.",
                             Channel = 3,
                             CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
-                            Name = "Aidat hatırlatma"
+                            Name = "Aidat hatırlatma",
+                            TenantId = new Guid("00000000-0000-0000-0000-00000000aa02")
                         });
                 });
 
@@ -2950,6 +3385,9 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("TargetOwnerId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ApartmentOwnerId")
@@ -2966,6 +3404,8 @@ namespace Westalife.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("PaymentDate")
                         .HasDatabaseName("IX_Payments_PaymentDate");
+
+                    b.HasIndex("TenantId");
 
                     b.HasIndex("ApartmentId", "IsCancelled")
                         .HasDatabaseName("IX_Payments_Apartment_Active");
@@ -3048,10 +3488,15 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset?>("LastModifiedOn")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ApartmentOwnerId")
                         .HasDatabaseName("IX_ResidentDocuments_ApartmentOwnerId");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("ResidentDocuments", (string)null);
                 });
@@ -3112,6 +3557,9 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                     b.Property<DateOnly>("StartDate")
                         .HasColumnType("date");
 
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ApartmentId")
@@ -3119,7 +3567,73 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("UX_RoleAssignments_OpenApartment")
                         .HasFilter("\"EndDate\" IS NULL AND \"IsCancelled\" = FALSE");
 
+                    b.HasIndex("TenantId");
+
                     b.ToTable("RoleAssignments", (string)null);
+                });
+
+            modelBuilder.Entity("Westalife.Domain.Entities.RolePermission", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Permission")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<Guid>("RoleId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RoleId", "Permission")
+                        .IsUnique();
+
+                    b.ToTable("RolePermissions", (string)null);
+                });
+
+            modelBuilder.Entity("Westalife.Domain.Entities.Tenant", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Address")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)")
+                        .HasDefaultValue("");
+
+                    b.Property<DateTimeOffset>("CreatedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTimeOffset?>("LastModifiedOn")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Tenants", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("00000000-0000-0000-0000-00000000aa02"),
+                            Address = "",
+                            CreatedOn = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
+                            IsActive = true,
+                            Name = "Westalife Residence"
+                        });
                 });
 
             modelBuilder.Entity("Westalife.Domain.Entities.WaiverOffset", b =>
@@ -3184,6 +3698,57 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                     b.ToTable("WaiverOffsets", (string)null);
                 });
 
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
+                {
+                    b.HasOne("Westalife.Domain.Entities.AppRole", null)
+                        .WithMany()
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<System.Guid>", b =>
+                {
+                    b.HasOne("Westalife.Domain.Entities.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<System.Guid>", b =>
+                {
+                    b.HasOne("Westalife.Domain.Entities.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserRole<System.Guid>", b =>
+                {
+                    b.HasOne("Westalife.Domain.Entities.AppRole", null)
+                        .WithMany()
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Westalife.Domain.Entities.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<System.Guid>", b =>
+                {
+                    b.HasOne("Westalife.Domain.Entities.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Westalife.Domain.Entities.AidatCharge", b =>
                 {
                     b.HasOne("Westalife.Domain.Entities.AidatInvoice", "AidatInvoice")
@@ -3217,6 +3782,24 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                     b.Navigation("LegalResponsibleOwner");
                 });
 
+            modelBuilder.Entity("Westalife.Domain.Entities.AidatInvoice", b =>
+                {
+                    b.HasOne("Westalife.Domain.Entities.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Westalife.Domain.Entities.AidatTariff", b =>
+                {
+                    b.HasOne("Westalife.Domain.Entities.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Westalife.Domain.Entities.Apartment", b =>
                 {
                     b.HasOne("Westalife.Domain.Entities.AidatTariff", "AidatTariff")
@@ -3234,6 +3817,12 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("OpeningBalanceOwnerId")
                         .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Westalife.Domain.Entities.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.Navigation("AidatTariff");
 
@@ -3292,7 +3881,39 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("Westalife.Domain.Entities.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.Navigation("Apartment");
+                });
+
+            modelBuilder.Entity("Westalife.Domain.Entities.AppSettings", b =>
+                {
+                    b.HasOne("Westalife.Domain.Entities.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Westalife.Domain.Entities.AppUser", b =>
+                {
+                    b.HasOne("Westalife.Domain.Entities.Apartment", null)
+                        .WithMany()
+                        .HasForeignKey("ApartmentId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
+            modelBuilder.Entity("Westalife.Domain.Entities.BankAccount", b =>
+                {
+                    b.HasOne("Westalife.Domain.Entities.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Westalife.Domain.Entities.BankTransaction", b =>
@@ -3313,11 +3934,35 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                     b.Navigation("TargetBankAccount");
                 });
 
+            modelBuilder.Entity("Westalife.Domain.Entities.BudgetItem", b =>
+                {
+                    b.HasOne("Westalife.Domain.Entities.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Westalife.Domain.Entities.BudgetPeriod", b =>
+                {
+                    b.HasOne("Westalife.Domain.Entities.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Westalife.Domain.Entities.BudgetTransfer", b =>
                 {
                     b.HasOne("Westalife.Domain.Entities.BudgetItem", "FromBudgetItem")
                         .WithMany()
                         .HasForeignKey("FromBudgetItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Westalife.Domain.Entities.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
@@ -3330,6 +3975,15 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                     b.Navigation("FromBudgetItem");
 
                     b.Navigation("ToBudgetItem");
+                });
+
+            modelBuilder.Entity("Westalife.Domain.Entities.Building", b =>
+                {
+                    b.HasOne("Westalife.Domain.Entities.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Westalife.Domain.Entities.Expense", b =>
@@ -3349,9 +4003,33 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                         .HasForeignKey("FundAidatInvoiceId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("Westalife.Domain.Entities.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.Navigation("BankAccount");
 
                     b.Navigation("BudgetItem");
+                });
+
+            modelBuilder.Entity("Westalife.Domain.Entities.GasInvoice", b =>
+                {
+                    b.HasOne("Westalife.Domain.Entities.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Westalife.Domain.Entities.IncomeItem", b =>
+                {
+                    b.HasOne("Westalife.Domain.Entities.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Westalife.Domain.Entities.Meter", b =>
@@ -3360,6 +4038,12 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                         .WithMany("Meters")
                         .HasForeignKey("ApartmentId")
                         .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Westalife.Domain.Entities.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.Navigation("Apartment");
                 });
@@ -3394,7 +4078,22 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("Westalife.Domain.Entities.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.Navigation("Apartment");
+                });
+
+            modelBuilder.Entity("Westalife.Domain.Entities.NotificationTemplate", b =>
+                {
+                    b.HasOne("Westalife.Domain.Entities.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Westalife.Domain.Entities.Payment", b =>
@@ -3419,6 +4118,12 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("LegalResponsibleOwnerId")
                         .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Westalife.Domain.Entities.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.Navigation("Apartment");
 
@@ -3461,6 +4166,12 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("Westalife.Domain.Entities.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.Navigation("ApartmentOwner");
                 });
 
@@ -3472,7 +4183,24 @@ namespace Westalife.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("Westalife.Domain.Entities.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.Navigation("Apartment");
+                });
+
+            modelBuilder.Entity("Westalife.Domain.Entities.RolePermission", b =>
+                {
+                    b.HasOne("Westalife.Domain.Entities.AppRole", "Role")
+                        .WithMany()
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Role");
                 });
 
             modelBuilder.Entity("Westalife.Domain.Entities.WaiverOffset", b =>

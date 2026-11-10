@@ -1,6 +1,8 @@
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Westalife.Api.Infrastructure;
+using Westalife.Domain.Constants;
 using Westalife.Application.Features.MeterReadings.Commands.AddManualMeterReading;
 using Westalife.Application.Features.MeterReadings.Commands.ImportReadingsFromExcel;
 using Westalife.Application.Features.MeterReadings.Commands.TriggerMeterReadingCycle;
@@ -27,6 +29,7 @@ public class MeterReadingsController : ControllerBase
     /// M-Bus okuma döngüsünü tetikler (USB/TCP/Simülatör — appsettings "Metering:ConnectionType").
     /// Kısmi başarı modeli: tek sayacın hatası döngüyü bozmaz; özet raporlanır.
     /// </summary>
+    [HasPermission(Permissions.MeterReadings.TriggerRead)]
     [HttpPost("trigger")]
     [ProducesResponseType(typeof(MeterReadingCycleResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status502BadGateway)]
@@ -40,6 +43,7 @@ public class MeterReadingsController : ControllerBase
     /// Manuel okuma girişi (Etap 6.6 — saha arızası B planı). Kayıt Source=ManualEntry ile yapılır.
     /// Dönem dışı tarih engellenmez (uyarı döner); kilitli dönem ve endeks gerilemesi reddedilir.
     /// </summary>
+    [HasPermission(Permissions.MeterReadings.ManualEntry)]
     [HttpPost("manual")]
     [ProducesResponseType(typeof(AddManualMeterReadingResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
@@ -55,6 +59,7 @@ public class MeterReadingsController : ControllerBase
     /// Sayaç okuma listesi (Etap 6.7 — okuma düzeltme Modal'ının veri kaynağı).
     /// Her satır kilitli dönem durumu ve denetim kaydı sayısıyla döner.
     /// </summary>
+    [HasAnyPermission(Permissions.Apartments.Readings, Permissions.MeterReadings.View)]
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<MeterReadingListItem>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetReadings(
@@ -68,6 +73,7 @@ public class MeterReadingsController : ControllerBase
     /// Okuma düzeltme (Etap 6.7 — tek veya toplu). Her düzeltmede zorunlu "Değişiklik Nedeni"
     /// alınır; tüketimler zincirleme yeniden hesaplanır; MeterReadingAuditLog'a denetim kaydı yazılır.
     /// </summary>
+    [HasPermission(Permissions.MeterReadings.ManualEntry)]
     [HttpPut("corrections")]
     [ProducesResponseType(typeof(UpdateMeterReadingResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
@@ -80,6 +86,7 @@ public class MeterReadingsController : ControllerBase
     }
 
     /// <summary>Bir okumanın düzeltme (denetim) geçmişi (Etap 6.7).</summary>
+    [HasAnyPermission(Permissions.Apartments.Readings, Permissions.MeterReadings.View)]
     [HttpGet("{readingId:guid}/audit-log")]
     [ProducesResponseType(typeof(IReadOnlyList<MeterReadingAuditLogItem>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAuditLog(Guid readingId, CancellationToken cancellationToken)
@@ -89,6 +96,7 @@ public class MeterReadingsController : ControllerBase
     }
 
     /// <summary>Okuma içe aktarma şablonunu indirir (Kapı No, Okuma Tarihi, Endeks kWh).</summary>
+    [HasPermission(Permissions.MeterReadings.View)]
     [HttpGet("import-template")]
     [Produces("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -104,6 +112,7 @@ public class MeterReadingsController : ControllerBase
     /// Excel ile toplu okuma içe aktarma (Etap 6.6). Kayıtlar Source=Import ile yazılır;
     /// kısmi başarı modeli: hatalı satırlar raporlanır, geçerli satırlar kaydedilir.
     /// </summary>
+    [HasPermission(Permissions.MeterReadings.ManualEntry)]
     [HttpPost("import-excel")]
     [ProducesResponseType(typeof(ImportReadingsFromExcelResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]

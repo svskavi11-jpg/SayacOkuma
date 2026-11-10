@@ -1,4 +1,4 @@
-﻿using Westalife.Domain.Common;
+using Westalife.Domain.Common;
 using Westalife.Domain.Constants;
 
 namespace Westalife.Domain.Entities;
@@ -8,8 +8,13 @@ namespace Westalife.Domain.Entities;
 /// Kalem tutarları raporlama/analiz amaçlı ayrı saklanır; mutabakat kuralı ctor içinde doğrulanır:
 /// Consumption + ConsumptionVat + Distribution + DistributionVat == Total (kuruş hassasiyetiyle).
 /// </summary>
-public class GasInvoice : BaseEntity
+public class GasInvoice : BaseEntity, ITenantEntity
 {
+    /// <summary>Kaydın ait olduğu site.</summary>
+    public Guid TenantId { get; private set; }
+
+    public void AssignTenant(Guid tenantId) => TenantId = tenantId;
+
     public string InvoiceNumber { get; private set; } = string.Empty;
 
     public string SubscriberNumber { get; private set; } = string.Empty;

@@ -3,6 +3,7 @@ import { Button, Space, Statistic, Table, Tag } from 'antd'
 import { FileExcelOutlined, FilePdfOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { apiClient } from '../../api/client'
+import { useAuth } from '../auth/AuthContext'
 import { downloadFile } from '../../api/download'
 import type { BudgetRealizationReport, BudgetRealizationRow } from '../../types/api'
 
@@ -12,6 +13,8 @@ const pct = (v: number) =>
 
 /** Faz 6.10: Tahmini, gerçekleşen, kalan ve yüzde. */
 export function RealizationTab({ year }: { year: number }) {
+  const { hasPermission } = useAuth()
+  const canDownload = hasPermission('Budget.View')
   const query = useQuery({
     queryKey: ['budget-realization', year],
     queryFn: async () =>
@@ -57,7 +60,7 @@ export function RealizationTab({ year }: { year: number }) {
         <Statistic title="Tahmini Gelir" value={data?.totalEstimatedIncome ?? 0} precision={2} groupSeparator="." decimalSeparator="," suffix="TL" />
         <Statistic title="Denge" value={data?.balance ?? 0} precision={2} groupSeparator="." decimalSeparator="," suffix="TL" />
       </Space>
-      <Space wrap>
+      {canDownload && <Space wrap>
         <Button
           type="primary"
           icon={<FilePdfOutlined />}
@@ -72,8 +75,9 @@ export function RealizationTab({ year }: { year: number }) {
         >
           Excel
         </Button>
-      </Space>
+      </Space>}
       <Table
+        scroll={{ x: 'max-content' }}
         rowKey="budgetItemId"
         size="small"
         loading={query.isLoading}

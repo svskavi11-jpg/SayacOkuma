@@ -1,6 +1,8 @@
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Westalife.Api.Infrastructure;
+using Westalife.Domain.Constants;
 using Westalife.Application.Features.Notifications;
 using Westalife.Application.Features.Reports;
 using Westalife.Infrastructure.Reporting.Excel;
@@ -20,6 +22,7 @@ public class ReportsController : ControllerBase
     public ReportsController(IMediator mediator) => _mediator = mediator;
 
     /// <summary>SMS bildirimlerindeki güvenli token ile bireysel gider bildirimi PDF.</summary>
+    [HasPermission(Permissions.Reports.GasNotifications)]
     [HttpGet("notice.pdf")]
     [Produces("application/pdf")]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -32,6 +35,7 @@ public class ReportsController : ControllerBase
         return File(result.Content, "application/pdf", result.FileName);
     }
 
+    [HasPermission(Permissions.Reports.IncomeExpense)]
     [HttpGet("income-expense")]
     [ProducesResponseType(typeof(AuditIncomeExpenseReport), StatusCodes.Status200OK)]
     public async Task<IActionResult> IncomeExpense(
@@ -44,6 +48,7 @@ public class ReportsController : ControllerBase
         return Ok(await _mediator.Send(new GetAuditIncomeExpenseQuery(effectiveYear, from, to), cancellationToken));
     }
 
+    [HasPermission(Permissions.Reports.IncomeExpense)]
     [HttpGet("income-expense.xlsx")]
     [Produces(ExcelContentType)]
     public async Task<IActionResult> IncomeExpenseExcel(
@@ -58,6 +63,7 @@ public class ReportsController : ControllerBase
         return File(AuditReportExcelExporter.IncomeExpense(data), ExcelContentType, $"GelirGiderOzet-{suffix}.xlsx");
     }
 
+    [HasPermission(Permissions.Reports.GeneralAssembly)]
     [HttpGet("general-assembly")]
     [ProducesResponseType(typeof(GeneralAssemblyReport), StatusCodes.Status200OK)]
     public async Task<IActionResult> GeneralAssembly(
@@ -66,6 +72,7 @@ public class ReportsController : ControllerBase
         CancellationToken cancellationToken) =>
         Ok(await _mediator.Send(new GetGeneralAssemblyReportQuery(from, to), cancellationToken));
 
+    [HasPermission(Permissions.Reports.GeneralAssembly)]
     [HttpGet("general-assembly.pdf")]
     [Produces("application/pdf")]
     public async Task<IActionResult> GeneralAssemblyPdf(
@@ -80,6 +87,7 @@ public class ReportsController : ControllerBase
             $"GenelKurulDenetimRaporu-{from:yyyyMMdd}-{to:yyyyMMdd}.pdf");
     }
 
+    [HasPermission(Permissions.Reports.GeneralAssembly)]
     [HttpGet("general-assembly.xlsx")]
     [Produces(ExcelContentType)]
     public async Task<IActionResult> GeneralAssemblyExcel(
@@ -94,12 +102,14 @@ public class ReportsController : ControllerBase
             $"GenelKurulDenetimRaporu-{from:yyyyMMdd}-{to:yyyyMMdd}.xlsx");
     }
 
+    [HasPermission(Permissions.Reports.ApartmentTracking)]
     [HttpGet("apartment-tracking")]
     [ProducesResponseType(typeof(ApartmentTrackingReport), StatusCodes.Status200OK)]
     public async Task<IActionResult> ApartmentTracking(
         [FromQuery] DateOnly from, [FromQuery] DateOnly to, CancellationToken cancellationToken) =>
         Ok(await _mediator.Send(new GetApartmentTrackingQuery(from, to), cancellationToken));
 
+    [HasPermission(Permissions.Reports.ApartmentTracking)]
     [HttpGet("apartment-tracking.xlsx")]
     [Produces(ExcelContentType)]
     public async Task<IActionResult> ApartmentTrackingExcel(
@@ -112,6 +122,7 @@ public class ReportsController : ControllerBase
             $"DaireTakip-{from:yyyyMMdd}-{to:yyyyMMdd}.xlsx");
     }
 
+    [HasPermission(Permissions.Reports.FuelBreakdown)]
     [HttpGet("fuel")]
     [ProducesResponseType(typeof(FuelBreakdownReport), StatusCodes.Status200OK)]
     public async Task<IActionResult> Fuel(
@@ -121,6 +132,7 @@ public class ReportsController : ControllerBase
         CancellationToken cancellationToken) =>
         Ok(await _mediator.Send(new GetFuelBreakdownQuery(from, to, gasInvoiceId), cancellationToken));
 
+    [HasPermission(Permissions.Reports.FuelBreakdown)]
     [HttpGet("fuel.xlsx")]
     [Produces(ExcelContentType)]
     public async Task<IActionResult> FuelExcel(
@@ -136,6 +148,7 @@ public class ReportsController : ControllerBase
             $"YakitDokumu-{from:yyyyMMdd}-{to:yyyyMMdd}.xlsx");
     }
 
+    [HasPermission(Permissions.Reports.BankControl)]
     [HttpGet("bank")]
     [ProducesResponseType(typeof(BankReconciliationReport), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -146,6 +159,7 @@ public class ReportsController : ControllerBase
         CancellationToken cancellationToken) =>
         Ok(await _mediator.Send(new GetBankReconciliationQuery(bankAccountId, from, to), cancellationToken));
 
+    [HasPermission(Permissions.Reports.BankControl)]
     [HttpGet("bank.xlsx")]
     [Produces(ExcelContentType)]
     public async Task<IActionResult> BankExcel(

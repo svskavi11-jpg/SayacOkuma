@@ -12,6 +12,7 @@ public class GasInvoiceConfiguration : IEntityTypeConfiguration<GasInvoice>
         builder.ToTable("GasInvoices");
 
         builder.HasKey(i => i.Id);
+        TenantOwnedConfiguration.Configure(builder);
 
         builder.Property(i => i.InvoiceNumber)
             .IsRequired()

@@ -11,6 +11,7 @@ public class ResidentDocumentConfiguration : IEntityTypeConfiguration<ResidentDo
     {
         builder.ToTable("ResidentDocuments");
         builder.HasKey(d => d.Id);
+        TenantOwnedConfiguration.Configure(builder);
         builder.Property(d => d.FileName).IsRequired().HasMaxLength(DomainConstants.ResidentDocument.FileNameMaxLength);
         builder.Property(d => d.FilePath).IsRequired().HasMaxLength(DomainConstants.ResidentDocument.FilePathMaxLength);
         builder.Property(d => d.DocumentType).IsRequired();

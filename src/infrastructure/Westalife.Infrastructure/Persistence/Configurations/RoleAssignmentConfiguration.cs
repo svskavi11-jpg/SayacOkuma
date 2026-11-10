@@ -12,6 +12,7 @@ public class RoleAssignmentConfiguration : IEntityTypeConfiguration<RoleAssignme
     {
         builder.ToTable("RoleAssignments");
         builder.HasKey(r => r.Id);
+        TenantOwnedConfiguration.Configure(builder);
 
         builder.Property(r => r.PersonName)
             .HasMaxLength(DomainConstants.RoleAssignment.PersonNameMaxLength)

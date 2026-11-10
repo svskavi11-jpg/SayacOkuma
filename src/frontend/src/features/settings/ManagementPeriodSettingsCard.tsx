@@ -4,6 +4,7 @@ import { Alert, Button, Card, Col, DatePicker, Form, Row, Space, Typography, mes
 import { CalendarOutlined } from '@ant-design/icons'
 import dayjs, { type Dayjs } from 'dayjs'
 import { apiClient } from '../../api/client'
+import { IfPermission } from '../auth/IfPermission'
 import type { ManagementPeriodSettingsDTO } from '../../types/api'
 
 interface ManagementPeriodFormValues {
@@ -92,9 +93,11 @@ export function ManagementPeriodSettingsCard() {
         <Typography.Paragraph type="secondary" style={{ marginBottom: 12 }}>
           İpucu: Seçilen dönem içindeki aylar Genel Kurul Matris Raporu’nda otomatik olarak dinamik sütunlara dönüştürülür.
         </Typography.Paragraph>
+        <IfPermission code="Settings.General">
         <Button type="primary" htmlType="submit" loading={saveMutation.isPending}>
           Yönetim Dönemini Kaydet
         </Button>
+        </IfPermission>
       </Form>
     </Card>
   )

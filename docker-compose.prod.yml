@@ -74,8 +74,9 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       ConnectionStrings__DefaultConnection: ${DATABASE_CONNECTION}
       Security__ApiKey: ${SECURITY_API_KEY:?SECURITY_API_KEY .env icinde tanimli olmali}
+      Auth__SigningKey: ${AUTH_SIGNING_KEY:?AUTH_SIGNING_KEY .env icinde tanimli olmali}
+      Auth__SeedPassword: ${AUTH_SEED_PASSWORD:?AUTH_SEED_PASSWORD .env icinde tanimli olmali}
       ResidentDocuments__RootPath: /app/data/resident-documents
-      # Faz 7 hazirligi: JWT_SECRET / TenantId gibi env'ler buraya eklenecek (simdilik kod yok)
     depends_on:
       db:
         condition: service_healthy

@@ -10,6 +10,7 @@ public class BudgetPeriodConfiguration : IEntityTypeConfiguration<BudgetPeriod>
     {
         builder.ToTable("BudgetPeriods");
         builder.HasKey(p => p.Id);
+        TenantOwnedConfiguration.Configure(builder);
         builder.Property(p => p.Year).IsRequired();
         builder.HasIndex(p => p.Year)
             .IsUnique()

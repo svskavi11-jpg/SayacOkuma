@@ -4,6 +4,7 @@ import { Alert, Button, Card, DatePicker, Popconfirm, Space, Tabs, message } fro
 import { LockOutlined, UnlockOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { apiClient } from '../../api/client'
+import { useAuth } from '../auth/AuthContext'
 import type { BudgetPeriodStatus, BudgetSettingsDTO } from '../../types/api'
 import { BudgetItemsTab } from './BudgetItemsTab'
 import { ExpensesTab } from './ExpensesTab'
@@ -17,6 +18,8 @@ import { TransfersTab } from './TransfersTab'
  */
 export function BudgetPage() {
   const queryClient = useQueryClient()
+  const { hasPermission } = useAuth()
+  const canEdit = hasPermission('Budget.Edit')
   const [year, setYear] = useState(dayjs().year())
   const [activeKey, setActiveKey] = useState('expenses')
 
@@ -69,7 +72,7 @@ export function BudgetPage() {
       loading={settingsQuery.isLoading}
       extra={
         <Space>
-          <Popconfirm
+          {canEdit && <Popconfirm
             title={locked ? 'Bu yılın kilidi açılsın mı?' : 'Bu bütçe yılı kilitlensin mi?'}
             description={locked ? 'Kilit açılınca yeni kayıt yazılabilir.' : 'Kilitliyken bu yıla gider, gelir ve virman eklenemez.'}
             okText={locked ? 'Kilidi Aç' : 'Kilitle'}
@@ -83,7 +86,7 @@ export function BudgetPage() {
             >
               {locked ? 'Kilidi Aç' : 'Yılı Kilitle'}
             </Button>
-          </Popconfirm>
+          </Popconfirm>}
           <DatePicker
             picker="year"
             value={dayjs().year(year)}

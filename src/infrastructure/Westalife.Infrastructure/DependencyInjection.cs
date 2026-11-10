@@ -1,7 +1,10 @@
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Westalife.Application.Common.Interfaces;
+using Westalife.Domain.Entities;
+using Westalife.Infrastructure.Auth;
 using Westalife.Application.Common.Models;
 using Westalife.Application.Features.Apartments.Commands.ImportMetersFromExcel;
 using Westalife.Application.Features.MeterReadings.Commands.ImportReadingsFromExcel;
@@ -32,6 +35,27 @@ public static class DependencyInjection
         // Application katmanı DbContext'e IApplicationDbContext soyutlaması üzerinden erişir.
         services.AddScoped<IApplicationDbContext>(sp =>
             sp.GetRequiredService<ApplicationDbContext>());
+
+        services.AddHttpContextAccessor();
+        services.AddScoped<ITenantContext, HttpTenantContext>();
+        services.AddOptions<AuthOptions>().BindConfiguration(AuthOptions.SectionName);
+        services.AddScoped<IAuthService, JwtAuthService>();
+        services.AddScoped<StaffAccessReader>();
+        services.AddScoped<IAccessProfileReader>(sp => sp.GetRequiredService<StaffAccessReader>());
+        services.AddScoped<ITenantUserProvisioner, TenantUserProvisioner>();
+        services.AddScoped<IRoleAdmin, RoleAdmin>();
+        services.AddScoped<IResidentAccess, ResidentAccess>();
+        services.AddIdentityCore<AppUser>(options =>
+            {
+                options.User.RequireUniqueEmail = true;
+                options.Password.RequiredLength = 8;
+                options.Password.RequireDigit = true;
+                options.Password.RequireUppercase = true;
+                options.Password.RequireLowercase = true;
+                options.Password.RequireNonAlphanumeric = true;
+            })
+            .AddRoles<AppRole>()
+            .AddEntityFrameworkStores<ApplicationDbContext>();
 
         services.AddMetering();
 

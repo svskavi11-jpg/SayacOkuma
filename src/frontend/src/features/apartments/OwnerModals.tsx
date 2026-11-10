@@ -1,5 +1,6 @@
+import { AppModal } from '../../components/AppModal'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Form, Input, Modal, Table, Tag, Typography, message } from 'antd'
+import { Form, Input, Table, Tag, Typography, message } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { apiClient } from '../../api/client'
@@ -45,7 +46,7 @@ export function OwnerEditModal({
   })
 
   return (
-    <Modal
+    <AppModal
       title={`Kat Maliki Güncelle — Daire ${apartment?.doorNumber ?? ''}`}
       open={apartment !== null}
       onCancel={onClose}
@@ -73,7 +74,7 @@ export function OwnerEditModal({
           <Input maxLength={100} placeholder="Örn: Ahmet Yılmaz" />
         </Form.Item>
       </Form>
-    </Modal>
+    </AppModal>
   )
 }
 
@@ -114,7 +115,7 @@ export function OwnerHistoryModal({
   })
 
   return (
-    <Modal
+    <AppModal
       title={`Kat Maliki Geçmişi — Daire ${apartment?.doorNumber ?? ''}`}
       open={apartment !== null}
       onCancel={onClose}
@@ -122,6 +123,7 @@ export function OwnerHistoryModal({
       width={620}
     >
       <Table
+        scroll={{ x: 'max-content' }}
         rowKey="id"
         columns={historyColumns}
         dataSource={historyQuery.data}
@@ -130,6 +132,6 @@ export function OwnerHistoryModal({
         pagination={false}
         locale={{ emptyText: 'Bu daire için henüz kat maliki kaydı girilmemiş.' }}
       />
-    </Modal>
+    </AppModal>
   )
 }

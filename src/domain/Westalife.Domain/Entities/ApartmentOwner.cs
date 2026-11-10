@@ -14,8 +14,13 @@ namespace Westalife.Domain.Entities;
 ///  - Aynı daire + aynı tür için zaman aralıkları asla çakışamaz.
 ///  - Aynı daire + aynı türün ValidTo'su NULL olan en fazla 1 kaydı vardır (aktif kayıt).
 /// </summary>
-public class ApartmentOwner : BaseEntity
+public class ApartmentOwner : BaseEntity, ITenantEntity
 {
+    /// <summary>Kaydın ait olduğu site.</summary>
+    public Guid TenantId { get; private set; }
+
+    public void AssignTenant(Guid tenantId) => TenantId = tenantId;
+
     public Guid ApartmentId { get; private set; }
 
     public Apartment Apartment { get; private set; } = null!;

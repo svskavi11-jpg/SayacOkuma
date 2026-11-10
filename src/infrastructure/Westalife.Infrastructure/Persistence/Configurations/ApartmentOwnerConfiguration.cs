@@ -19,6 +19,7 @@ public class ApartmentOwnerConfiguration : IEntityTypeConfiguration<ApartmentOwn
         });
 
         builder.HasKey(o => o.Id);
+        TenantOwnedConfiguration.Configure(builder);
 
         builder.Property(o => o.OwnerName)
             .IsRequired()

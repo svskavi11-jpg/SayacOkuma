@@ -16,6 +16,7 @@ public class NotificationTemplateConfiguration : IEntityTypeConfiguration<Notifi
     {
         builder.ToTable("NotificationTemplates");
         builder.HasKey(t => t.Id);
+        TenantOwnedConfiguration.Configure(builder);
 
         builder.Property(t => t.Name).IsRequired().HasMaxLength(DomainConstants.Notification.NameMaxLength);
         builder.Property(t => t.Channel).HasConversion<int>();
@@ -28,6 +29,7 @@ public class NotificationTemplateConfiguration : IEntityTypeConfiguration<Notifi
             new
             {
                 Id = EmailSeedId,
+                TenantId = DomainConstants.SeedData.DefaultTenantId,
                 Name = "Aidat hatırlatma",
                 Channel = NotificationChannel.Email,
                 Subject = "Aidat ve bakiye hatırlatması",
@@ -38,6 +40,7 @@ public class NotificationTemplateConfiguration : IEntityTypeConfiguration<Notifi
             new
             {
                 Id = SmsSeedId,
+                TenantId = DomainConstants.SeedData.DefaultTenantId,
                 Name = "Aidat hatırlatma",
                 Channel = NotificationChannel.Sms,
                 Subject = (string?)null,
@@ -48,6 +51,7 @@ public class NotificationTemplateConfiguration : IEntityTypeConfiguration<Notifi
             new
             {
                 Id = WhatsAppSeedId,
+                TenantId = DomainConstants.SeedData.DefaultTenantId,
                 Name = "Aidat hatırlatma",
                 Channel = NotificationChannel.WhatsApp,
                 Subject = (string?)null,

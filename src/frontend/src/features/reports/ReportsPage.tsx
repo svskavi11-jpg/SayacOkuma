@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Button, Card, Checkbox, DatePicker, Input, Select, Space, Table, Tabs, Tag, Typography } from 'antd'
+import { Button, Card, Checkbox, DatePicker, Empty, Input, Select, Space, Table, Tabs, Tag, Typography } from 'antd'
 import {
   AuditOutlined,
   DownloadOutlined,
@@ -10,6 +10,7 @@ import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import dayjs from 'dayjs'
 import { apiClient } from '../../api/client'
+import { useAuth } from '../auth/AuthContext'
 import { downloadFile } from '../../api/download'
 import type {
   CalculationResultResponse,
@@ -33,6 +34,15 @@ const tl = (v: number) => v.toLocaleString('tr-TR', { style: 'currency', currenc
  * ve aktif yönetim dönemine göre Genel Kurul / Denetim Raporu (PDF / Excel / Dinamik Matris).
  */
 export function ReportsPage() {
+  const { hasPermission } = useAuth()
+  const canAssembly = hasPermission('Reports.GeneralAssembly')
+  const canIncome = hasPermission('Reports.IncomeExpense')
+  const canTracking = hasPermission('Reports.ApartmentTracking')
+  const canFuel = hasPermission('Reports.FuelBreakdown')
+  const canBank = hasPermission('Reports.BankControl')
+  const canGas = hasPermission('Reports.GasNotifications')
+  const canBudget = hasPermission('Budget.View')
+  const canOpenReports = canAssembly || canIncome || canTracking || canFuel || canBank || canGas
   const [searchParams] = useSearchParams()
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string | null>(
     searchParams.get('invoice'),
@@ -43,7 +53,7 @@ export function ReportsPage() {
   const [showDebtBreakdown, setShowDebtBreakdown] = useState<boolean | null>(null)
   const [showDebtTable, setShowDebtTable] = useState<boolean | null>(null)
   const [noticePageSize, setNoticePageSize] = useState(50)
-  const { range } = useManagementPeriodRange()
+  const { range } = useManagementPeriodRange(canOpenReports)
 
   const activeFrom = range[0].format('YYYY-MM-DD')
   const activeTo = range[1].format('YYYY-MM-DD')
@@ -51,12 +61,14 @@ export function ReportsPage() {
   const budgetSettingsQuery = useQuery({
     queryKey: ['budget-settings'],
     queryFn: async () => (await apiClient.get<BudgetSettingsDTO>('/settings/budget')).data,
+    enabled: canGas && canBudget,
   })
   const budgetEnabled = budgetSettingsQuery.data?.isBudgetTrackingEnabled ?? false
 
   const noticeSettingsQuery = useQuery({
     queryKey: ['notice-settings'],
     queryFn: async () => (await apiClient.get<NoticeSettingsDTO>('/settings/notice')).data,
+    enabled: canGas,
   })
   const debtBreakdownOn = showDebtBreakdown ?? noticeSettingsQuery.data?.showDebtBreakdownOnPdf ?? true
   const debtTableOn = showDebtTable ?? noticeSettingsQuery.data?.showDebtTableOnPdf ?? true
@@ -111,6 +123,8 @@ export function ReportsPage() {
           <Tag color="blue">
             Aktif Yönetim Dönemi: {range[0].format('DD.MM.YYYY')} – {range[1].format('DD.MM.YYYY')}
           </Tag>
+          {canAssembly && (
+          <>
           <Button
             type="primary"
             icon={<FilePdfOutlined />}
@@ -135,13 +149,19 @@ export function ReportsPage() {
           >
             Genel Kurul / Denetim Raporu (Excel)
           </Button>
+          </>
+          )}
         </Space>
       }
     >
+      {!canOpenReports ? (
+        <Empty description="Bu sayfada görüntüleyebileceğiniz rapor yok." />
+      ) : (
       <Tabs
-        defaultActiveKey={searchParams.get('invoice') ? 'notices' : 'general-assembly'}
+        key={[canAssembly, canIncome, canTracking, canFuel, canBank, canGas].join()}
+        defaultActiveKey={searchParams.get('invoice') && canGas ? 'notices' : canAssembly ? 'general-assembly' : canIncome ? 'income' : canTracking ? 'tracking' : canFuel ? 'fuel' : canBank ? 'bank' : 'notices'}
         items={[
-          {
+          ...(canAssembly ? [{
             key: 'general-assembly',
             label: (
               <span>
@@ -149,28 +169,28 @@ export function ReportsPage() {
               </span>
             ),
             children: <GeneralAssemblyReportTab />,
-          },
-          {
+          }] : []),
+          ...(canIncome ? [{
             key: 'income',
             label: 'Gelir-Gider',
             children: <AuditIncomeExpenseTab />,
-          },
-          {
+          }] : []),
+          ...(canTracking ? [{
             key: 'tracking',
             label: 'Daire Takip',
             children: <AuditApartmentTrackingTab />,
-          },
-          {
+          }] : []),
+          ...(canFuel ? [{
             key: 'fuel',
             label: 'Yakıt Dökümü',
             children: <AuditFuelTab />,
-          },
-          {
+          }] : []),
+          ...(canBank ? [{
             key: 'bank',
             label: 'Banka Kontrolü',
             children: <AuditBankTab />,
-          },
-          {
+          }] : []),
+          ...(canGas ? [{
             key: 'notices',
             label: 'Doğalgaz Bildirimleri',
             children: (
@@ -201,6 +221,7 @@ export function ReportsPage() {
                     <Checkbox checked={debtTableOn} onChange={(e) => setShowDebtTable(e.target.checked)}>
                       Faiz Dökümü Tablosunu Göster
                     </Checkbox>
+                    <>
                     <Button
                       type="primary"
                       icon={<FilePdfOutlined />}
@@ -226,6 +247,7 @@ export function ReportsPage() {
                     >
                       Excel Borç Listesi İndir
                     </Button>
+                    </>
                     <Typography.Text type="secondary">Dönem: {periodLabel}</Typography.Text>
                   </Space>
                 )}
@@ -251,6 +273,7 @@ export function ReportsPage() {
                       </Typography.Text>
                     </Space>
                     <Table
+                      scroll={{ x: 'max-content' }}
                       rowKey="apartmentInvoiceId"
                       size="small"
                       dataSource={filteredRows}
@@ -279,6 +302,7 @@ export function ReportsPage() {
                         },
                         {
                           title: 'Bildirim',
+                          fixed: 'right',
                           width: 170,
                           render: (_: unknown, r) => (
                             <Button
@@ -309,7 +333,7 @@ export function ReportsPage() {
                     </Typography.Text>
                   </Card>
                 )}
-                <Card size="small" title="Yıllık Bütçe Gerçekleşme Çıktıları">
+                {canBudget && <Card size="small" title="Yıllık Bütçe Gerçekleşme Çıktıları">
                   <Space wrap>
                     <Typography.Text strong>Yıl:</Typography.Text>
                     <DatePicker
@@ -320,6 +344,7 @@ export function ReportsPage() {
                         if (value) setFinanceYear(value.year())
                       }}
                     />
+                    <>
                     <Button
                       type="primary"
                       icon={<FilePdfOutlined />}
@@ -371,18 +396,20 @@ export function ReportsPage() {
                         </Button>
                       </>
                     )}
+                    </>
                   </Space>
                   {!budgetEnabled && (
                     <Typography.Paragraph type="secondary" style={{ marginTop: 8, marginBottom: 0 }}>
                       Bütçe takibi kapalı. Gerçekleşme raporu, Ayarlar’dan bütçe takibi açılınca indirilebilir.
                     </Typography.Paragraph>
                   )}
-                </Card>
+                </Card>}
               </Space>
             ),
-          },
+          }] : []),
         ]}
       />
+      )}
     </Card>
   )
 }

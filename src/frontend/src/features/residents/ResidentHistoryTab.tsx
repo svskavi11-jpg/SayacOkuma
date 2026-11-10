@@ -115,6 +115,7 @@ export function ResidentHistoryTab() {
         />
       </Space>
       <Table
+        scroll={{ x: 'max-content' }}
         rowKey="id"
         size="small"
         columns={columns}

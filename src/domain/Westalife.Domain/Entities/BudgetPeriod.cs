@@ -6,8 +6,13 @@ namespace Westalife.Domain.Entities;
 /// <summary>
 /// Butce yili. Kilitli yila yeni gider, gelir kalemi veya virman yazilamaz.
 /// </summary>
-public class BudgetPeriod : BaseEntity
+public class BudgetPeriod : BaseEntity, ITenantEntity
 {
+    /// <summary>Kaydın ait olduğu site.</summary>
+    public Guid TenantId { get; private set; }
+
+    public void AssignTenant(Guid tenantId) => TenantId = tenantId;
+
     public int Year { get; private set; }
 
     public bool IsLocked { get; private set; }

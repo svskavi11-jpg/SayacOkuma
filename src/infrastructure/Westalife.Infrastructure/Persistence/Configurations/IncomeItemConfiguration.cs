@@ -11,6 +11,7 @@ public class IncomeItemConfiguration : IEntityTypeConfiguration<IncomeItem>
     {
         builder.ToTable("IncomeItems");
         builder.HasKey(i => i.Id);
+        TenantOwnedConfiguration.Configure(builder);
         builder.Property(i => i.Year).IsRequired();
         builder.Property(i => i.Category)
             .IsRequired()

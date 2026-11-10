@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Alert, Button, Card, Form, Switch, Typography, message } from 'antd'
 import { apiClient } from '../../api/client'
+import { IfPermission } from '../auth/IfPermission'
 import type { BudgetSettingsDTO } from '../../types/api'
 
 /** Faz 6.10: Bütçe takibi anahtarı. Kapalıyken giderler serbest tür ile girilir. */
@@ -43,9 +44,11 @@ export function BudgetSettingsCard() {
         <Typography.Paragraph type="secondary">
           %90 aşım uyarısı kaydı engellemez. Kalan = tahmini − gerçekleşen.
         </Typography.Paragraph>
+        <IfPermission code="Settings.General">
         <Button type="primary" htmlType="submit" loading={saveMutation.isPending}>
           Kaydet
         </Button>
+        </IfPermission>
       </Form>
     </Card>
   )

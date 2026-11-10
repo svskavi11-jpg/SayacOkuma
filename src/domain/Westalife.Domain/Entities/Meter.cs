@@ -7,8 +7,13 @@ namespace Westalife.Domain.Entities;
 /// <summary>
 /// Sayaç. İki tip vardır: daire kalorimetresi (Calorimeter, kWh) ve bina ana doğalgaz sayacı (GasMasterMeter, m³).
 /// </summary>
-public class Meter : BaseEntity
+public class Meter : BaseEntity, ITenantEntity
 {
+    /// <summary>Kaydın ait olduğu site.</summary>
+    public Guid TenantId { get; private set; }
+
+    public void AssignTenant(Guid tenantId) => TenantId = tenantId;
+
     public string SerialNumber { get; private set; } = string.Empty;
 
     public MeterType Type { get; private set; }

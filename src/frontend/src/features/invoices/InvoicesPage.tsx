@@ -1,3 +1,4 @@
+import { AppModal } from '../../components/AppModal'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -32,6 +33,7 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import dayjs, { type Dayjs } from 'dayjs'
 import { apiClient } from '../../api/client'
+import { useAuth } from '../auth/AuthContext'
 import { downloadFile } from '../../api/download'
 import type {
   AddGasInvoiceRequest,
@@ -52,6 +54,11 @@ const DEFAULT_DUE_DATE_DAYS = 15
 /** Akmercan fatura giriş formu + liste + hesaplama (Kural #1 mutabakatlı). */
 export function InvoicesPage() {
   const queryClient = useQueryClient()
+  const { hasPermission } = useAuth()
+  const canCreate = hasPermission('Invoices.Create')
+  const canEdit = hasPermission('Invoices.Edit')
+  const canCalculate = hasPermission('Invoices.Calculate')
+  const canImportReadings = hasPermission('MeterReadings.ManualEntry')
   const [addOpen, setAddOpen] = useState(false)
   const [form] = Form.useForm()
   const [result, setResult] = useState<CalculationResultResponse | null>(null)
@@ -321,7 +328,7 @@ export function InvoicesPage() {
         <Space direction="vertical" size={2}>
           <Space size={4}>
             <Typography.Text style={{ fontSize: 12 }}>Vade:</Typography.Text>
-            {r.isLocked ? (
+            {r.isLocked || !canEdit ? (
               <Typography.Text style={{ fontSize: 12 }}>
                 {dayjs(r.dueDate).format('DD.MM.YYYY')}
               </Typography.Text>
@@ -339,20 +346,19 @@ export function InvoicesPage() {
           {r.isPaid ? (
             <Tag
               color="green"
-              style={{ cursor: 'pointer', fontSize: 11 }}
-              onClick={() =>
+              style={{ cursor: canEdit ? 'pointer' : 'default', fontSize: 11 }}
+              onClick={canEdit ? () =>
                 Modal.confirm({
                   title: 'Ödeme kaydı kaldırılsın mı?',
                   content: `${r.invoiceNumber} faturasının ödeme kaydı silinecek.`,
                   okText: 'Evet',
                   cancelText: 'Hayır',
                   onOk: () => setPaidMutation.mutateAsync({ id: r.id, isPaid: false }),
-                })
-              }
+                }) : undefined}
             >
               ✓ Ödendi ({r.paidOn ? dayjs(r.paidOn).format('DD.MM.YYYY') : '—'})
             </Tag>
-          ) : (
+          ) : canEdit ? (
             <Button
               size="small"
               type="dashed"
@@ -383,15 +389,17 @@ export function InvoicesPage() {
             >
               Ödendi İşaretle
             </Button>
-          )}
+          ) : null}
         </Space>
       ),
     },
     {
       title: 'İşlemler',
+      fixed: 'right',
       width: 300,
       render: (_: unknown, r: GasInvoiceListItem) => (
         <Space wrap>
+          {canCalculate && (
           <Button
             size="small"
             icon={<CalculatorOutlined />}
@@ -402,10 +410,11 @@ export function InvoicesPage() {
           >
             Hesapla
           </Button>
+          )}
           <Button size="small" type="link" disabled={!r.hasCalculation} onClick={() => void showResult(r.id)}>
             Sonuç
           </Button>
-          {!r.isLocked && (
+          {canEdit && !r.isLocked && (
             <Button
               size="small"
               type="link"
@@ -415,7 +424,7 @@ export function InvoicesPage() {
               Düzenle
             </Button>
           )}
-          {!r.isLocked && (
+          {canEdit && !r.isLocked && (
             <Button
               size="small"
               icon={<LockOutlined />}
@@ -432,7 +441,7 @@ export function InvoicesPage() {
               Kilitle
             </Button>
           )}
-          {r.isLocked && (
+          {canEdit && r.isLocked && (
             <Button
               size="small"
               danger
@@ -469,6 +478,7 @@ export function InvoicesPage() {
           >
             Okuma Şablonu İndir
           </Button>
+          {canImportReadings && (
           <Upload
             accept=".xlsx"
             showUploadList={false}
@@ -479,13 +489,17 @@ export function InvoicesPage() {
               Okuma Verilerini İçe Aktar
             </Button>
           </Upload>
+          )}
+          {canCreate && (
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setAddOpen(true)}>
             Yeni Fatura
           </Button>
+          )}
         </Space>
       }
     >
       <Table
+        scroll={{ x: 'max-content' }}
         rowKey="id"
         columns={columns}
         dataSource={invoicesQuery.data}
@@ -493,7 +507,7 @@ export function InvoicesPage() {
         size="small"
         pagination={{ pageSize: 10 }}
       />
-      <Modal
+      <AppModal
         title={editingId ? 'Fatura Düzenle' : 'Yeni Doğalgaz Faturası (Akmercan)'}
         open={addOpen}
         onCancel={() => {
@@ -542,73 +556,73 @@ export function InvoicesPage() {
           }}
         >
           <Row gutter={12}>
-            <Col span={8}>
+            <Col xs={24} md={8}>
               <Form.Item name="invoiceNumber" label="Fatura No" rules={[{ required: true }]}>
                 <Input placeholder="T6772024..." />
               </Form.Item>
             </Col>
-            <Col span={8}>
+            <Col xs={24} md={8}>
               <Form.Item name="subscriberNumber" label="Abone No" rules={[{ required: true }]}>
                 <Input />
               </Form.Item>
             </Col>
-            <Col span={8}>
+            <Col xs={24} md={8}>
               <Form.Item name="masterMeterSerial" label="Ana Sayaç Seri No" rules={[{ required: true }]}>
                 <Input />
               </Form.Item>
             </Col>
           </Row>
           <Row gutter={12}>
-            <Col span={8}>
+            <Col xs={24} md={8}>
               <Form.Item name="readingDateFrom" label="İlk Okuma Tarihi" rules={[{ required: true }]}>
                 <DatePicker style={{ width: '100%' }} showTime format="DD.MM.YYYY HH:mm" />
               </Form.Item>
             </Col>
-            <Col span={8}>
+            <Col xs={24} md={8}>
               <Form.Item name="readingDateTo" label="Son Okuma Tarihi" rules={[{ required: true }]}>
                 <DatePicker style={{ width: '100%' }} showTime format="DD.MM.YYYY HH:mm" />
               </Form.Item>
             </Col>
-            <Col span={8}>
+            <Col xs={24} md={8}>
               <Form.Item name="issuedOn" label="Fatura Tarihi" rules={[{ required: true }]}>
                 <DatePicker style={{ width: '100%' }} showTime format="DD.MM.YYYY HH:mm" />
               </Form.Item>
             </Col>
           </Row>
           <Row gutter={12}>
-            <Col span={8}>
+            <Col xs={24} md={8}>
               <Form.Item name="correctedVolumeM3" label="Düzeltilmiş Tüketim (m³)" rules={[{ required: true }]}>
                 <InputNumber style={{ width: '100%' }} min={0} decimalSeparator="," />
               </Form.Item>
             </Col>
-            <Col span={8}>
+            <Col xs={24} md={8}>
               <Form.Item name="totalEnergyKWh" label="Tüketilen Enerji (kWh)" rules={[{ required: true }]}>
                 <InputNumber style={{ width: '100%' }} min={0} decimalSeparator="," />
               </Form.Item>
             </Col>
-            <Col span={8}>
+            <Col xs={24} md={8}>
               <Form.Item name="pressureCorrectionFactor" label="K Katsayısı" rules={[{ required: true }]}>
                 <InputNumber style={{ width: '100%' }} min={0} step={0.000001} decimalSeparator="," />
               </Form.Item>
             </Col>
           </Row>
           <Row gutter={12}>
-            <Col span={6}>
+            <Col xs={24} md={6}>
               <Form.Item name="consumptionAmount" label="Tüketim Bedeli" rules={[{ required: true }]}>
                 <InputNumber style={{ width: '100%' }} min={0} decimalSeparator="," />
               </Form.Item>
             </Col>
-            <Col span={6}>
+            <Col xs={24} md={6}>
               <Form.Item name="consumptionVat" label="Tüketim KDV" rules={[{ required: true }]}>
                 <InputNumber style={{ width: '100%' }} min={0} decimalSeparator="," />
               </Form.Item>
             </Col>
-            <Col span={6}>
+            <Col xs={24} md={6}>
               <Form.Item name="distributionAmount" label="Gecikme Bedeli" rules={[{ required: true }]}>
                 <InputNumber style={{ width: '100%' }} min={0} decimalSeparator="," />
               </Form.Item>
             </Col>
-            <Col span={6}>
+            <Col xs={24} md={6}>
               <Form.Item name="distributionVat" label="Gecikme KDV" rules={[{ required: true }]}>
                 <InputNumber style={{ width: '100%' }} min={0} decimalSeparator="," />
               </Form.Item>
@@ -629,8 +643,8 @@ export function InvoicesPage() {
             <Input.TextArea rows={3} maxLength={1000} showCount placeholder="Örn: Kayıp-kaçak %30 sabit gider içinde eritilmiştir." />
           </Form.Item>
         </Form>
-      </Modal>
-      <Modal
+      </AppModal>
+      <AppModal
         title={`Hesaplama Sonucu — ${result?.invoiceNumber ?? ''}`}
         open={result !== null}
         onCancel={() => setResult(null)}
@@ -640,12 +654,12 @@ export function InvoicesPage() {
         {result && (
           <>
             <Row gutter={16} style={{ marginBottom: 16 }}>
-              <Col span={8}>
+              <Col xs={24} md={8}>
                 <Card size="small">
                   <Statistic title="Fatura Tutarı" value={result.invoiceTotalAmount} precision={2} suffix="TL" />
                 </Card>
               </Col>
-              <Col span={8}>
+              <Col xs={24} md={8}>
                 <Card size="small">
                   <Statistic
                     title="Dağıtılan"
@@ -656,7 +670,7 @@ export function InvoicesPage() {
                   />
                 </Card>
               </Col>
-              <Col span={8}>
+              <Col xs={24} md={8}>
                 <Card size="small">
                   <Statistic
                     title="Mutabakat"
@@ -671,7 +685,7 @@ export function InvoicesPage() {
               size="small"
               dataSource={result.rows}
               pagination={{ pageSize: 10 }}
-              scroll={{ y: 320 }}
+              scroll={{ x: 'max-content', y: 320  }}
               columns={[
                 { title: 'Kapı', dataIndex: 'doorNumber', width: 70 },
                 { title: 'Daire', dataIndex: 'apartmentTitle' },
@@ -709,8 +723,8 @@ export function InvoicesPage() {
             />
           </>
         )}
-      </Modal>
-      <Modal
+      </AppModal>
+      <AppModal
         title="Okuma İçe Aktarma Sonucu"
         open={importResult !== null}
         onCancel={() => setImportResult(null)}
@@ -751,9 +765,9 @@ export function InvoicesPage() {
             )}
           </>
         )}
-      </Modal>
+      </AppModal>
       {/* Dönem kilidi: bildirim ve son ödeme tarihi */}
-      <Modal
+      <AppModal
         title={lockTarget ? `Dönemi kilitle (${lockTarget.invoiceNumber})` : 'Dönemi kilitle'}
         open={!!lockTarget}
         onCancel={() => setLockTarget(null)}
@@ -806,9 +820,9 @@ export function InvoicesPage() {
             message="Seçilen son ödeme geçmişte. Faiz bu tarihten bugüne işler."
           />
         )}
-      </Modal>
+      </AppModal>
       {/* Faz 6.8: Vade Tarihi Düzenleme Modal */}
-      <Modal
+      <AppModal
         title="Vade Tarihini Güncelle"
         open={!!dueDateEditId}
         onCancel={() => setDueDateEditId(null)}
@@ -826,7 +840,7 @@ export function InvoicesPage() {
           value={dueDateValue}
           onChange={(d) => setDueDateValue(d)}
         />
-      </Modal>
+      </AppModal>
     </Card>
   )
 }

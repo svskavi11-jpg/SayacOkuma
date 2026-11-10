@@ -15,8 +15,13 @@ namespace Westalife.Domain.Entities;
 /// olarak Ledger sorgu katmanında hesaplanır — tabloya yazılmaz (basit faiz kural #2).
 /// </para>
 /// </summary>
-public class Payment : BaseEntity
+public class Payment : BaseEntity, ITenantEntity
 {
+    /// <summary>Kaydın ait olduğu site.</summary>
+    public Guid TenantId { get; private set; }
+
+    public void AssignTenant(Guid tenantId) => TenantId = tenantId;
+
     public Guid ApartmentId { get; private set; }
 
     public Apartment Apartment { get; private set; } = null!;

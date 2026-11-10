@@ -1,3 +1,4 @@
+import { AppModal } from '../../components/AppModal'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -8,7 +9,6 @@ import {
   Form,
   Input,
   InputNumber,
-  Modal,
   Table,
   Tabs,
   Tag,
@@ -105,6 +105,7 @@ export function FormerResidentsPage() {
     },
     {
       title: 'İşlem',
+      fixed: 'right',
       width: 130,
       render: (_: unknown, r: FormerResidentDebtItem) => (
         <Button
@@ -139,6 +140,7 @@ export function FormerResidentsPage() {
         description="KMK Madde 22 gereği borçtan ev sahibi ve kiracı müteselsilen sorumludur: kiracı borcunu ödemeden ayrıldıysa kalan borç için ev sahibine rücu edilebilir."
       />
       <Table
+        scroll={{ x: 'max-content' }}
         rowKey={(r) => `${r.apartmentId}-${r.ownerId}`}
         size="small"
         columns={columns}
@@ -158,7 +160,7 @@ export function FormerResidentsPage() {
         ]}
       />
 
-      <Modal
+      <AppModal
         title={`Tahsilat Gir — ${paymentFor?.ownerName ?? ''} (Daire ${paymentFor?.doorNumber ?? ''})`}
         open={paymentFor !== null}
         onCancel={() => setPaymentFor(null)}
@@ -206,7 +208,7 @@ export function FormerResidentsPage() {
             </Form>
           </>
         )}
-      </Modal>
+      </AppModal>
     </Card>
   )
 }

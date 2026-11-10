@@ -8,8 +8,13 @@ namespace Westalife.Domain.Entities;
 /// Örnek: "1+1 C" → 32,1 m² → 2.000,00 TL/ay. Tarife-bazlı dağıtımda dairenin
 /// borcu, daireye atanmış tarifenin tutarından hesaplanır.
 /// </summary>
-public class AidatTariff : BaseEntity
+public class AidatTariff : BaseEntity, ITenantEntity
 {
+    /// <summary>Kaydın ait olduğu site.</summary>
+    public Guid TenantId { get; private set; }
+
+    public void AssignTenant(Guid tenantId) => TenantId = tenantId;
+
     /// <summary>Tarife adı (örn: "1+1 C", "2+1 A"). Bina içinde tekil olmalıdır.</summary>
     public string Name { get; private set; } = string.Empty;
 

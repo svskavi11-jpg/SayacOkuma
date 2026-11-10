@@ -3,6 +3,7 @@ import { Button, Card, Col, DatePicker, Form, Input, InputNumber, Popconfirm, Ro
 import type { ColumnsType } from "antd/es/table"
 import dayjs, { type Dayjs } from "dayjs"
 import { apiClient } from "../../api/client"
+import { useAuth } from "../auth/AuthContext"
 import { formatDate } from "../../utils/dateUtils"
 import type { BankTransactionListItem, BankTransactionType } from "../../types/api"
 import { BankAccountSelect } from "./BankAccountSelect"
@@ -35,6 +36,8 @@ interface EntryForm {
 }
 
 export function BankTransactionsTab() {
+  const { hasPermission } = useAuth()
+  const canManage = hasPermission("Bank.Manage")
   const queryClient = useQueryClient()
   const [transferForm] = Form.useForm<TransferForm>()
   const [entryForm] = Form.useForm<EntryForm>()
@@ -114,23 +117,24 @@ export function BankTransactionsTab() {
     { title: "Açıklama", dataIndex: "description", ellipsis: true, render: (value: string | null) => value || "—" },
     {
       title: "",
+      fixed: 'right',
       width: 90,
       render: (_: unknown, row) => (
-        <Popconfirm
+        canManage ? <Popconfirm
           title={row.transferGroupId ? "Bu virmanın iki bacağı da silinsin mi?" : "Bu hareket silinsin mi?"}
           okText="Sil"
           cancelText="Vazgeç"
           onConfirm={() => deleteMutation.mutate(row.id)}
         >
           <Button size="small" danger>Sil</Button>
-        </Popconfirm>
+        </Popconfirm> : null
       ),
     },
   ]
 
   return (
     <Space direction="vertical" size={16} style={{ width: "100%" }}>
-      <Row gutter={[16, 16]}>
+      {canManage && <Row gutter={[16, 16]}>
         <Col xs={24} lg={12}>
           <Card size="small" title="Virman">
             <Form
@@ -190,8 +194,9 @@ export function BankTransactionsTab() {
             </Form>
           </Card>
         </Col>
-      </Row>
+      </Row>}
       <Table
+        scroll={{ x: 'max-content' }}
         rowKey="id"
         size="small"
         loading={transactionsQuery.isLoading}

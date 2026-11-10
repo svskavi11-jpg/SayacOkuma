@@ -12,6 +12,7 @@ public class BuildingConfiguration : IEntityTypeConfiguration<Building>
         builder.ToTable("Buildings");
 
         builder.HasKey(b => b.Id);
+        TenantOwnedConfiguration.Configure(builder);
 
         builder.Property(b => b.Name)
             .IsRequired()
@@ -28,6 +29,7 @@ public class BuildingConfiguration : IEntityTypeConfiguration<Building>
         builder.HasData(new
         {
             Id = DomainConstants.SeedData.BuildingId,
+            TenantId = DomainConstants.SeedData.DefaultTenantId,
             Name = "Westalife Residence",
             Address = "Zonguldak",
             FixedCostRatio = DomainConstants.Building.DefaultFixedCostRatio,

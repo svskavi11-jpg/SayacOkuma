@@ -8,8 +8,13 @@ namespace Westalife.Domain.Entities;
 /// Sitenin banka hesabı. Bir bankada birden fazla hesap olabilir.
 /// Tahsilat ve gider bu karta bağlanır. Devir bakiyesi hesabın açılış parasıdır.
 /// </summary>
-public class BankAccount : BaseEntity
+public class BankAccount : BaseEntity, ITenantEntity
 {
+    /// <summary>Kaydın ait olduğu site.</summary>
+    public Guid TenantId { get; private set; }
+
+    public void AssignTenant(Guid tenantId) => TenantId = tenantId;
+
     public string BankName { get; private set; } = string.Empty;
 
     public string AccountName { get; private set; } = string.Empty;

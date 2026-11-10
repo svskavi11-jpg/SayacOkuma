@@ -9,6 +9,7 @@ namespace Westalife.Application.Common.Interfaces;
 /// </summary>
 public interface IApplicationDbContext
 {
+    DbSet<Tenant> Tenants { get; }
     DbSet<Building> Buildings { get; }
     DbSet<Apartment> Apartments { get; }
     DbSet<ApartmentDimension> ApartmentDimensions { get; }
@@ -37,6 +38,7 @@ public interface IApplicationDbContext
     DbSet<NotificationTemplate> NotificationTemplates { get; }
     DbSet<NotificationLog> NotificationLogs { get; }
     DbSet<NoticePdfAccessToken> NoticePdfAccessTokens { get; }
+    DbSet<RolePermission> RolePermissions { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 

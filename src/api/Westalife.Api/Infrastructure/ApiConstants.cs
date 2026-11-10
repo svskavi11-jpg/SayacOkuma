@@ -11,6 +11,8 @@ public static class ApiConstants
         public const string MeteringFailure = "Sayaç okuma hatası";
         public const string ResourceNotFound = "Kayıt bulunamadı";
         public const string UnexpectedError = "Beklenmeyen bir hata oluştu";
+        public const string Unauthorized = "Giriş başarısız";
+        public const string Forbidden = "Bu işlem için yetkiniz yok";
     }
 
     public static class Routes

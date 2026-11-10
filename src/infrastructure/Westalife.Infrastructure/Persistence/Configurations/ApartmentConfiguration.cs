@@ -12,6 +12,7 @@ public class ApartmentConfiguration : IEntityTypeConfiguration<Apartment>
         builder.ToTable("Apartments");
 
         builder.HasKey(a => a.Id);
+        TenantOwnedConfiguration.Configure(builder);
 
         builder.Property(a => a.DoorNumber)
             .IsRequired()
@@ -74,6 +75,7 @@ public class ApartmentConfiguration : IEntityTypeConfiguration<Apartment>
             apartments.Add(new
             {
                 Id = new Guid($"00000000-0000-0000-0000-{i:D12}"),
+                TenantId = DomainConstants.SeedData.DefaultTenantId,
                 BuildingId = buildingId,
                 DoorNumber = i.ToString(),
                 Title = $"Daire {i}",

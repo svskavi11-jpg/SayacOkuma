@@ -7,8 +7,13 @@ namespace Westalife.Domain.Entities;
 /// Yillik tahmini gelir kalemi. Ornek: banka faizi, ortak alan kira geliri.
 /// Gerceklesen tahsilat bu tutari dusurmez; denge tahmini gelir eksi tahmini giderdir.
 /// </summary>
-public class IncomeItem : BaseEntity
+public class IncomeItem : BaseEntity, ITenantEntity
 {
+    /// <summary>Kaydın ait olduğu site.</summary>
+    public Guid TenantId { get; private set; }
+
+    public void AssignTenant(Guid tenantId) => TenantId = tenantId;
+
     public int Year { get; private set; }
 
     public string Category { get; private set; } = string.Empty;

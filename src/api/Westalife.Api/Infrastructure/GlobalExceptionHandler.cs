@@ -74,6 +74,8 @@ public sealed class GlobalExceptionHandler : IExceptionHandler
         // NotFoundException: talep edilen kaynak DB'de yok (handler'lar bu tipi fırlatmalı).
         // InvalidOperationException burada YOK — çok geniş; beklenmeyen durumlar 500 olarak doğru şekilde raporlanır.
         Westalife.Domain.Exceptions.NotFoundException => (StatusCodes.Status404NotFound, ApiConstants.Titles.ResourceNotFound),
+        Westalife.Domain.Exceptions.UnauthorizedException => (StatusCodes.Status401Unauthorized, ApiConstants.Titles.Unauthorized),
+        Westalife.Domain.Exceptions.ForbiddenException => (StatusCodes.Status403Forbidden, ApiConstants.Titles.Forbidden),
         _ => (StatusCodes.Status500InternalServerError, ApiConstants.Titles.UnexpectedError)
     };
 }

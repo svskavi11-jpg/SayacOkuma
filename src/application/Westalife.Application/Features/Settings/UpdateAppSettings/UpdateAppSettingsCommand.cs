@@ -81,10 +81,12 @@ public sealed class UpdateAppSettingsCommandHandler
     : IRequestHandler<UpdateAppSettingsCommand, AppSettingsResponse>
 {
     private readonly IApplicationDbContext _db;
+    private readonly IAccessProfileReader _access;
 
-    public UpdateAppSettingsCommandHandler(IApplicationDbContext db)
+    public UpdateAppSettingsCommandHandler(IApplicationDbContext db, IAccessProfileReader access)
     {
         _db = db;
+        _access = access;
     }
 
     public async Task<AppSettingsResponse> Handle(
@@ -97,20 +99,30 @@ public sealed class UpdateAppSettingsCommandHandler
         var building = await _db.Buildings
             .FirstOrDefaultAsync(b => b.IsActive, cancellationToken);
 
-        // Domain doğrulaması (oran toplamı %100) — geçersizse hiçbir şey yazılmaz.
-        settings.Update(
-            request.CompanyName, request.BuildingName,
-            request.FixedCostRatio, request.ConsumptionRatio);
+        var profile = await _access.CurrentAsync(cancellationToken);
+        var general = profile.IsSuperAdmin || profile.Permissions.Contains(Permissions.Settings.General);
+        var mbus = profile.IsSuperAdmin || profile.Permissions.Contains(Permissions.Settings.MBus);
+        if (!general && !mbus)
+        {
+            throw new ForbiddenException("Sistem ayarlarını değiştirme yetkiniz yok.");
+        }
 
-        // M-Bus donanım ayarları (bağlantı tipine göre koşullu doğrulama Domain'de).
-        settings.UpdateMeterConnection(
-            request.MeterConnectionType,
-            request.TcpHost, request.TcpPort,
-            request.UsbPortName, request.UsbBaudRate);
+        if (general)
+        {
+            settings.Update(
+                request.CompanyName, request.BuildingName,
+                request.FixedCostRatio, request.ConsumptionRatio);
+            building?.UpdateDetails(settings.BuildingName, building.Address);
+            building?.UpdateFixedCostRatio(settings.FixedCostRatio);
+        }
 
-        // Mirror: hesaplama motoru Building.FixedCostRatio okur; bina adı da senkronize edilir.
-        building?.UpdateDetails(settings.BuildingName, building.Address);
-        building?.UpdateFixedCostRatio(settings.FixedCostRatio);
+        if (mbus)
+        {
+            settings.UpdateMeterConnection(
+                request.MeterConnectionType,
+                request.TcpHost, request.TcpPort,
+                request.UsbPortName, request.UsbBaudRate);
+        }
 
         await _db.SaveChangesAsync(cancellationToken);
 

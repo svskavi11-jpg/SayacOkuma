@@ -1,4 +1,5 @@
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Westalife.Api.Infrastructure;
 using Westalife.Application.Features.Residents.Documents;
@@ -26,6 +27,7 @@ public class ResidentsController : ControllerBase
     /// Dairede oturmayı bitirmiş (ValidTo dolu) ve cari hesabında kalan borcu olan eski sakinler.
     /// Kiracı satırlarında RucuPossible=true + EvSahibiName döner (müteselsil sorumluluk uyarısı).
     /// </summary>
+    [HasPermission(Permissions.Apartments.View)]
     [HttpGet("former-with-debt")]
     [ProducesResponseType(typeof(IReadOnlyList<FormerResidentDebtItem>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetFormerWithDebt(CancellationToken ct)
@@ -38,6 +40,7 @@ public class ResidentsController : ControllerBase
     /// Daire sakinlerinin tamamı: oturmakta olanlar ve çıkmış olanlar.
     /// Tarih filtresi, oturma aralığının seçilen günlerle kesişmesine bakar.
     /// </summary>
+    [HasPermission(Permissions.Apartments.View)]
     [HttpGet("history")]
     [ProducesResponseType(typeof(IReadOnlyList<ResidentHistoryItem>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetHistory(
@@ -53,11 +56,13 @@ public class ResidentsController : ControllerBase
         return Ok(result);
     }
 
+    [HasPermission(Permissions.Apartments.View)]
     [HttpGet("documents")]
     [ProducesResponseType(typeof(IReadOnlyList<ResidentDocumentItem>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetDocuments([FromQuery] Guid apartmentId, CancellationToken ct) =>
         Ok(await _mediator.Send(new GetResidentDocumentsQuery(apartmentId), ct));
 
+    [HasPermission(Permissions.Apartments.ManageResident)]
     [HttpPost("{ownerId:guid}/documents")]
     [Consumes("multipart/form-data")]
     [RequestSizeLimit(DomainConstants.ResidentDocument.MaxBytes)]
@@ -77,6 +82,7 @@ public class ResidentsController : ControllerBase
         return Ok(result);
     }
 
+    [HasPermission(Permissions.Apartments.View)]
     [HttpGet("documents/{id:guid}/file")]
     public async Task<IActionResult> Download(Guid id, CancellationToken ct)
     {
@@ -84,6 +90,7 @@ public class ResidentsController : ControllerBase
         return File(file.Content, file.ContentType, file.FileName);
     }
 
+    [HasPermission(Permissions.Apartments.ManageResident)]
     [HttpDelete("documents/{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeleteDocument(Guid id, CancellationToken ct)

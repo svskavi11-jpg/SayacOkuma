@@ -11,6 +11,7 @@ import {
   message,
 } from 'antd'
 import { apiClient } from '../../api/client'
+import { IfPermission } from '../auth/IfPermission'
 import type { InterestSettingsDTO } from '../../types/api'
 
 /**
@@ -103,6 +104,7 @@ export function InterestSettingsCard() {
           <InputNumber />
         </Form.Item>
 
+        <IfPermission code="Settings.General">
         <Button
           type="primary"
           htmlType="submit"
@@ -111,6 +113,7 @@ export function InterestSettingsCard() {
         >
           Kaydet
         </Button>
+        </IfPermission>
       </Form>
     </Card>
   )

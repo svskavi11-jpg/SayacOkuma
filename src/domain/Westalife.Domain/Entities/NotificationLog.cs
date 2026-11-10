@@ -6,8 +6,13 @@ using Westalife.Domain.Exceptions;
 namespace Westalife.Domain.Entities;
 
 /// <summary>Tek bir daireye yapılan bildirim denemesinin değiştirilmez kaydı.</summary>
-public class NotificationLog : BaseEntity
+public class NotificationLog : BaseEntity, ITenantEntity
 {
+    /// <summary>Kaydın ait olduğu site.</summary>
+    public Guid TenantId { get; private set; }
+
+    public void AssignTenant(Guid tenantId) => TenantId = tenantId;
+
     public Guid ApartmentId { get; private set; }
 
     public Apartment Apartment { get; private set; } = null!;

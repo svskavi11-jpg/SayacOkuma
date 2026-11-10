@@ -7,8 +7,13 @@ namespace Westalife.Domain.Entities;
 /// Bina (Westalife Residence). 30/70 hesabındaki sabit gider oranı burada tutulur;
 /// hesaplama motoru (Faz 3) oranı koddan değil bu kayıttan okur.
 /// </summary>
-public class Building : BaseEntity
+public class Building : BaseEntity, ITenantEntity
 {
+    /// <summary>Kaydın ait olduğu site.</summary>
+    public Guid TenantId { get; private set; }
+
+    public void AssignTenant(Guid tenantId) => TenantId = tenantId;
+
     public string Name { get; private set; } = string.Empty;
 
     public string Address { get; private set; } = string.Empty;

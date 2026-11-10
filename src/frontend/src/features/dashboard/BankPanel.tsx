@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Button, Card, Col, Empty, Row, Space, Statistic, Tag, Typography } from 'antd'
+import { Button, Card, Col, Empty, Row, Space, Statistic, Tag, Typography, theme } from 'antd'
 import {
   ArrowDownOutlined,
   ArrowUpOutlined,
@@ -40,7 +40,7 @@ const panelCardStyle: CSSProperties = {
   flexDirection: 'column',
 }
 
-function getBankTheme(bankName: string, index: number): {
+function getBankTheme(bankName: string, index: number, primary: string): {
   accent: string
   bgTint: string
   badgeBg: string
@@ -65,7 +65,7 @@ function getBankTheme(bankName: string, index: number): {
     return { accent: '#0050b3', bgTint: '#e6f4ff', badgeBg: '#bae0ff' }
   }
   const palette = [
-    { accent: '#1677ff', bgTint: '#f0f5ff', badgeBg: '#bae0ff' },
+    { accent: primary, bgTint: '#f0f5ff', badgeBg: '#bae0ff' },
     { accent: '#13c2c2', bgTint: '#e6fffb', badgeBg: '#b5f5ec' },
     { accent: '#722ed1', bgTint: '#f9f0ff', badgeBg: '#efdbff' },
     { accent: '#eb2f96', bgTint: '#fff0f6', badgeBg: '#ffd6e7' },
@@ -80,6 +80,7 @@ function accountLabel(account: BankDashboardAccount, accounts: BankDashboardAcco
 
 export function BankPanel() {
   const navigate = useNavigate()
+  const { token } = theme.useToken()
   const banksQuery = useQuery({
     queryKey: ['dashboard-banks'],
     queryFn: async () => (await apiClient.get<BankDashboard>('/dashboard/banks')).data,
@@ -119,8 +120,8 @@ export function BankPanel() {
                   width: 34,
                   height: 34,
                   borderRadius: 10,
-                  background: '#e6f4ff',
-                  color: '#1677ff',
+                  background: token.colorPrimaryBg,
+                  color: token.colorPrimary,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -153,7 +154,7 @@ export function BankPanel() {
               {/* Toplam Banka Mevcudu Üst Özet Kartı */}
               <div
                 style={{
-                  background: 'linear-gradient(135deg, #0958d9 0%, #1677ff 100%)',
+                  background: `linear-gradient(135deg, ${token.colorPrimaryActive} 0%, ${token.colorPrimary} 100%)`,
                   borderRadius: 12,
                   padding: '18px 20px',
                   color: '#fff',
@@ -204,7 +205,7 @@ export function BankPanel() {
               {/* Banka Hesapları (Garanti, TEB vb.) Küçük Şık Özet Kartları */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {accounts.map((account, idx) => {
-                  const theme = getBankTheme(account.bankName, idx)
+                  const bankLook = getBankTheme(account.bankName, idx, token.colorPrimary)
                   return (
                     <Card
                       key={account.id}
@@ -215,7 +216,7 @@ export function BankPanel() {
                         borderRadius: 12,
                         background: '#ffffff',
                         border: '1px solid #f0f2f5',
-                        borderLeft: `4px solid ${theme.accent}`,
+                        borderLeft: `4px solid ${bankLook.accent}`,
                         boxShadow: '0 2px 10px rgba(15, 23, 42, 0.04)',
                       }}
                     >
@@ -234,8 +235,8 @@ export function BankPanel() {
                               width: 40,
                               height: 40,
                               borderRadius: 10,
-                              background: theme.bgTint,
-                              color: theme.accent,
+                              background: bankLook.bgTint,
+                              color: bankLook.accent,
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
@@ -269,7 +270,7 @@ export function BankPanel() {
                           valueStyle={{
                             fontSize: 18,
                             fontWeight: 700,
-                            color: account.currentBalance < 0 ? '#cf1322' : theme.accent,
+                            color: account.currentBalance < 0 ? '#cf1322' : bankLook.accent,
                             whiteSpace: 'nowrap',
                           }}
                         />

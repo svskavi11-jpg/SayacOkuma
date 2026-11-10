@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Alert, Button, Card, Col, Divider, Form, InputNumber, Radio, Row, Select, Space, Typography, message } from 'antd'
 import { CrownOutlined } from '@ant-design/icons'
 import { apiClient } from '../../api/client'
+import { IfPermission } from '../auth/IfPermission'
 import type { RoleFeeSettingsDTO, RolePaymentType, RolePeriodType } from '../../types/api'
 
 interface RoleFeeFormValues {
@@ -263,9 +264,11 @@ export function RoleFeeSettingsCard() {
           )}
         </Row>
 
+        <IfPermission code="Settings.General">
         <Button type="primary" htmlType="submit" loading={saveMutation.isPending}>
           Görev Ücretlerini ve Bütçe Kalemini Kaydet
         </Button>
+        </IfPermission>
       </Form>
     </Card>
   )

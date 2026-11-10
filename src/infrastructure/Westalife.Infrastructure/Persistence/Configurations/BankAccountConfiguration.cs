@@ -11,6 +11,7 @@ public class BankAccountConfiguration : IEntityTypeConfiguration<BankAccount>
     {
         builder.ToTable("BankAccounts");
         builder.HasKey(a => a.Id);
+        TenantOwnedConfiguration.Configure(builder);
 
         builder.Property(a => a.BankName)
             .IsRequired()

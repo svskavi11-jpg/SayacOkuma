@@ -3,6 +3,7 @@ import { Button, Card, Col, Form, Input, InputNumber, Row, Slider, Space, Switch
 import { DeleteOutlined, UploadOutlined } from '@ant-design/icons'
 import { useState } from 'react'
 import { apiClient } from '../../api/client'
+import { IfPermission } from '../auth/IfPermission'
 import type { NoticeSettingsDTO } from '../../types/api'
 
 type Side = 'left' | 'right'
@@ -179,7 +180,7 @@ export function NoticeSettingsCard() {
         onFinish={(values) => save.mutate(values)}
       >
         <Row gutter={16} style={{ marginBottom: 16 }}>
-          <Col span={12}>
+          <Col xs={24} md={12}>
             <LogoField
               side="left"
               label="Sol Üst Logo"
@@ -193,7 +194,7 @@ export function NoticeSettingsCard() {
               }}
             />
           </Col>
-          <Col span={12}>
+          <Col xs={24} md={12}>
             <LogoField
               side="right"
               label="Sağ Üst Logo"
@@ -209,12 +210,12 @@ export function NoticeSettingsCard() {
           </Col>
         </Row>
         <Row gutter={16}>
-          <Col span={12}>
+          <Col xs={24} md={12}>
             <Form.Item name="leftTitle" label="Sol Üst Metin (logo yoksa)" extra="Boşsa Şirket Adı kullanılır.">
               <Input maxLength={100} placeholder="Çınar Teknik" />
             </Form.Item>
           </Col>
-          <Col span={12}>
+          <Col xs={24} md={12}>
             <Form.Item name="rightTitle" label="Sağ Üst Metin (logo yoksa)">
               <Input maxLength={100} placeholder="Danfoss" />
             </Form.Item>
@@ -230,12 +231,12 @@ export function NoticeSettingsCard() {
         </Form.Item>
 
         <Row gutter={16}>
-          <Col span={8}>
+          <Col xs={24} md={8}>
             <Form.Item name="dueDateDays" label="Son Ödeme (oluşturmadan sonra gün)">
               <InputNumber style={{ width: '100%' }} min={0} max={120} precision={0} addonAfter="gün" />
             </Form.Item>
           </Col>
-          <Col span={8}>
+          <Col xs={24} md={8}>
             <Form.Item name="readingServiceFee" label="Okuma Hizmet Bedeli">
               <InputNumber
                 style={{ width: '100%' }}
@@ -247,7 +248,7 @@ export function NoticeSettingsCard() {
               />
             </Form.Item>
           </Col>
-          <Col span={8}>
+          <Col xs={24} md={8}>
             <Form.Item
               name="defaultSubscriberNumber"
               label="Varsayılan Abone No"
@@ -283,9 +284,11 @@ export function NoticeSettingsCard() {
           <Switch />
         </Form.Item>
 
+        <IfPermission code="Settings.General">
         <Button type="primary" htmlType="submit" loading={save.isPending}>
           Kaydet
         </Button>
+        </IfPermission>
       </Form>
     </Card>
   )

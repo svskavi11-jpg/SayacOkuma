@@ -1,6 +1,7 @@
+import { AppModal } from '../../components/AppModal'
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Col, DatePicker, Empty, Modal, Row, Space, Spin, Statistic, Table, Tag } from 'antd'
+import { Col, DatePicker, Empty, Row, Space, Spin, Statistic, Table, Tag } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs, { type Dayjs } from 'dayjs'
 import { Line } from '@ant-design/plots'
@@ -94,7 +95,7 @@ export function AnalysisModal({
       value: m.consumptionKWh,
     })) ?? []
   return (
-    <Modal
+    <AppModal
       title={`Tüketim Analizi — Daire ${apartment?.doorNumber ?? ''}${apartment?.ownerName ? ` (${apartment.ownerName})` : ''}`}
       open={apartment !== null}
       onCancel={onClose}
@@ -143,7 +144,7 @@ export function AnalysisModal({
         {analysisQuery.data && (
           <>
             <Row gutter={16}>
-              <Col span={8}>
+              <Col xs={24} md={8}>
                 <Statistic
                   title="Toplam Tüketim"
                   value={analysisQuery.data.totalConsumptionKWh}
@@ -151,7 +152,7 @@ export function AnalysisModal({
                   suffix="kWh"
                 />
               </Col>
-              <Col span={8}>
+              <Col xs={24} md={8}>
                 <Statistic
                   title="Aylık Ortalama"
                   value={analysisQuery.data.averageMonthlyConsumptionKWh}
@@ -159,7 +160,7 @@ export function AnalysisModal({
                   suffix="kWh/ay"
                 />
               </Col>
-              <Col span={8}>
+              <Col xs={24} md={8}>
                 <Statistic title="Okuma Sayısı" value={analysisQuery.data.readingCount} />
               </Col>
             </Row>
@@ -176,10 +177,11 @@ export function AnalysisModal({
               dataSource={analysisQuery.data.monthly}
               size="small"
               pagination={false}
-              scroll={{ y: 220 }}
+              scroll={{ x: 'max-content', y: 220  }}
             />
 
             <Table
+              scroll={{ x: 'max-content' }}
               rowKey="readingId"
               columns={readingColumns}
               dataSource={analysisQuery.data.readings}
@@ -189,6 +191,6 @@ export function AnalysisModal({
           </>
         )}
       </Space>
-    </Modal>
+    </AppModal>
   )
 }

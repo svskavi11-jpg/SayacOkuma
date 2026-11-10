@@ -1,3 +1,4 @@
+import { AppModal } from '../../components/AppModal'
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -17,6 +18,7 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { apiClient } from '../../api/client'
+import { useAuth } from '../auth/AuthContext'
 import type {
   ApartmentListItem,
   MeterReadingAuditLogItem,
@@ -40,6 +42,8 @@ export function ReadingsModal({
   onClose: () => void
 }) {
   const queryClient = useQueryClient()
+  const { hasPermission } = useAuth()
+  const canCorrect = hasPermission('MeterReadings.ManualEntry')
   const meterId = apartment?.activeMeterId ?? null
 
   const [selectedKeys, setSelectedKeys] = useState<React.Key[]>([])
@@ -198,6 +202,7 @@ export function ReadingsModal({
       width: 190,
       render: (_: unknown, r: MeterReadingListItem) => (
         <Space size={4}>
+          {canCorrect && (
           <Button
             size="small"
             type="link"
@@ -206,6 +211,7 @@ export function ReadingsModal({
           >
             Düzenle
           </Button>
+          )}
           <Button size="small" type="link" onClick={() => setAuditFor(r)}>
             Log{r.auditLogCount > 0 ? ` (${r.auditLogCount})` : ''}
           </Button>
@@ -215,7 +221,7 @@ export function ReadingsModal({
   ]
 
   return (
-    <Modal
+    <AppModal
       title={`Sayaç Okumaları — Daire ${apartment?.doorNumber ?? ''}`}
       open={apartment !== null}
       onCancel={onClose}
@@ -229,9 +235,11 @@ export function ReadingsModal({
 
         <Space wrap>
           <Typography.Text type="secondary">
-            Düzenlenecek okumaları seçip "Toplu Düzenle" ile açın veya satır bazlı "Düzenle" kullanın.
-            Kilitli dönem okumaları düzenlenemez.
+            {canCorrect
+              ? 'Düzenlenecek okumaları seçip "Toplu Düzenle" ile açın veya satır bazlı "Düzenle" kullanın. Kilitli dönem okumaları düzenlenemez.'
+              : 'Okuma listesi ve denetim kayıtları görüntülenir.'}
           </Typography.Text>
+          {canCorrect && (
           <Button
             size="small"
             disabled={selectedKeys.length === 0}
@@ -239,6 +247,8 @@ export function ReadingsModal({
           >
             Toplu Düzenle ({selectedKeys.length})
           </Button>
+          )}
+          {canCorrect && (
           <Popconfirm
             title="Düzeltmeler kaydedilsin mi?"
             description="Her düzeltme için denetim kaydı (eski/yeni değer + neden) yazılır."
@@ -256,23 +266,25 @@ export function ReadingsModal({
               Düzeltmeleri Kaydet ({items.length})
             </Button>
           </Popconfirm>
+          )}
         </Space>
 
         <Table
+          scroll={{ x: 'max-content' }}
           rowKey="id"
           columns={columns}
           dataSource={readings}
           loading={readingsQuery.isLoading}
           size="small"
           pagination={{ pageSize: 10 }}
-          rowSelection={{
+          rowSelection={canCorrect ? {
             selectedRowKeys: selectedKeys,
             onChange: (keys) => setSelectedKeys(keys),
             getCheckboxProps: (r: MeterReadingListItem) => ({ disabled: r.isLockedPeriod }),
-          }}
+          } : undefined}
         />
 
-        <Modal
+        <AppModal
           title={`Düzeltme Geçmişi — ${auditFor ? dayjs(auditFor.readingDateUtc).format('DD.MM.YYYY HH:mm') : ''}`}
           open={auditFor !== null}
           onCancel={() => setAuditFor(null)}
@@ -303,8 +315,8 @@ export function ReadingsModal({
           ) : (
             <Alert type="info" message="Bu okuma için düzeltme kaydı yok." />
           )}
-        </Modal>
+        </AppModal>
       </Space>
-    </Modal>
+    </AppModal>
   )
 }

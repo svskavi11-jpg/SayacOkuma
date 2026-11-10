@@ -1,3 +1,4 @@
+import { AppModal } from '../../components/AppModal'
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -44,9 +45,11 @@ import type { UploadFile } from 'antd/es/upload/interface'
 import dayjs, { type Dayjs } from 'dayjs'
 import { AnalysisModal } from './AnalysisModal'
 import { RoleAssignModal } from './RoleAssignModal'
+import { PortalAccountModal } from './PortalAccountModal'
 import { ReadingsModal } from './ReadingsModal'
 import { OwnerEditModal, OwnerHistoryModal } from './OwnerModals'
-import { AccountBookOutlined, HistoryOutlined, LineChartOutlined, MoneyCollectOutlined, SafetyCertificateOutlined, TableOutlined, TeamOutlined, UserOutlined } from '@ant-design/icons'
+import { AccountBookOutlined, HistoryOutlined, KeyOutlined, LineChartOutlined, MoneyCollectOutlined, SafetyCertificateOutlined, TableOutlined, TeamOutlined, UserOutlined } from '@ant-design/icons'
+import { useAuth } from '../auth/AuthContext'
 
 // Türkçe sayı biçimi: binlik ayracı nokta, ondalık ayracı virgül (Intl 'tr-TR')
 const fmtIndex = new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })
@@ -72,7 +75,7 @@ function ImportResultModal({
   onClose: () => void
 }) {
   return (
-    <Modal
+    <AppModal
       title="Excel İçe Aktarma Sonucu"
       open={result !== null}
       onCancel={onClose}
@@ -116,7 +119,7 @@ function ImportResultModal({
           />
         </>
       )}
-    </Modal>
+    </AppModal>
   )
 }
 
@@ -127,6 +130,14 @@ function ImportResultModal({
  */
 export function ApartmentsPage() {
   const queryClient = useQueryClient()
+  const { hasPermission } = useAuth()
+  const canCreate = hasPermission('Apartments.Create')
+  const canEdit = hasPermission('Apartments.Edit')
+  const canManageResident = hasPermission('Apartments.ManageResident')
+  const canManual = hasPermission('MeterReadings.ManualEntry')
+  const canReadings = hasPermission('Apartments.Readings') || hasPermission('MeterReadings.View')
+  const canAnalysis = hasPermission('Apartments.Analysis')
+  const canAssignTariff = hasPermission('Invoices.Edit')
   const [editing, setEditing] = useState<ApartmentListItem | null>(null)
   const [form] = Form.useForm<{ squareMeters: number }>()
   const [importResult, setImportResult] = useState<ImportMetersFromExcelResult | null>(null)
@@ -168,6 +179,7 @@ export function ApartmentsPage() {
   const [ownerEditFor, setOwnerEditFor] = useState<ApartmentListItem | null>(null)
   const [ownerHistoryFor, setOwnerHistoryFor] = useState<ApartmentListItem | null>(null)
   const [roleFor, setRoleFor] = useState<ApartmentListItem | null>(null)
+  const [portalFor, setPortalFor] = useState<ApartmentListItem | null>(null)
 
   // Etap 6.8: Devir bakiyesi girişi (Anapara + Geçmiş Faiz + Devir Tarihi).
   const [devirFor, setDevirFor] = useState<ApartmentListItem | null>(null)
@@ -447,27 +459,33 @@ export function ApartmentsPage() {
     },
     {
       title: 'İşlem',
+      fixed: 'right',
       width: 72,
       align: 'center',
       render: (_: unknown, record: ApartmentListItem) => (
         <Dropdown
             menu={{
               items: [
-                {
+                ...(canManual ? [{
                   key: 'manual',
                   icon: <FormOutlined />,
                   label: 'Manuel Okuma',
                   disabled: record.meters.filter((m) => m.isActive).length === 0,
-                },
-                { key: 'dimension', icon: <EditOutlined />, label: 'm² Düzenle' },
-                { key: 'tariff', icon: <MoneyCollectOutlined />, label: 'Tarife Ata' },
-                { key: 'residents', icon: <TeamOutlined />, label: 'Sakin Yönetimi' },
-                { key: 'owner', icon: <UserOutlined />, label: 'Malik Değiştir' },
+                }] : []),
+                ...(canEdit ? [{ key: 'dimension', icon: <EditOutlined />, label: 'm² Düzenle' }] : []),
+                ...(canAssignTariff ? [{ key: 'tariff', icon: <MoneyCollectOutlined />, label: 'Tarife Ata' }] : []),
+                ...(canManageResident ? [
+                  { key: 'residents', icon: <TeamOutlined />, label: 'Sakin Yönetimi' },
+                  { key: 'portal', icon: <KeyOutlined />, label: 'Portal hesabı' },
+                  { key: 'role', icon: <SafetyCertificateOutlined />, label: 'Görev Ata' },
+                ] : []),
+                ...(canEdit ? [
+                  { key: 'owner', icon: <UserOutlined />, label: 'Malik Değiştir' },
+                  { key: 'openingBalance', icon: <AccountBookOutlined />, label: 'Devir Bakiye Gir' },
+                ] : []),
                 { key: 'ownerHistory', icon: <HistoryOutlined />, label: 'Malik Geçmişi' },
-                { key: 'role', icon: <SafetyCertificateOutlined />, label: 'Görev Ata' },
-                { key: 'openingBalance', icon: <AccountBookOutlined />, label: 'Devir Bakiye Gir' },
-                { key: 'readings', icon: <TableOutlined />, label: 'Okuma Listesi', disabled: !record.activeMeterId },
-                { key: 'analysis', icon: <LineChartOutlined />, label: 'Tüketim Analizi' },
+                ...(canReadings ? [{ key: 'readings', icon: <TableOutlined />, label: 'Okuma Listesi', disabled: !record.activeMeterId }] : []),
+                ...(canAnalysis ? [{ key: 'analysis', icon: <LineChartOutlined />, label: 'Tüketim Analizi' }] : []),
               ],
               onClick: ({ key }) => {
                 if (key === 'manual') {
@@ -498,6 +516,8 @@ export function ApartmentsPage() {
                     kiTckn: record.kiraciIdentityNumber ?? undefined,
                     kiNotes: record.kiraciNotes ?? undefined,
                   })
+                } else if (key === 'portal') {
+                  setPortalFor(record)
                 } else if (key === 'owner') {
                   setOwnerEditFor(record)
                 } else if (key === 'ownerHistory') {
@@ -541,9 +561,11 @@ export function ApartmentsPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <Button size="small" type="primary" icon={<PlusOutlined />} onClick={() => { setAddCount(1); setAddOpen(true) }}>
-            Daire Ekle
-          </Button>
+          {canCreate && (
+            <Button size="small" type="primary" icon={<PlusOutlined />} onClick={() => { setAddCount(1); setAddOpen(true) }}>
+              Daire Ekle
+            </Button>
+          )}
           <Button
             size="small"
             icon={<DownloadOutlined />}
@@ -551,16 +573,18 @@ export function ApartmentsPage() {
           >
             Örnek Şablon İndir
           </Button>
-          <Upload
-            accept=".xlsx"
-            showUploadList={false}
-            maxCount={1}
-            customRequest={({ file }) => importMutation.mutate(file as File)}
-          >
-            <Button size="small" icon={<UploadOutlined />} loading={importMutation.isPending}>
-              Excel'den İçe Aktar
-            </Button>
-          </Upload>
+          {canCreate && (
+            <Upload
+              accept=".xlsx"
+              showUploadList={false}
+              maxCount={1}
+              customRequest={({ file }) => importMutation.mutate(file as File)}
+            >
+              <Button size="small" icon={<UploadOutlined />} loading={importMutation.isPending}>
+                Excel'den İçe Aktar
+              </Button>
+            </Upload>
+          )}
         </Space>
       }
     >
@@ -574,7 +598,7 @@ export function ApartmentsPage() {
         pagination={{ pageSize: 15, showSizeChanger: false }}
       />
 
-      <Modal
+      <AppModal
         title="Daire Ekle"
         open={addOpen}
         onCancel={() => setAddOpen(false)}
@@ -597,7 +621,7 @@ export function ApartmentsPage() {
           onChange={(v) => setAddCount(v)}
           addonAfter="daire"
         />
-      </Modal>
+      </AppModal>
 
       <ImportResultModal result={importResult} onClose={() => setImportResult(null)} />
 
@@ -607,9 +631,10 @@ export function ApartmentsPage() {
       <OwnerEditModal apartment={ownerEditFor} onClose={() => setOwnerEditFor(null)} />
       <OwnerHistoryModal apartment={ownerHistoryFor} onClose={() => setOwnerHistoryFor(null)} />
       <RoleAssignModal apartment={roleFor} onClose={() => setRoleFor(null)} />
+      <PortalAccountModal apartment={portalFor} onClose={() => setPortalFor(null)} />
 
       {/* Etap 6.8: Devir bakiyesi girişi — Anapara + Geçmiş Faiz + Devir Tarihi */}
-      <Modal
+      <AppModal
         title={`Devir Bakiye Gir — Daire ${devirFor?.doorNumber ?? ''}`}
         open={devirFor !== null}
         onCancel={() => setDevirFor(null)}
@@ -698,9 +723,9 @@ export function ApartmentsPage() {
             />
           </Form.Item>
         </Form>
-      </Modal>
+      </AppModal>
 
-      <Modal
+      <AppModal
         title={`m² Güncelle — Daire ${editing?.doorNumber ?? ''}`}
         open={editing !== null}
         onCancel={() => setEditing(null)}
@@ -735,10 +760,10 @@ export function ApartmentsPage() {
             </Typography.Text>
           </Space>
         )}
-      </Modal>
+      </AppModal>
 
       {/* Faz 7.1: Sakin yönetimi — Ev Sahibi + Kiracı sekmeleri */}
-      <Modal
+      <AppModal
         title={`Sakin Yönetimi — Daire ${residentsFor?.doorNumber ?? ''}`}
         open={residentsFor !== null}
         onCancel={() => {
@@ -812,24 +837,24 @@ export function ApartmentsPage() {
                       <Input maxLength={100} placeholder="örn: Ahmet Yılmaz" />
                     </Form.Item>
                     <Row gutter={12}>
-                      <Col span={12}>
+                      <Col xs={24} md={12}>
                         <Form.Item name="evPhone" label="Telefon">
                           <Input maxLength={20} placeholder="örn: 0532 123 45 67" />
                         </Form.Item>
                       </Col>
-                      <Col span={12}>
+                      <Col xs={24} md={12}>
                         <Form.Item name="evEmail" label="E-posta">
                           <Input maxLength={100} placeholder="örn: ahmet@ornek.com" />
                         </Form.Item>
                       </Col>
                     </Row>
                     <Row gutter={12}>
-                      <Col span={12}>
+                      <Col xs={24} md={12}>
                         <Form.Item name="evTckn" label="TCKN (opsiyonel)">
                           <Input maxLength={11} placeholder="11 hane" />
                         </Form.Item>
                       </Col>
-                      <Col span={12}>
+                      <Col xs={24} md={12}>
                         <Form.Item name="evNotes" label="Notlar">
                           <Input maxLength={500} />
                         </Form.Item>
@@ -860,24 +885,24 @@ export function ApartmentsPage() {
                       <Input maxLength={100} placeholder="örn: Ayşe Demir (boş = kiracı yok)" />
                     </Form.Item>
                     <Row gutter={12}>
-                      <Col span={12}>
+                      <Col xs={24} md={12}>
                         <Form.Item name="kiPhone" label="Telefon">
                           <Input maxLength={20} placeholder="örn: 0533 987 65 43" />
                         </Form.Item>
                       </Col>
-                      <Col span={12}>
+                      <Col xs={24} md={12}>
                         <Form.Item name="kiEmail" label="E-posta">
                           <Input maxLength={100} />
                         </Form.Item>
                       </Col>
                     </Row>
                     <Row gutter={12}>
-                      <Col span={12}>
+                      <Col xs={24} md={12}>
                         <Form.Item name="kiTckn" label="TCKN (opsiyonel)">
                           <Input maxLength={11} placeholder="11 hane" />
                         </Form.Item>
                       </Col>
-                      <Col span={12}>
+                      <Col xs={24} md={12}>
                         <Form.Item name="kiNotes" label="Notlar">
                           <Input maxLength={500} />
                         </Form.Item>
@@ -902,10 +927,10 @@ export function ApartmentsPage() {
             loading={stayQuery.isLoading}
           />
         </Form>
-      </Modal>
+      </AppModal>
 
       {/* Faz 6.9: Aidat tarife atama (tekli) */}
-      <Modal
+      <AppModal
         title={`Aidat Tarife Ata — Daire ${tariffFor?.doorNumber ?? ''}`}
         open={tariffFor !== null}
         onCancel={() => setTariffFor(null)}
@@ -945,10 +970,10 @@ export function ApartmentsPage() {
             Daireleri Ata butonunu kullanın.
           </Typography.Text>
         </Form>
-      </Modal>
+      </AppModal>
 
       {/* Etap 6.6: Manuel okuma girişi */}
-      <Modal
+      <AppModal
         title={`Manuel Okuma Gir — Daire ${manualFor?.doorNumber ?? ''}`}
         open={manualFor !== null}
         onCancel={() => setManualFor(null)}
@@ -1005,10 +1030,10 @@ export function ApartmentsPage() {
             <InputNumber style={{ width: '100%' }} min={0} step={0.001} decimalSeparator="," addonAfter="kWh" />
           </Form.Item>
         </Form>
-      </Modal>
+      </AppModal>
 
       {/* Manuel okuma sonucu: hesaplanan tüketim + dönem dışı uyarıları */}
-      <Modal
+      <AppModal
         title="Manuel Okuma Kaydedildi"
         open={manualResult !== null}
         onCancel={() => setManualResult(null)}
@@ -1028,7 +1053,7 @@ export function ApartmentsPage() {
             ))}
           </Space>
         )}
-      </Modal>
+      </AppModal>
     </Card>
   )
 }

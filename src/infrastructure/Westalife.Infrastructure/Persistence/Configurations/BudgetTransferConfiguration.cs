@@ -11,6 +11,7 @@ public class BudgetTransferConfiguration : IEntityTypeConfiguration<BudgetTransf
     {
         builder.ToTable("BudgetTransfers");
         builder.HasKey(t => t.Id);
+        TenantOwnedConfiguration.Configure(builder);
         builder.Property(t => t.Amount)
             .HasPrecision(DomainConstants.MoneyPrecision, DomainConstants.MoneyScale);
         builder.Property(t => t.Note)

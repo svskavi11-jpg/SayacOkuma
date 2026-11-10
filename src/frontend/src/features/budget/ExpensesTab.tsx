@@ -1,11 +1,13 @@
+import { AppModal } from '../../components/AppModal'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Alert, Button, DatePicker, Form, Input, InputNumber, Modal, Popconfirm, Select, Space, Table, message } from 'antd'
+import { Alert, Button, DatePicker, Form, Input, InputNumber, Popconfirm, Select, Space, Table, message } from 'antd'
 import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons'
 import { BankAccountSelect } from '../bankAccounts/BankAccountSelect'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs, { type Dayjs } from 'dayjs'
 import { apiClient } from '../../api/client'
+import { useAuth } from '../auth/AuthContext'
 import { formatDate } from '../../utils/dateUtils'
 import type { AidatInvoiceListItem, BudgetRealizationReport, CreateExpenseResult, ExpenseListItem } from '../../types/api'
 
@@ -33,6 +35,9 @@ export function ExpensesTab({
   locked: boolean
 }) {
   const queryClient = useQueryClient()
+  const { hasPermission } = useAuth()
+  const canCreate = hasPermission('Budget.Create')
+  const canEdit = hasPermission('Budget.Edit')
   const [form] = Form.useForm<ExpenseForm>()
   const [itemForm] = Form.useForm<{ category: string; estimatedAmount: number }>()
   const [itemOpen, setItemOpen] = useState(false)
@@ -145,10 +150,11 @@ export function ExpensesTab({
     { title: 'Tutar', dataIndex: 'amount', align: 'right', width: 140, render: (v: number) => tl(v) },
     {
       title: '',
+      fixed: 'right',
       width: 70,
       render: (_: unknown, row) => (
         <Space>
-        <Button
+        {canEdit && <Button
           size="small"
           icon={<EditOutlined />}
           disabled={locked}
@@ -165,15 +171,15 @@ export function ExpensesTab({
               bankAccountId: row.bankAccountId ?? undefined,
             })
           }}
-        />
-        <Popconfirm
+        />}
+        {canEdit && <Popconfirm
           title="Bu gider silinsin mi?"
           okText="Sil"
           cancelText="Vazgeç"
           onConfirm={() => deleteMutation.mutate(row.id)}
         >
           <Button size="small" danger icon={<DeleteOutlined />} disabled={locked} />
-        </Popconfirm>
+        </Popconfirm>}
         </Space>
       ),
     },
@@ -188,7 +194,7 @@ export function ExpensesTab({
       {budgetEnabled && (itemsQuery.data?.rows.length ?? 0) === 0 && !itemsQuery.isLoading && (
         <Alert type="info" showIcon message="Önce bir bütçe kalemi tanımlayın. Gider formundaki yeni kalem düğmesini kullanabilirsiniz." />
       )}
-      <Form form={form} layout="inline" disabled={blocked} onFinish={(values) => saveMutation.mutate(values)}>
+      {canCreate && <Form form={form} layout="inline" disabled={blocked} onFinish={(values) => saveMutation.mutate(values)}>
         <Form.Item name="expenseDate" rules={[{ required: true, message: 'Tarih zorunludur.' }]}>
           <DatePicker
             format="DD.MM.YYYY"
@@ -246,8 +252,9 @@ export function ExpensesTab({
             Kaydet
           </Button>
         </Form.Item>
-      </Form>
+      </Form>}
       <Table
+        scroll={{ x: 'max-content' }}
         rowKey="id"
         size="small"
         loading={expensesQuery.isLoading}
@@ -256,7 +263,7 @@ export function ExpensesTab({
         pagination={{ pageSize: 12 }}
         locale={{ emptyText: `${year} yılı için gider yok.` }}
       />
-      <Modal
+      <AppModal
         title={`${year} — Yeni Bütçe Kalemi`}
         open={itemOpen}
         confirmLoading={createItemMutation.isPending}
@@ -273,8 +280,8 @@ export function ExpensesTab({
             <InputNumber min={0.01} precision={2} decimalSeparator="," addonAfter="TL" style={{ width: '100%' }} />
           </Form.Item>
         </Form>
-      </Modal>
-      <Modal
+      </AppModal>
+      <AppModal
         title="Gideri düzenle"
         open={editing !== null}
         confirmLoading={updateMutation.isPending}
@@ -317,7 +324,7 @@ export function ExpensesTab({
             <Input maxLength={500} />
           </Form.Item>
         </Form>
-      </Modal>
+      </AppModal>
     </Space>
   )
 }

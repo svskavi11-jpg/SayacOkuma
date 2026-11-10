@@ -1,16 +1,26 @@
+using System.Reflection;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Westalife.Application.Common.Interfaces;
+using Westalife.Domain.Common;
 using Westalife.Domain.Entities;
+using Westalife.Domain.Exceptions;
+using Westalife.Infrastructure.Auth;
 
 namespace Westalife.Infrastructure.Persistence.Contexts;
 
 /// <summary>EF Core DbContext. Tüm entity konfigürasyonları Configuration sınıflarından uygulanır.</summary>
-public class ApplicationDbContext : DbContext, IApplicationDbContext
+public class ApplicationDbContext : IdentityDbContext<AppUser, AppRole, Guid>, IApplicationDbContext
 {
-    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options)
+    private readonly ITenantContext _tenant;
+
+    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options, ITenantContext? tenantContext = null)
+        : base(options)
     {
+        _tenant = tenantContext ?? new AmbientTenantContext();
     }
 
+    public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<Building> Buildings => Set<Building>();
     public DbSet<Apartment> Apartments => Set<Apartment>();
     public DbSet<ApartmentDimension> ApartmentDimensions => Set<ApartmentDimension>();
@@ -39,10 +49,66 @@ public class ApplicationDbContext : DbContext, IApplicationDbContext
     public DbSet<NotificationTemplate> NotificationTemplates => Set<NotificationTemplate>();
     public DbSet<NotificationLog> NotificationLogs => Set<NotificationLog>();
     public DbSet<NoticePdfAccessToken> NoticePdfAccessTokens => Set<NoticePdfAccessToken>();
+    public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
         base.OnModelCreating(modelBuilder);
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
+        ApplyTenantQueryFilters(modelBuilder);
+    }
+
+    public override int SaveChanges()
+    {
+        StampTenant();
+        return base.SaveChanges();
+    }
+
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        StampTenant();
+        return base.SaveChangesAsync(cancellationToken);
+    }
+
+    private void StampTenant()
+    {
+        foreach (var entry in ChangeTracker.Entries<ITenantEntity>())
+        {
+            if (entry.State != EntityState.Added || entry.Entity.TenantId != Guid.Empty)
+            {
+                continue;
+            }
+
+            if (_tenant.TenantId == Guid.Empty)
+            {
+                throw new DomainException("Süper yönetici kayıt oluşturmak için X-Tenant-Id başlığı göndermelidir.");
+            }
+
+            entry.Entity.AssignTenant(_tenant.TenantId);
+        }
+    }
+
+    private void ApplyTenantQueryFilters(ModelBuilder modelBuilder)
+    {
+        var method = typeof(ApplicationDbContext).GetMethod(
+            nameof(ApplyTenantQueryFilter),
+            BindingFlags.Instance | BindingFlags.NonPublic)!;
+
+        foreach (var type in typeof(ITenantEntity).Assembly.GetTypes())
+        {
+            if (type.IsAbstract || !typeof(ITenantEntity).IsAssignableFrom(type))
+            {
+                continue;
+            }
+
+            method.MakeGenericMethod(type).Invoke(this, new object[] { modelBuilder });
+        }
+    }
+
+    private void ApplyTenantQueryFilter<TEntity>(ModelBuilder modelBuilder)
+        where TEntity : class, ITenantEntity
+    {
+        modelBuilder.Entity<TEntity>().HasQueryFilter(entity =>
+            _tenant.BypassTenantFilter || entity.TenantId == _tenant.TenantId);
     }
 }

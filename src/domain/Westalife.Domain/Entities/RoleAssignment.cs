@@ -10,8 +10,13 @@ namespace Westalife.Domain.Entities;
 /// Aynı dairede aralıklar çakışamaz. Farklı dairelerin görevleri aynı anda durabilir.
 /// Oran (%0–%100) veya Sabit Tutar (Aylık / Yıllık Huzur Hakkı) destekler.
 /// </summary>
-public class RoleAssignment : BaseEntity
+public class RoleAssignment : BaseEntity, ITenantEntity
 {
+    /// <summary>Kaydın ait olduğu site.</summary>
+    public Guid TenantId { get; private set; }
+
+    public void AssignTenant(Guid tenantId) => TenantId = tenantId;
+
     public Guid ApartmentId { get; private set; }
 
     public Apartment Apartment { get; private set; } = null!;

@@ -1,6 +1,8 @@
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Westalife.Api.Infrastructure;
+using Westalife.Domain.Constants;
 using Westalife.Application.Features.Dashboard.Queries.GetBankDashboard;
 using Westalife.Application.Features.Dashboard.Queries.GetDashboardSummary;
 
@@ -19,6 +21,13 @@ public class DashboardController : ControllerBase
     }
 
     /// <summary>Yönetim panosu özeti: bina, daire/sayaç sayıları, son fatura, kayıp-kaçak % (S3).</summary>
+    [HasAnyPermission(
+        Permissions.Reports.GeneralAssembly,
+        Permissions.Reports.IncomeExpense,
+        Permissions.Reports.ApartmentTracking,
+        Permissions.Reports.FuelBreakdown,
+        Permissions.Reports.BankControl,
+        Permissions.Reports.GasNotifications)]
     [HttpGet("summary")]
     [ProducesResponseType(typeof(DashboardSummaryResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetSummary(CancellationToken cancellationToken)
@@ -28,6 +37,7 @@ public class DashboardController : ControllerBase
     }
 
     /// <summary>Banka durumu: hesap bazında devir, giren, çıkan ve yılın aylık hareketi.</summary>
+    [HasPermission(Permissions.Bank.View)]
     [HttpGet("banks")]
     [ProducesResponseType(typeof(BankDashboardResponse), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetBanks(CancellationToken cancellationToken)

@@ -1,6 +1,8 @@
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Westalife.Api.Infrastructure;
+using Westalife.Domain.Constants;
 using Westalife.Application.Features.BankAccounts;
 using Westalife.Domain.Entities;
 
@@ -15,11 +17,13 @@ public class BankAccountsController : ControllerBase
 
     public BankAccountsController(IMediator mediator) => _mediator = mediator;
 
+    [HasPermission(Permissions.Bank.View)]
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<BankAccountListItem>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetAll(CancellationToken ct) =>
         Ok(await _mediator.Send(new GetBankAccountsQuery(), ct));
 
+    [HasPermission(Permissions.Bank.Manage)]
     [HttpPost]
     [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
     public async Task<IActionResult> Create([FromBody] SaveBankAccountRequest request, CancellationToken ct)
@@ -34,6 +38,7 @@ public class BankAccountsController : ControllerBase
         return CreatedAtAction(nameof(GetAll), new { id }, id);
     }
 
+    [HasPermission(Permissions.Bank.Manage)]
     [HttpPut("{id:guid}")]
     [ProducesResponseType(typeof(Guid), StatusCodes.Status200OK)]
     public async Task<IActionResult> Update(Guid id, [FromBody] SaveBankAccountRequest request, CancellationToken ct) =>
@@ -46,6 +51,7 @@ public class BankAccountsController : ControllerBase
             request.OpeningBalance,
             request.OpeningDate), ct));
 
+    [HasPermission(Permissions.Bank.Manage)]
     [HttpPut("{id:guid}/active")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> SetActive(Guid id, [FromBody] SetBankAccountActiveRequest request, CancellationToken ct)
@@ -54,11 +60,13 @@ public class BankAccountsController : ControllerBase
         return NoContent();
     }
 
+    [HasPermission(Permissions.Bank.View)]
     [HttpGet("transactions")]
     [ProducesResponseType(typeof(IReadOnlyList<BankTransactionListItem>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetTransactions(CancellationToken ct) =>
         Ok(await _mediator.Send(new GetBankTransactionsQuery(), ct));
 
+    [HasPermission(Permissions.Bank.Manage)]
     [HttpPost("transactions")]
     [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
     public async Task<IActionResult> AddTransaction([FromBody] AddBankTransactionRequest request, CancellationToken ct)
@@ -72,6 +80,7 @@ public class BankAccountsController : ControllerBase
         return CreatedAtAction(nameof(GetTransactions), new { id }, id);
     }
 
+    [HasPermission(Permissions.Bank.Manage)]
     [HttpPost("transfers")]
     [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
     public async Task<IActionResult> Transfer([FromBody] CreateBankTransferRequest request, CancellationToken ct)
@@ -85,6 +94,7 @@ public class BankAccountsController : ControllerBase
         return CreatedAtAction(nameof(GetTransactions), new { id }, id);
     }
 
+    [HasPermission(Permissions.Bank.Manage)]
     [HttpDelete("transactions/{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeleteTransaction(Guid id, CancellationToken ct)
@@ -93,6 +103,7 @@ public class BankAccountsController : ControllerBase
         return NoContent();
     }
 
+    [HasPermission(Permissions.Bank.Manage)]
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Delete(Guid id, CancellationToken ct)

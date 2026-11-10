@@ -7,8 +7,13 @@ namespace Westalife.Domain.Entities;
 /// <summary>
 /// Butce kalemleri arasi virman. Kaynak kalemin kullanilabilir tutarini dusurur, hedefi artirir.
 /// </summary>
-public class BudgetTransfer : BaseEntity
+public class BudgetTransfer : BaseEntity, ITenantEntity
 {
+    /// <summary>Kaydın ait olduğu site.</summary>
+    public Guid TenantId { get; private set; }
+
+    public void AssignTenant(Guid tenantId) => TenantId = tenantId;
+
     public DateOnly TransferDate { get; private set; }
 
     public decimal Amount { get; private set; }

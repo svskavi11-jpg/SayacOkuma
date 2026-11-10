@@ -37,7 +37,7 @@ export function StayFields({
   return (
     <>
       <Row gutter={12}>
-        <Col span={12}>
+        <Col xs={24} md={12}>
           <Form.Item
             name={`${prefix}ValidFrom`}
             label="Geçerlilik Başlangıcı"
@@ -59,31 +59,31 @@ export function StayFields({
             <DatePicker format="DD.MM.YYYY" style={{ width: '100%' }} />
           </Form.Item>
         </Col>
-        <Col span={12}>
+        <Col xs={24} md={12}>
           <Form.Item name={`${prefix}ValidTo`} label="Geçerlilik Bitişi">
             <DatePicker format="DD.MM.YYYY" style={{ width: '100%' }} />
           </Form.Item>
         </Col>
       </Row>
       <Row gutter={12}>
-        <Col span={12}>
+        <Col xs={24} md={12}>
           <Form.Item name={`${prefix}LeaseStart`} label="Sözleşme Başlangıcı">
             <DatePicker format="DD.MM.YYYY" style={{ width: '100%' }} />
           </Form.Item>
         </Col>
-        <Col span={12}>
+        <Col xs={24} md={12}>
           <Form.Item name={`${prefix}LeaseEnd`} label="Sözleşme Bitişi">
             <DatePicker format="DD.MM.YYYY" style={{ width: '100%' }} />
           </Form.Item>
         </Col>
       </Row>
       <Row gutter={12}>
-        <Col span={10}>
+        <Col xs={24} md={10}>
           <Form.Item label="Evrak türü">
             <Select value={documentType} options={documentOptions} onChange={onDocumentType} />
           </Form.Item>
         </Col>
-        <Col span={14}>
+        <Col xs={24} md={14}>
           <Form.Item label="Evrak">
             <Upload
               accept=".pdf,.jpg,.jpeg,.png"
@@ -147,6 +147,7 @@ export function ResidentHistoryBlock({
   return (
     <>
       <Table
+        scroll={{ x: 'max-content' }}
         rowKey="id"
         size="small"
         loading={loading}

@@ -12,6 +12,7 @@ public class ExpenseConfiguration : IEntityTypeConfiguration<Expense>
         builder.ToTable("Expenses");
 
         builder.HasKey(e => e.Id);
+        TenantOwnedConfiguration.Configure(builder);
 
         builder.Property(e => e.Amount)
             .HasPrecision(DomainConstants.MoneyPrecision, DomainConstants.MoneyScale);

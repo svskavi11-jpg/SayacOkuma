@@ -12,6 +12,7 @@ public class BudgetItemConfiguration : IEntityTypeConfiguration<BudgetItem>
         builder.ToTable("BudgetItems");
 
         builder.HasKey(b => b.Id);
+        TenantOwnedConfiguration.Configure(builder);
 
         builder.Property(b => b.Year).IsRequired();
 

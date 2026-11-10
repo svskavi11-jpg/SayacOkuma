@@ -31,8 +31,13 @@ public enum AidatDistributionMethod
 /// oluşturduğunda her aktif daire için bir <see cref="AidatCharge"/> satırı açılır.
 /// Toplam tutar, daire satırlarından türetilir (kuruş hassasiyeti, decimal).
 /// </summary>
-public class AidatInvoice : BaseEntity
+public class AidatInvoice : BaseEntity, ITenantEntity
 {
+    /// <summary>Kaydın ait olduğu site.</summary>
+    public Guid TenantId { get; private set; }
+
+    public void AssignTenant(Guid tenantId) => TenantId = tenantId;
+
     /// <summary>Dönem başlangıcı (dahil).</summary>
     public DateOnly PeriodStart { get; private set; }
 

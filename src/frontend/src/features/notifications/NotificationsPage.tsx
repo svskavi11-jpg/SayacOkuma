@@ -1,3 +1,4 @@
+import { AppModal } from '../../components/AppModal'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -7,7 +8,6 @@ import {
   Checkbox,
   Form,
   Input,
-  Modal,
   Radio,
   Segmented,
   Select,
@@ -21,6 +21,7 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import dayjs from 'dayjs'
 import { apiClient } from '../../api/client'
+import { IfPermission } from '../auth/IfPermission'
 import type {
   ApartmentListItem,
   NotificationChannel,
@@ -446,6 +447,7 @@ function SendTab() {
           Önizleme ilk seçilen daire içindir. Gönderimde her dairenin kendi bakiyesi kullanılır.
         </Typography.Paragraph>
       )}
+      <IfPermission code="Notifications.Send">
       <Button type="primary" htmlType="submit" loading={sendMutation.isPending}>
         {purpose === 'Aidat'
           ? 'Aidat Bildirimi Gönder'
@@ -455,6 +457,7 @@ function SendTab() {
               ? 'Tüm Borçlulara Gönder'
               : 'Gönder'}
       </Button>
+      </IfPermission>
     </Form>
   )
 }
@@ -556,6 +559,7 @@ function TemplatesTab() {
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
       <PlaceholderGuide onInsert={(token) => insertToken(form, 'body', token, bodyRef.current)} />
       <Table
+        scroll={{ x: 'max-content' }}
         rowKey="id"
         size="small"
         loading={templatesQuery.isLoading}
@@ -608,9 +612,11 @@ function TemplatesTab() {
           />
         </Form.Item>
         <Space>
+          <IfPermission code="Notifications.Send">
           <Button type="primary" htmlType="submit" loading={saveMutation.isPending}>
             {editingId ? 'Güncelle' : 'Ekle'}
           </Button>
+          </IfPermission>
           {editingId && (
             <Button
               onClick={() => {
@@ -677,6 +683,7 @@ function PlaceholderGuide({ onInsert }: { onInsert?: (token: string) => void }) 
     { title: 'Örnek', dataIndex: 'example', width: 150 },
     {
       title: '',
+      fixed: 'right',
       width: 100,
       render: (_value, row) => (
         <Button
@@ -697,7 +704,7 @@ function PlaceholderGuide({ onInsert }: { onInsert?: (token: string) => void }) 
       <Button type="link" style={{ paddingInline: 0 }} onClick={() => setOpen(true)}>
         Kullanılabilir Değişkenler
       </Button>
-      <Modal
+      <AppModal
         title="Kullanılabilir Değişkenler"
         open={open}
         onCancel={() => setOpen(false)}
@@ -708,6 +715,7 @@ function PlaceholderGuide({ onInsert }: { onInsert?: (token: string) => void }) 
           Satıra tıklayınca değişken, imlecin olduğu mesaj kutusuna eklenir. Şablon seçiliyken Kopyala düğmesini kullanın.
         </Typography.Paragraph>
         <Table
+          scroll={{ x: 'max-content' }}
           rowKey="token"
           size="small"
           loading={query.isLoading}
@@ -726,7 +734,7 @@ function PlaceholderGuide({ onInsert }: { onInsert?: (token: string) => void }) 
             style: { cursor: 'pointer' },
           })}
         />
-      </Modal>
+      </AppModal>
     </>
   )
 }

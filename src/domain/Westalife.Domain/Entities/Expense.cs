@@ -7,8 +7,13 @@ namespace Westalife.Domain.Entities;
 /// <summary>
 /// Site gideri. Ya bir butce kalemine baglidir ya da serbest gider turu tasir; ikisi birden olamaz.
 /// </summary>
-public class Expense : BaseEntity
+public class Expense : BaseEntity, ITenantEntity
 {
+    /// <summary>Kaydın ait olduğu site.</summary>
+    public Guid TenantId { get; private set; }
+
+    public void AssignTenant(Guid tenantId) => TenantId = tenantId;
+
     public DateOnly ExpenseDate { get; private set; }
 
     /// <summary>Tutar (TL, kurus hassasiyeti).</summary>

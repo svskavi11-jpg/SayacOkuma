@@ -1,3 +1,4 @@
+import { AppModal } from '../../components/AppModal'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -10,7 +11,6 @@ import {
   Form,
   Input,
   InputNumber,
-  Modal,
   Popconfirm,
   Row,
   Segmented,
@@ -35,6 +35,7 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import dayjs, { type Dayjs } from 'dayjs'
 import { apiClient } from '../../api/client'
+import { useAuth } from '../auth/AuthContext'
 import { BankAccountSelect } from '../bankAccounts/BankAccountSelect'
 import { formatDate as dateFmt } from '../../utils/dateUtils'
 import type {
@@ -153,6 +154,9 @@ export function PaymentsPage() {
 
 function PaymentsTab() {
   const queryClient = useQueryClient()
+  const { hasPermission } = useAuth()
+  const canCreate = hasPermission('Payments.Create')
+  const canCancel = hasPermission('Payments.Cancel')
   const [selectedApartmentId, setSelectedApartmentId] = useState<string | null>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [editingPayment, setEditingPayment] = useState<PaymentListItem | null>(null)
@@ -269,10 +273,11 @@ function PaymentsTab() {
     },
     {
       title: 'İşlem',
+      fixed: 'right',
       width: 250,
       render: (_: unknown, r: PaymentListItem) => (
         <Space size={4} wrap>
-          {!r.isCancelled && (
+          {canCreate && !r.isCancelled && (
             <Button
               size="small"
               icon={<EditOutlined />}
@@ -292,7 +297,7 @@ function PaymentsTab() {
               Düzenle
             </Button>
           )}
-          <Popconfirm
+          {canCancel && <Popconfirm
             title="Tahsilat silinsin mi?"
             description="Kayıt listeden ve cari hesaptan kalkar."
             okText="Sil"
@@ -303,8 +308,8 @@ function PaymentsTab() {
             <Button size="small" danger icon={<DeleteOutlined />} loading={deleteMutation.isPending}>
               Sil
             </Button>
-          </Popconfirm>
-          {!r.isCancelled ? (
+          </Popconfirm>}
+          {canCancel && !r.isCancelled && (
             <Button
               size="small"
               icon={<StopOutlined />}
@@ -312,7 +317,8 @@ function PaymentsTab() {
             >
               İptal
             </Button>
-          ) : (
+          )}
+          {r.isCancelled && (
             <Typography.Text type="secondary" style={{ fontSize: 12 }}>
               {r.cancellationReason}
             </Typography.Text>
@@ -325,7 +331,7 @@ function PaymentsTab() {
   return (
     <>
       <Row gutter={12} style={{ marginBottom: 16 }}>
-        <Col span={14}>
+        <Col xs={24} md={14}>
           <Select
             style={{ width: '100%' }}
             placeholder="Daire seçin…"
@@ -336,8 +342,8 @@ function PaymentsTab() {
             onChange={(v: string) => setSelectedApartmentId(v)}
           />
         </Col>
-        <Col span={10}>
-          <Button
+        <Col xs={24} md={10}>
+          {canCreate && <Button
             type="primary"
             icon={<PlusOutlined />}
             disabled={!selectedApartmentId}
@@ -348,11 +354,12 @@ function PaymentsTab() {
             }}
           >
             Tahsilat Ekle
-          </Button>
+          </Button>}
         </Col>
       </Row>
 
       <Table
+        scroll={{ x: 'max-content' }}
         rowKey="id"
         size="small"
         columns={columns}
@@ -363,7 +370,7 @@ function PaymentsTab() {
       />
 
       {/* Tahsilat Ekleme Modal */}
-      <Modal
+      <AppModal
         title={editingPayment ? 'Tahsilatı Düzenle' : 'Tahsilat Ekle'}
         open={addOpen}
         onCancel={() => { setAddOpen(false); setEditingPayment(null); form.resetFields() }}
@@ -437,10 +444,10 @@ function PaymentsTab() {
             <Input maxLength={100} placeholder="İsteğe bağlı — Faz 7'de JWT'den otomatik dolar" />
           </Form.Item>
         </Form>
-      </Modal>
+      </AppModal>
 
       {/* İptal Modal */}
-      <Modal
+      <AppModal
         title="Tahsilatı İptal Et"
         open={!!cancelOpen}
         onCancel={() => { setCancelOpen(null); cancelForm.resetFields() }}
@@ -469,7 +476,7 @@ function PaymentsTab() {
             <Input.TextArea rows={3} maxLength={500} showCount />
           </Form.Item>
         </Form>
-      </Modal>
+      </AppModal>
     </>
   )
 }
@@ -747,7 +754,7 @@ function LedgerTab() {
   return (
     <>
       <Row gutter={12} style={{ marginBottom: 16 }}>
-        <Col span={10}>
+        <Col xs={24} md={10}>
           <Select
             style={{ width: '100%' }}
             placeholder="Daire seçin…"
@@ -762,7 +769,7 @@ function LedgerTab() {
             }}
           />
         </Col>
-        <Col span={5}>
+        <Col xs={24} md={5}>
           <DatePicker
             style={{ width: '100%' }}
             format="DD.MM.YYYY"
@@ -770,7 +777,7 @@ function LedgerTab() {
             onChange={(d) => setAsOfDate(d)}
           />
         </Col>
-        <Col span={5}>
+        <Col xs={24} md={5}>
           <Select
             value={residentFilter ?? '__all__'}
             options={residentOptions}
@@ -779,7 +786,7 @@ function LedgerTab() {
             disabled={!ledger}
           />
         </Col>
-        <Col span={4}>
+        <Col xs={24} md={4}>
           <Segmented
             block
             value={typeFilter}
@@ -803,7 +810,7 @@ function LedgerTab() {
         <>
           {/* Faz 7.1: Tür bazlı özet kartları (LedgerResult.Summary) */}
           <Row gutter={16} style={{ marginBottom: 16 }}>
-            <Col span={8}>
+            <Col xs={24} md={8}>
               <Card size="small">
                 <Statistic
                   title="Aidat Borcu (Anapara + Faiz)"
@@ -814,7 +821,7 @@ function LedgerTab() {
                 />
               </Card>
             </Col>
-            <Col span={8}>
+            <Col xs={24} md={8}>
               <Card size="small">
                 <Statistic
                   title="Isınma Borcu (Anapara + Faiz)"
@@ -825,7 +832,7 @@ function LedgerTab() {
                 />
               </Card>
             </Col>
-            <Col span={8}>
+            <Col xs={24} md={8}>
               <Card size="small">
                 <Statistic
                   title="Devir Bakiyesi (Anapara + Faiz)"
@@ -839,7 +846,7 @@ function LedgerTab() {
           </Row>
 
           <Row gutter={16} style={{ marginBottom: 16 }}>
-            <Col span={6}>
+            <Col xs={24} md={6}>
               <Card size="small">
                 <Statistic
                   title="Devreden Bakiye"
@@ -850,7 +857,7 @@ function LedgerTab() {
                 />
               </Card>
             </Col>
-            <Col span={6}>
+            <Col xs={24} md={6}>
               <Card size="small">
                 <Statistic
                   title="Bu Dönem Tahakkuk (Fatura + Aidat + Faiz)"
@@ -861,7 +868,7 @@ function LedgerTab() {
                 />
               </Card>
             </Col>
-            <Col span={6}>
+            <Col xs={24} md={6}>
               <Card size="small">
                 <Statistic
                   title="Yapılan Tahsilat"
@@ -872,7 +879,7 @@ function LedgerTab() {
                 />
               </Card>
             </Col>
-            <Col span={6}>
+            <Col xs={24} md={6}>
               <Card size="small">
                 <Statistic
                   title="Güncel Net Bakiye"
@@ -889,6 +896,7 @@ function LedgerTab() {
           </Row>
 
           <Table<MovementRowWithBalance>
+            scroll={{ x: 'max-content' }}
             rowKey="key"
             size="small"
             dataSource={movementRows}
@@ -1014,7 +1022,7 @@ function CashFlowTab() {
       {cashFlow && (
         <>
           <Row gutter={16} style={{ marginBottom: 16 }}>
-            <Col span={6}>
+            <Col xs={24} md={6}>
               <Card size="small">
                 <Statistic
                   title="Toplam Gelir (Tahsilat)"
@@ -1025,7 +1033,7 @@ function CashFlowTab() {
                 />
               </Card>
             </Col>
-            <Col span={6}>
+            <Col xs={24} md={6}>
               <Card size="small">
                 <Statistic
                   title="Toplam Gider (Doğalgaz)"
@@ -1036,7 +1044,7 @@ function CashFlowTab() {
                 />
               </Card>
             </Col>
-            <Col span={6}>
+            <Col xs={24} md={6}>
               <Card size="small">
                 <Statistic
                   title="Net Bakiye"
@@ -1047,7 +1055,7 @@ function CashFlowTab() {
                 />
               </Card>
             </Col>
-            <Col span={6}>
+            <Col xs={24} md={6}>
               <Card size="small">
                 <Descriptions size="small" column={1}>
                   <Descriptions.Item label="Dönem Başı">{dateFmt(cashFlow.dateFrom)}</Descriptions.Item>
@@ -1058,6 +1066,7 @@ function CashFlowTab() {
           </Row>
 
           <Table
+            scroll={{ x: 'max-content' }}
             rowKey={(r, i) => `${r.date}-${i}`}
             size="small"
             dataSource={cashFlow.lines}

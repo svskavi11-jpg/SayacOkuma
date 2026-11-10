@@ -1,6 +1,8 @@
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Westalife.Api.Infrastructure;
+using Westalife.Domain.Constants;
 using Westalife.Application.Features.Aidat.Commands.AssignTariffBySquareMeters;
 using Westalife.Application.Features.Aidat.Commands.CancelAidatInvoice;
 using Westalife.Application.Features.Aidat.Commands.CreateAidatInvoice;
@@ -29,6 +31,7 @@ public class AidatController : ControllerBase
     // ── Aidat Tarifeleri ──────────────────────────────────────────────────────
 
     /// <summary>Aidat tarife listesi (atanmış daire sayısı ile).</summary>
+    [HasPermission(Permissions.Invoices.View)]
     [HttpGet("tariffs")]
     [ProducesResponseType(typeof(IReadOnlyList<Westalife.Application.Features.Aidat.Queries.GetAidatTariffs.AidatTariffListItem>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetTariffs([FromQuery] bool? isActive, CancellationToken ct)
@@ -38,6 +41,7 @@ public class AidatController : ControllerBase
     }
 
     /// <summary>Yeni aidat tarifesı tanımlar (ad benzersiz olmalıdır).</summary>
+    [HasPermission(Permissions.Invoices.Create)]
     [HttpPost("tariffs")]
     [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -50,6 +54,7 @@ public class AidatController : ControllerBase
     }
 
     /// <summary>Aidat tarifesini günceller (geçmiş tahakkuk satırları etkilenmez).</summary>
+    [HasPermission(Permissions.Invoices.Edit)]
     [HttpPut("tariffs/{id:guid}")]
     [ProducesResponseType(typeof(Guid), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -63,6 +68,7 @@ public class AidatController : ControllerBase
     }
 
     /// <summary>Tekli tarife atama — daireye aktif tarife atanır veya null ile temizlenir.</summary>
+    [HasPermission(Permissions.Invoices.Edit)]
     [HttpPut("apartments/{apartmentId:guid}/tariff")]
     [ProducesResponseType(typeof(SetApartmentTariffResult), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -78,6 +84,7 @@ public class AidatController : ControllerBase
     /// Toplu tarife atama — aktif SCD m² kaydı verilen değere eşit (kuruş hassasiyeti)
     /// olan tüm dairelere tarife atanır. Zaten atanmışlar dokunulmaz.
     /// </summary>
+    [HasPermission(Permissions.Invoices.Edit)]
     [HttpPost("tariffs/{tariffId:guid}/assign-by-square-meters")]
     [ProducesResponseType(typeof(AssignTariffBySquareMetersResult), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -93,6 +100,7 @@ public class AidatController : ControllerBase
     // ── Aidat Tahakkukları ────────────────────────────────────────────────────
 
     /// <summary>Geçmiş aidat dönemleri (tahsilat oranlarıyla).</summary>
+    [HasPermission(Permissions.Invoices.View)]
     [HttpGet("invoices")]
     [ProducesResponseType(typeof(IReadOnlyList<Westalife.Application.Features.Aidat.Queries.GetAidatInvoices.AidatInvoiceListItem>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetInvoices([FromQuery] DateOnly? asOfDate, CancellationToken ct)
@@ -105,6 +113,7 @@ public class AidatController : ControllerBase
     /// Yeni aidat tahakkuku oluşturur — aktif tüm daireleri gezip borç satırları yazar.
     /// Tarifesiz daireler atlanır ve sonuçta raporlanır.
     /// </summary>
+    [HasPermission(Permissions.Invoices.Create)]
     [HttpPost("invoices")]
     [ProducesResponseType(typeof(CreateAidatInvoiceResult), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -129,6 +138,7 @@ public class AidatController : ControllerBase
     /// <summary>
     /// Tahakkuk oluşturmadan önce daire bazında borç önizlemesi (kayıt yazmaz).
     /// </summary>
+    [HasPermission(Permissions.Invoices.Create)]
     [HttpPost("invoices/preview")]
     [ProducesResponseType(typeof(AidatInvoicePreviewResult), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -150,6 +160,7 @@ public class AidatController : ControllerBase
     /// Hatalı oluşturulan aidat tahakkukunu iptal eder (Soft Delete — denetim izi korunur).
     /// Bütçe dönemi kilitliyse veya tahakkuka ait tahsilat varsa 400 döner.
     /// </summary>
+    [HasPermission(Permissions.Invoices.Cancel)]
     [HttpPost("invoices/{id:guid}/cancel")]
     [ProducesResponseType(typeof(CancelAidatInvoiceResult), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]

@@ -1,10 +1,12 @@
+import { AppModal } from '../../components/AppModal'
 import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Button, Card, DatePicker, Form, Input, InputNumber, Modal, Popconfirm, Space, Table, Tabs, Tag, message } from "antd"
+import { Button, Card, DatePicker, Form, Input, InputNumber, Popconfirm, Space, Table, Tabs, Tag, message } from "antd"
 import { EditOutlined, FileExcelOutlined, PlusOutlined } from "@ant-design/icons"
 import type { ColumnsType } from "antd/es/table"
 import dayjs, { type Dayjs } from "dayjs"
 import { apiClient } from "../../api/client"
+import { useAuth } from "../auth/AuthContext"
 import { formatDate } from "../../utils/dateUtils"
 import type { BankAccountListItem } from "../../types/api"
 import { BankTransactionsTab } from "./BankTransactionsTab"
@@ -23,6 +25,9 @@ interface BankAccountForm {
 }
 
 export function BankAccountsPage() {
+  const { hasPermission } = useAuth()
+  const canManage = hasPermission("Bank.Manage")
+  const canImport = hasPermission("Payments.Create")
   const queryClient = useQueryClient()
   const [form] = Form.useForm<BankAccountForm>()
   const [open, setOpen] = useState(false)
@@ -124,16 +129,17 @@ export function BankAccountsPage() {
     },
     {
       title: "",
+      fixed: 'right',
       width: 280,
       render: (_: unknown, row) => (
         <Space>
-          <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(row)}>Düzenle</Button>
-          <Button size="small" onClick={() => activeMutation.mutate(row)}>
+          {canManage && <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(row)}>Düzenle</Button>}
+          {canManage && <Button size="small" onClick={() => activeMutation.mutate(row)}>
             {row.isActive ? "Pasife al" : "Aktifleştir"}
-          </Button>
-          <Popconfirm title="Bu hesap silinsin mi?" okText="Sil" cancelText="Vazgeç" onConfirm={() => deleteMutation.mutate(row.id)}>
+          </Button>}
+          {canManage && <Popconfirm title="Bu hesap silinsin mi?" okText="Sil" cancelText="Vazgeç" onConfirm={() => deleteMutation.mutate(row.id)}>
             <Button size="small" danger>Sil</Button>
-          </Popconfirm>
+          </Popconfirm>}
         </Space>
       ),
     },
@@ -143,14 +149,14 @@ export function BankAccountsPage() {
     <Card
       title="Banka Hesapları"
       extra={
-        <Button
+        canImport ? <Button
           type="primary"
           icon={<FileExcelOutlined />}
           onClick={() => setImportOpen(true)}
           style={{ background: "#389e0d", borderColor: "#389e0d" }}
         >
           Ekstre Yükle (Akıllı Eşleştirme)
-        </Button>
+        </Button> : null
       }
     >
       <Tabs
@@ -161,14 +167,15 @@ export function BankAccountsPage() {
             children: (
               <Space direction="vertical" size={16} style={{ width: "100%" }}>
                 <Space>
-                  <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+                  {canManage && <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
                     Hesap Ekle
-                  </Button>
-                  <Button icon={<FileExcelOutlined />} onClick={() => setImportOpen(true)}>
+                  </Button>}
+                  {canImport && <Button icon={<FileExcelOutlined />} onClick={() => setImportOpen(true)}>
                     Ekstre Yükle
-                  </Button>
+                  </Button>}
                 </Space>
                 <Table
+                  scroll={{ x: 'max-content' }}
                   rowKey="id"
                   size="small"
                   loading={accountsQuery.isLoading}
@@ -177,7 +184,7 @@ export function BankAccountsPage() {
                   pagination={{ pageSize: 12 }}
                   locale={{ emptyText: "Banka hesabı yok." }}
                 />
-                <Modal
+                <AppModal
                   title={editing ? "Hesabı düzenle" : "Hesap ekle"}
                   open={open}
                   confirmLoading={saveMutation.isPending}
@@ -210,7 +217,7 @@ export function BankAccountsPage() {
                       <InputNumber min={0} precision={2} decimalSeparator="," addonAfter="TL" style={{ width: "100%" }} />
                     </Form.Item>
                   </Form>
-                </Modal>
+                </AppModal>
               </Space>
             ),
           },

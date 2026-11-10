@@ -11,6 +11,7 @@ public class NotificationLogConfiguration : IEntityTypeConfiguration<Notificatio
     {
         builder.ToTable("NotificationLogs");
         builder.HasKey(l => l.Id);
+        TenantOwnedConfiguration.Configure(builder);
 
         builder.Property(l => l.Channel).HasConversion<int>();
         builder.Property(l => l.RecipientAddress).IsRequired().HasMaxLength(DomainConstants.Notification.AddressMaxLength);

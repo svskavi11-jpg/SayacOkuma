@@ -9,8 +9,13 @@ namespace Westalife.Domain.Entities;
 /// Daire. m² ve ortak alan oranı bilgisi burada TUTULMAZ —
 /// <see cref="ApartmentDimension"/> (SCD Type 2) üzerinden dönemsel olarak çözülür.
 /// </summary>
-public class Apartment : BaseEntity
+public class Apartment : BaseEntity, ITenantEntity
 {
+    /// <summary>Kaydın ait olduğu site.</summary>
+    public Guid TenantId { get; private set; }
+
+    public void AssignTenant(Guid tenantId) => TenantId = tenantId;
+
     public Guid BuildingId { get; private set; }
 
     public Building Building { get; private set; } = null!;

@@ -6,8 +6,13 @@ using Westalife.Domain.Exceptions;
 namespace Westalife.Domain.Entities;
 
 /// <summary>Kanala bağlı bildirim şablonu. Gövdedeki yer tutucular gönderimde doldurulur.</summary>
-public class NotificationTemplate : BaseEntity
+public class NotificationTemplate : BaseEntity, ITenantEntity
 {
+    /// <summary>Kaydın ait olduğu site.</summary>
+    public Guid TenantId { get; private set; }
+
+    public void AssignTenant(Guid tenantId) => TenantId = tenantId;
+
     public string Name { get; private set; } = string.Empty;
 
     public NotificationChannel Channel { get; private set; }

@@ -35,6 +35,39 @@ public static class DomainConstants
         public const decimal DefaultFixedCostRatio = 0.30m;
     }
 
+    public static class Tenant
+    {
+        public const int NameMaxLength = 200;
+        public const int AddressMaxLength = 300;
+    }
+
+    public static class Auth
+    {
+        public const int FullNameMaxLength = 150;
+        public const string SuperAdmin = "SuperAdmin";
+        public const string TenantAdmin = "TenantAdmin";
+        public const string Accountant = "Accountant";
+        public const string MeterReader = "MeterReader";
+        public const string Resident = "Resident";
+
+        /// <summary>Yönetim paneli rolleri. Sakin bu listeye girmez.</summary>
+        public const string StaffRoles = SuperAdmin + "," + TenantAdmin + "," + Accountant + "," + MeterReader;
+
+        /// <summary>Sakin portal hesabı açabilen roller.</summary>
+        public const string ResidentManagers = SuperAdmin + "," + TenantAdmin;
+
+        public static readonly Guid SuperAdminRoleId = new("00000000-0000-0000-0000-0000000000a1");
+        public static readonly Guid TenantAdminRoleId = new("00000000-0000-0000-0000-0000000000a2");
+        public static readonly Guid AccountantRoleId = new("00000000-0000-0000-0000-0000000000a3");
+        public static readonly Guid MeterReaderRoleId = new("00000000-0000-0000-0000-0000000000a4");
+        public static readonly Guid ResidentRoleId = new("00000000-0000-0000-0000-0000000000a5");
+        public const string TenantHeader = "X-Tenant-Id";
+        public const string UserIdClaim = "UserId";
+        public const string TenantIdClaim = "TenantId";
+        public const string RoleClaim = "Role";
+        public const string FullNameClaim = "FullName";
+    }
+
     public static class Apartment
     {
         public const int DoorNumberMaxLength = 10;
@@ -183,6 +216,11 @@ public static class DomainConstants
         /// <summary>Seed binanın sabit Id'si (deterministik — migration'lar tekrar üretilebilir olmalı).</summary>
         public static readonly Guid BuildingId = new("00000000-0000-0000-0000-000000000001");
 
+        /// <summary>Tek bina sürümündeki mevcut verinin bağlandığı ilk site.</summary>
+        public static readonly Guid DefaultTenantId = new("00000000-0000-0000-0000-00000000aa02");
+
+        public const string DefaultTenantName = "Westalife Residence";
+
         /// <summary>Seed geçerlilik başlangıcı ve kayıt zamanı (deterministik).</summary>
         public static readonly DateTimeOffset SeedTimestamp = new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
     }
@@ -326,6 +364,10 @@ public static class DomainConstants
     {
         public const int CompanyNameMaxLength = 100;
         public const string CompanyNameRequired = "Şirket adı zorunludur.";
+        public const string ThemeTeal = "teal";
+        public const string ThemeBlue = "blue";
+        public const string ThemeDark = "dark";
+        public const string ThemeInvalid = "Tema turkuaz, mavi veya karanlık olmalıdır.";
         public const string BuildingNameRequired = "Bina adı zorunludur.";
         public const string RatiosMustSumToOne = "Sabit gider oranı + Tüketim oranı tam %100 olmalıdır.";
         public const string RatiosMustBePositive = "Oranlar sıfırdan büyük olmalıdır.";
@@ -434,6 +476,9 @@ public static class DomainConstants
 
     public static class ValidationMessages
     {
+        public const string TenantNameRequired = "Site adı zorunludur.";
+        public const string TenantNameTooLong = "Site adı en fazla 200 karakter olabilir.";
+        public const string TenantAddressTooLong = "Adres en fazla 300 karakter olabilir.";
         public const string BuildingNameRequired = "Bina adı zorunludur.";
         public const string BuildingAddressRequired = "Bina adresi zorunludur.";
         public const string ApartmentBuildingIdRequired = "Dairenin bağlı olduğu bina kimliği (BuildingId) zorunludur.";

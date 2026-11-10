@@ -16,10 +16,16 @@ public class AppSettingsConfiguration : IEntityTypeConfiguration<AppSettings>
         builder.ToTable("AppSettings");
 
         builder.HasKey(s => s.Id);
+        TenantOwnedConfiguration.Configure(builder);
 
         builder.Property(s => s.CompanyName)
             .IsRequired()
             .HasMaxLength(DomainConstants.AppSettings.CompanyNameMaxLength);
+
+        builder.Property(s => s.Theme)
+            .IsRequired()
+            .HasMaxLength(20)
+            .HasDefaultValue(DomainConstants.AppSettings.ThemeTeal);
 
         builder.Property(s => s.BuildingName)
             .IsRequired()
@@ -108,7 +114,9 @@ public class AppSettingsConfiguration : IEntityTypeConfiguration<AppSettings>
         builder.HasData(new
         {
             Id = SingletonId,
+            TenantId = DomainConstants.SeedData.DefaultTenantId,
             CompanyName = "Çınar Teknik",
+            Theme = DomainConstants.AppSettings.ThemeTeal,
             BuildingName = "Westalife Residence",
             FixedCostRatio = DomainConstants.Building.DefaultFixedCostRatio,
             ConsumptionRatio = 0.70m,

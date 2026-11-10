@@ -14,6 +14,7 @@ import {
   Statistic,
   Tag,
   Typography,
+  theme,
 } from 'antd'
 import {
   AccountBookOutlined,
@@ -35,6 +36,7 @@ import { Pie } from '@ant-design/plots'
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 import { apiClient } from '../../api/client'
+import { useAuth } from '../auth/AuthContext'
 import { downloadFile } from '../../api/download'
 import type {
   ApartmentListItem,
@@ -48,7 +50,7 @@ const tl = (v: number) =>
   `${v.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} TL`
 
 const cardBaseStyle: CSSProperties = {
-  borderRadius: 12,
+  borderRadius: 16,
   boxShadow: '0 4px 18px rgba(15, 23, 42, 0.06)',
   border: 'none',
   height: '100%',
@@ -82,17 +84,14 @@ function KpiCard({
       variant="borderless"
       styles={{
         body: {
-          padding: '22px 24px',
+          padding: '22px 20px',
           flex: 1,
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'center',
         },
       }}
-      style={{
-        ...cardBaseStyle,
-        borderLeft: `4px solid ${color}`,
-      }}
+      style={cardBaseStyle}
     >
       <div
         style={{
@@ -123,11 +122,10 @@ function KpiCard({
             decimalSeparator=","
             suffix="TL"
             valueStyle={{
-              fontSize: 27,
+              fontSize: 22,
               fontWeight: 700,
               color,
               lineHeight: 1.25,
-              whiteSpace: 'nowrap',
             }}
           />
           {hint && (
@@ -143,15 +141,15 @@ function KpiCard({
 
         <div
           style={{
-            width: 54,
-            height: 54,
-            borderRadius: 14,
+            width: 48,
+            height: 48,
+            borderRadius: 16,
             background: bgTint,
             color,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: 25,
+            fontSize: 26,
             flexShrink: 0,
           }}
         >
@@ -164,7 +162,20 @@ function KpiCard({
 
 export function DashboardPage() {
   const navigate = useNavigate()
+  const { hasPermission } = useAuth()
+  const canSummary = [
+    'Reports.GeneralAssembly',
+    'Reports.IncomeExpense',
+    'Reports.ApartmentTracking',
+    'Reports.FuelBreakdown',
+    'Reports.BankControl',
+    'Reports.GasNotifications',
+  ].some((code) => hasPermission(code))
+  const canBanks = hasPermission('Bank.View')
+  const canApartments = hasPermission('Apartments.View')
+  const canTrigger = hasPermission('MeterReadings.TriggerRead')
   const queryClient = useQueryClient()
+  const { token } = theme.useToken()
 
   const readingMutation = useMutation({
     mutationFn: async () =>
@@ -186,21 +197,43 @@ export function DashboardPage() {
   const summaryQuery = useQuery({
     queryKey: ['dashboard-summary'],
     queryFn: async () => (await apiClient.get<DashboardSummary>('/dashboard/summary')).data,
+    enabled: canSummary,
   })
 
   const apartmentsQuery = useQuery({
     queryKey: ['apartments'],
     queryFn: async () => (await apiClient.get<ApartmentListItem[]>('/apartments')).data,
+    enabled: canApartments,
   })
 
   const banksQuery = useQuery({
     queryKey: ['dashboard-banks'],
     queryFn: async () => (await apiClient.get<BankDashboard>('/dashboard/banks')).data,
+    enabled: canBanks,
   })
 
   const data = summaryQuery.data
   const apartments = apartmentsQuery.data ?? []
   const bankData = banksQuery.data
+
+  if (!canSummary) {
+    return (
+      <Card>
+        <Empty description="Özet panel için rapor görme yetkisi gerekir." />
+        {canTrigger && (
+          <Button
+            type="primary"
+            icon={<ThunderboltOutlined />}
+            loading={readingMutation.isPending}
+            onClick={() => readingMutation.mutate()}
+            style={{ marginTop: 16 }}
+          >
+            Sayaçları Şimdi Oku
+          </Button>
+        )}
+      </Card>
+    )
+  }
 
   if (summaryQuery.isLoading || !data) {
     return (
@@ -287,7 +320,7 @@ export function DashboardPage() {
 
       {/* 1. Üst KPI Kartları (AntD Statistic + Sol İnce Çizgi: Yeşil, Kırmızı, Mor, Turuncu) */}
       <Row gutter={[20, 20]}>
-        <Col xs={24} sm={12} lg={6} style={{ display: 'flex' }}>
+        <Col xs={24} sm={12} md={6} style={{ display: 'flex' }}>
           <div style={{ width: '100%' }}>
             <KpiCard
               label="Toplam Tahsilat"
@@ -303,7 +336,7 @@ export function DashboardPage() {
             />
           </div>
         </Col>
-        <Col xs={24} sm={12} lg={6} style={{ display: 'flex' }}>
+        <Col xs={24} sm={12} md={6} style={{ display: 'flex' }}>
           <div style={{ width: '100%' }}>
             <KpiCard
               label="Toplam Gider"
@@ -315,7 +348,7 @@ export function DashboardPage() {
             />
           </div>
         </Col>
-        <Col xs={24} sm={12} lg={6} style={{ display: 'flex' }}>
+        <Col xs={24} sm={12} md={6} style={{ display: 'flex' }}>
           <div style={{ width: '100%' }}>
             <KpiCard
               label="Aidat Borcu"
@@ -327,7 +360,7 @@ export function DashboardPage() {
             />
           </div>
         </Col>
-        <Col xs={24} sm={12} lg={6} style={{ display: 'flex' }}>
+        <Col xs={24} sm={12} md={6} style={{ display: 'flex' }}>
           <div style={{ width: '100%' }}>
             <KpiCard
               label="Isınma Borcu"
@@ -608,7 +641,7 @@ export function DashboardPage() {
             )}
 
             <Row gutter={[12, 12]}>
-              <Col span={8}>
+              <Col xs={24} sm={8}>
                 <div
                   style={{
                     background: '#fff1f0',
@@ -625,7 +658,7 @@ export function DashboardPage() {
                   </div>
                 </div>
               </Col>
-              <Col span={8}>
+              <Col xs={24} sm={8}>
                 <div
                   style={{
                     background: '#f6ffed',
@@ -642,7 +675,7 @@ export function DashboardPage() {
                   </div>
                 </div>
               </Col>
-              <Col span={8}>
+              <Col xs={24} sm={8}>
                 <div
                   style={{
                     background: '#f5f5f5',
@@ -766,8 +799,8 @@ export function DashboardPage() {
                     width: 34,
                     height: 34,
                     borderRadius: 10,
-                    background: '#e6f4ff',
-                    color: '#1677ff',
+                    background: token.colorPrimaryBg,
+                    color: token.colorPrimary,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -894,11 +927,10 @@ export function DashboardPage() {
             style={{
               ...cardBaseStyle,
               width: '100%',
-              background: 'linear-gradient(155deg, #ffffff 0%, #f0f7ff 100%)',
-              borderTop: '4px solid #1677ff',
+              background: `linear-gradient(155deg, ${token.colorBgContainer} 0%, ${token.colorPrimaryBg} 100%)`,
             }}
             styles={{
-              header: { padding: '16px 28px', borderBottom: '1px solid #e6f4ff' },
+              header: { padding: '16px 28px', borderBottom: `1px solid ${token.colorPrimaryBg}` },
               body: {
                 padding: '28px 30px',
                 flex: 1,
@@ -915,8 +947,8 @@ export function DashboardPage() {
                     width: 34,
                     height: 34,
                     borderRadius: 10,
-                    background: '#e6f4ff',
-                    color: '#1677ff',
+                    background: token.colorPrimaryBg,
+                    color: token.colorPrimary,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -937,8 +969,8 @@ export function DashboardPage() {
                   width: 60,
                   height: 60,
                   borderRadius: 16,
-                  background: '#e6f4ff',
-                  color: '#1677ff',
+                  background: token.colorPrimaryBg,
+                  color: token.colorPrimary,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -960,7 +992,7 @@ export function DashboardPage() {
               </Typography.Paragraph>
             </div>
 
-            <Button
+            {canTrigger && <Button
               type="primary"
               block
               size="large"
@@ -976,7 +1008,7 @@ export function DashboardPage() {
               }}
             >
               Sayaçları Şimdi Oku
-            </Button>
+            </Button>}
           </Card>
         </Col>
       </Row>

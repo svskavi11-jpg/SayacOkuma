@@ -6,6 +6,7 @@ import {
 import { EyeOutlined, StopOutlined, ThunderboltOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { apiClient } from '../../api/client'
+import { useAuth } from '../auth/AuthContext'
 import { formatDate as dateFmt } from '../../utils/dateUtils'
 import {
   AIDAT_CHARGE_TYPE_LABELS,
@@ -26,6 +27,9 @@ const METHOD_OPTIONS = (Object.entries(AIDAT_DISTRIBUTION_LABELS) as [AidatDistr
 /** Faz 6.9: Aidat tahakkuk oluşturma + geçmiş dönem listesi. */
 export function AidatInvoicesPage() {
   const queryClient = useQueryClient()
+  const { hasPermission } = useAuth()
+  const canCreate = hasPermission('Invoices.Create')
+  const canCancel = hasPermission('Invoices.Cancel')
   const [form] = Form.useForm()
   const [preview, setPreview] = useState<AidatPreviewResult | null>(null)
   const method = Form.useWatch('distributionMethod', form)
@@ -206,6 +210,7 @@ export function AidatInvoicesPage() {
     {
       title: 'İşlemler',
       key: 'actions',
+      fixed: 'right',
       width: 140,
       align: 'center',
       render: (_: unknown, r: AidatInvoiceListItem) => {
@@ -229,6 +234,10 @@ export function AidatInvoicesPage() {
             : hasExpenses
               ? 'Bu özel toplama fonuna bağlı gider kaydı bulunduğu için iptal edilemez.'
               : null
+
+        if (!canCancel) {
+          return null
+        }
 
         if (disabled) {
           return (
@@ -265,7 +274,7 @@ export function AidatInvoicesPage() {
       <Typography.Title level={5}>Yeni Tahakkuk Oluştur</Typography.Title>
       <Form form={form} layout="vertical" initialValues={{ chargeType: 'StandartAidat' }}>
         <Row gutter={12}>
-          <Col span={6}>
+          <Col xs={24} md={6}>
             <Form.Item name="chargeType" label="Tahakkuk Türü" rules={[{ required: true, message: 'Zorunludur.' }]}>
               <Select
                 options={(Object.entries(AIDAT_CHARGE_TYPE_LABELS) as [AidatChargeType, string][])
@@ -275,51 +284,52 @@ export function AidatInvoicesPage() {
           </Col>
           {chargeType === 'OzelToplama' && (
             <>
-              <Col span={8}>
+              <Col xs={24} md={8}>
                 <Form.Item name="title" label="Fon Adı" rules={[{ required: true, message: 'Fon adı zorunludur.' }]}>
                   <Input maxLength={120} placeholder="Çatı Onarımı Fonu" />
                 </Form.Item>
               </Col>
-              <Col span={6}>
+              <Col xs={24} md={6}>
                 <Form.Item name="targetAmount" label="Hedef Tutar" rules={[{ required: true, message: 'Hedef tutar zorunludur.' }]}>
                   <InputNumber style={{ width: '100%' }} min={0.01} precision={2} decimalSeparator="," addonAfter="TL" />
                 </Form.Item>
               </Col>
             </>
           )}
-          <Col span={6}>
+          <Col xs={24} md={6}>
             <Form.Item name="periodStart" label="Dönem Başlangıcı" rules={[{ required: true, message: 'Zorunludur.' }]}>
               <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
             </Form.Item>
           </Col>
-          <Col span={6}>
+          <Col xs={24} md={6}>
             <Form.Item name="periodEnd" label="Dönem Bitişi" rules={[{ required: true, message: 'Zorunludur.' }]}>
               <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
             </Form.Item>
           </Col>
-          <Col span={6}>
+          <Col xs={24} md={6}>
             <Form.Item name="dueDate" label="Son Ödeme Tarihi" rules={[{ required: true, message: 'Zorunludur.' }]}>
               <DatePicker style={{ width: '100%' }} format="DD.MM.YYYY" />
             </Form.Item>
           </Col>
-          <Col span={6}>
+          <Col xs={24} md={6}>
             <Form.Item name="distributionMethod" label="Dağıtım Yöntemi" rules={[{ required: true, message: 'Zorunludur.' }]}>
               <Select options={METHOD_OPTIONS} placeholder="Seçin…" />
             </Form.Item>
           </Col>
           {method === 'Esit' && (
-            <Col span={6}>
+            <Col xs={24} md={6}>
               <Form.Item name="equalAmount" label="Daire Başına Tutar (TL)" rules={[{ required: true, message: 'Eşit dağıtım için tutar zorunludur.' }]}>
                 <InputNumber style={{ width: '100%' }} min={0.01} precision={2} decimalSeparator="," addonAfter="TL" />
               </Form.Item>
             </Col>
           )}
-          <Col span={method === 'Esit' ? 18 : 24}>
+          <Col xs={24} md={method === 'Esit' ? 18 : 24}>
             <Form.Item name="note" label="Not (isteğe bağlı)">
               <Input maxLength={500} placeholder="örn: Ocak 2026 aidatı" />
             </Form.Item>
           </Col>
         </Row>
+        {canCreate && (
         <Space>
           <Button icon={<EyeOutlined />} loading={previewMutation.isPending} onClick={handlePreview}>
             Önizle
@@ -328,6 +338,7 @@ export function AidatInvoicesPage() {
             Tahakkuk Oluştur
           </Button>
         </Space>
+        )}
       </Form>
 
       {preview && (
@@ -341,17 +352,18 @@ export function AidatInvoicesPage() {
             />
           )}
           <Row gutter={16} style={{ marginBottom: 12 }}>
-            <Col span={6}><Statistic title="Borçlanan Daire" value={preview.chargeCount} /></Col>
-            <Col span={6}>
+            <Col xs={24} md={6}><Statistic title="Borçlanan Daire" value={preview.chargeCount} /></Col>
+            <Col xs={24} md={6}>
               <Statistic
                 title="Atlanan Daire"
                 value={preview.skippedCount}
                 valueStyle={{ color: preview.skippedCount > 0 ? '#d46b08' : undefined }}
               />
             </Col>
-            <Col span={6}><Statistic title="Toplam Tahakkuk" value={preview.totalAmount} precision={2} suffix="TL" /></Col>
+            <Col xs={24} md={6}><Statistic title="Toplam Tahakkuk" value={preview.totalAmount} precision={2} suffix="TL" /></Col>
           </Row>
           <Table
+            scroll={{ x: 'max-content' }}
             rowKey="doorNumber"
             size="small"
             columns={previewColumns}
@@ -363,6 +375,7 @@ export function AidatInvoicesPage() {
 
       <Typography.Title level={5} style={{ marginTop: 24 }}>Geçmiş Dönemler</Typography.Title>
       <Table
+        scroll={{ x: 'max-content' }}
         rowKey="id"
         size="small"
         columns={listColumns}

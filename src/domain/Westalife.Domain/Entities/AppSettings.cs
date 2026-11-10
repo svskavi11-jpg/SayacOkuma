@@ -9,8 +9,13 @@ namespace Westalife.Domain.Entities;
 /// Sistem genelinde tek satırlık ayar kaydı (singleton). Bina adı, şirket adı (PDF başlığı)
 /// ve 30/70 oranları burada yönetilir; PUT işleminde Building tablosuna aynalanır.
 /// </summary>
-public class AppSettings : BaseEntity
+public class AppSettings : BaseEntity, ITenantEntity
 {
+    /// <summary>Kaydın ait olduğu site.</summary>
+    public Guid TenantId { get; private set; }
+
+    public void AssignTenant(Guid tenantId) => TenantId = tenantId;
+
     public string CompanyName { get; private set; } = string.Empty;
 
     public string BuildingName { get; private set; } = string.Empty;
@@ -82,6 +87,9 @@ public class AppSettings : BaseEntity
 
     /// <summary>YILLIK basit faiz oranı (%). Faiz = Anapara × Oran/100 × Gün/365; bileşik faiz YOKTUR.</summary>
     public decimal InterestRate { get; private set; }
+
+    /// <summary>Site görünümü: teal, blue veya dark. Yeni siteler turkuaz ile başlar.</summary>
+    public string Theme { get; private set; } = DomainConstants.AppSettings.ThemeTeal;
 
     private AppSettings() { } // EF Core
 
@@ -267,6 +275,21 @@ public class AppSettings : BaseEntity
                 throw new DomainException(DomainConstants.AppSettings.LogoSideInvalid);
         }
 
+        LastModifiedOn = DateTimeOffset.UtcNow;
+    }
+
+    /// <summary>Yalnızca görünüm temasını değiştirir; oranlara ve M-Bus ayarlarına dokunmaz.</summary>
+    public void UpdateTheme(string theme)
+    {
+        if (theme is not (
+            DomainConstants.AppSettings.ThemeTeal
+            or DomainConstants.AppSettings.ThemeBlue
+            or DomainConstants.AppSettings.ThemeDark))
+        {
+            throw new DomainException(DomainConstants.AppSettings.ThemeInvalid);
+        }
+
+        Theme = theme;
         LastModifiedOn = DateTimeOffset.UtcNow;
     }
 

@@ -22,6 +22,7 @@ public sealed class ApiKeyMiddleware(RequestDelegate next, IConfiguration config
     {
         // Anahtar tanimli degilse (yalniz Development'ta mumkun) koruma devre disi.
         if (_expectedKey is null || !context.Request.Path.StartsWithSegments(ProtectedPrefix)
+            || context.Request.Path.StartsWithSegments("/api/auth")
             || context.Request.Method == HttpMethods.Options)
         {
             await next(context);

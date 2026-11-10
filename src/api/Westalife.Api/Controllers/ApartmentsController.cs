@@ -1,8 +1,11 @@
 using Westalife.Application.Features.Apartments.Commands.AddApartments;
 using Westalife.Application.Features.Roles;
 using Westalife.Application.Features.Apartments.Commands.SetOpeningBalance;
+using Westalife.Application.Features.Apartments.Commands.ProvisionResidentAccount;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Westalife.Domain.Constants;
 using Westalife.Api.Infrastructure;
 using Westalife.Application.Features.Apartments.Queries.GetApartments;
 using Westalife.Application.Features.Apartments.Queries.GetApartmentConsumptionAnalysis;
@@ -28,6 +31,7 @@ public class ApartmentsController : ControllerBase
     }
 
     /// <summary>Aktif daireler + dönemsel m² (SCD) + bağlı sayaçlar (Faz 5 grid zemin).</summary>
+    [HasPermission(Permissions.Apartments.View)]
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<ApartmentListItem>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetApartments(CancellationToken cancellationToken)
@@ -40,6 +44,7 @@ public class ApartmentsController : ControllerBase
     /// Faz 7.1: Sakin yönetimi — Ev Sahibi ve/veya Kiracı bilgilerini günceller
     /// (SCD Type 2, tür bazlı ayrı akış; telefon/e-posta/TCKN Domain'de doğrulanır).
     /// </summary>
+    [HasPermission(Permissions.Apartments.ManageResident)]
     [HttpPut("{id:guid}/residents")]
     [ProducesResponseType(typeof(UpdateResidentResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
@@ -54,6 +59,7 @@ public class ApartmentsController : ControllerBase
     /// <summary>
     /// Daire m²'sini günceller — SCD Type 2: eski kayıt kapatılır, yenisi açılır (veri ezme yok).
     /// </summary>
+    [HasPermission(Permissions.Apartments.Edit)]
     [HttpPut("{id:guid}/dimensions")]
     [ProducesResponseType(typeof(UpdateApartmentDimensionResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
@@ -69,6 +75,7 @@ public class ApartmentsController : ControllerBase
     /// Kat malikini günceller (Etap 6.7 — SCD Type 2): eski malik kaydı kapatılır, yenisi açılır;
     /// geçmiş korunur. Ad değişmediyse Changed=false döner (no-op).
     /// </summary>
+    [HasPermission(Permissions.Apartments.Edit)]
     [HttpPut("{id:guid}/owner")]
     [ProducesResponseType(typeof(UpdateApartmentOwnerResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
@@ -81,6 +88,7 @@ public class ApartmentsController : ControllerBase
     }
 
     /// <summary>Dairenin kat maliki geçmişi (Etap 6.7 — SCD Type 2, kapalı kayıtlar dahil).</summary>
+    [HasPermission(Permissions.Apartments.View)]
     [HttpGet("{id:guid}/owner/history")]
     [ProducesResponseType(typeof(IReadOnlyList<ApartmentOwnerHistoryItem>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -94,6 +102,7 @@ public class ApartmentsController : ControllerBase
     /// Daire tüketim analizi (Etap 6.7): yıl VEYA tarih aralığı filtreli aylık tüketim serisi,
     /// toplam ve aylık ortalama. year verilmezse from/to; ikisi de verilmezse bu yıl kullanılır.
     /// </summary>
+    [HasPermission(Permissions.Apartments.Analysis)]
     [HttpGet("{id:guid}/consumption-analysis")]
     [ProducesResponseType(typeof(ApartmentConsumptionAnalysisResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -110,6 +119,7 @@ public class ApartmentsController : ControllerBase
     /// Excel şablonunu indirir (Kapı No, Sayaç Seri No, M-Bus Adresi + opsiyonel Başlangıç Endeksi,
     /// Başlangıç Tarihi, Kat Maliki Adı Soyadı, m² sütunları — Etap 6.7).
     /// </summary>
+    [HasPermission(Permissions.Apartments.View)]
     [HttpGet("import-template")]
     [Produces("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")]
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -125,6 +135,7 @@ public class ApartmentsController : ControllerBase
     /// Excel ile toplu sayaç içe aktarma. Başlıklar dinamik eşleştirilir; satır bazlı
     /// hatalar raporlanır. Opsiyonel başlangıç endeksi sütunu doluysa IsInitialReading okuması da oluşturulur.
     /// </summary>
+    [HasPermission(Permissions.Apartments.Create)]
     [HttpPost("import-meters-excel")]
     [ProducesResponseType(typeof(ImportMetersFromExcelResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
@@ -151,6 +162,7 @@ public class ApartmentsController : ControllerBase
     }
 
     /// <summary>Toplu daire ekleme: Count kadar yeni daire, mevcut son kapı numarasından devam eder.</summary>
+    [HasPermission(Permissions.Apartments.Create)]
     [HttpPost("bulk")]
     [ProducesResponseType(typeof(AddApartmentsResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
@@ -159,6 +171,7 @@ public class ApartmentsController : ControllerBase
         Ok(await _mediator.Send(command, cancellationToken));
 
     /// <summary>Faz 6.8: devir (açılış) bakiyesi girişi. + borçlu, - alacaklı; 0 = temizle.</summary>
+    [HasPermission(Permissions.Apartments.Edit)]
     [HttpPut("{id:guid}/opening-balance")]
     [ProducesResponseType(typeof(SetOpeningBalanceResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
@@ -167,12 +180,25 @@ public class ApartmentsController : ControllerBase
         Guid id, [FromBody] SetOpeningBalanceCommand command, CancellationToken cancellationToken) =>
         Ok(await _mediator.Send(command with { ApartmentId = id }, cancellationToken));
 
+    [HasPermission(Permissions.Apartments.View)]
     [HttpGet("{id:guid}/roles")]
     [ProducesResponseType(typeof(IReadOnlyList<RoleAssignmentListItem>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetRoles(Guid id, CancellationToken cancellationToken) =>
         Ok(await _mediator.Send(new GetRoleAssignmentsQuery(id), cancellationToken));
 
+    /// <summary>Daire için sakin portal hesabı açar veya mevcut sakinin e-posta ve şifresini günceller.</summary>
+    [HasPermission(Permissions.Apartments.ManageResident)]
+    [HttpPost("{id:guid}/resident-account")]
+    [ProducesResponseType(typeof(Guid), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> ProvisionResidentAccount(
+        Guid id, [FromBody] ProvisionResidentAccountCommand command, CancellationToken cancellationToken) =>
+        Ok(await _mediator.Send(command with { ApartmentId = id }, cancellationToken));
+
+    [HasPermission(Permissions.Apartments.ManageResident)]
     [HttpPost("{id:guid}/roles")]
     [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
@@ -185,6 +211,7 @@ public class ApartmentsController : ControllerBase
         return StatusCode(StatusCodes.Status201Created, roleId);
     }
 
+    [HasPermission(Permissions.Apartments.ManageResident)]
     [HttpPost("roles/{roleId:guid}/close")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
@@ -197,6 +224,7 @@ public class ApartmentsController : ControllerBase
         return NoContent();
     }
 
+    [HasPermission(Permissions.Apartments.ManageResident)]
     [HttpPost("roles/{roleId:guid}/cancel")]
     [ProducesResponseType(typeof(CancelRoleAssignmentResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]

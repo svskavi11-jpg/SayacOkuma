@@ -6,8 +6,13 @@ using Westalife.Domain.Exceptions;
 namespace Westalife.Domain.Entities;
 
 /// <summary>Sakine ait sozlesme veya tapu kopyasi. Dosyanin kendisi sunucu klasorundedir.</summary>
-public class ResidentDocument : BaseEntity
+public class ResidentDocument : BaseEntity, ITenantEntity
 {
+    /// <summary>Kaydın ait olduğu site.</summary>
+    public Guid TenantId { get; private set; }
+
+    public void AssignTenant(Guid tenantId) => TenantId = tenantId;
+
     public Guid ApartmentOwnerId { get; private set; }
 
     public ApartmentOwner ApartmentOwner { get; private set; } = null!;

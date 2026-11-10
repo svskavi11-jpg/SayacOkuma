@@ -12,6 +12,7 @@ public class MeterConfiguration : IEntityTypeConfiguration<Meter>
         builder.ToTable("Meters");
 
         builder.HasKey(m => m.Id);
+        TenantOwnedConfiguration.Configure(builder);
 
         builder.Property(m => m.SerialNumber)
             .IsRequired()

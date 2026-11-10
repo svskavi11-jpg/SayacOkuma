@@ -12,6 +12,7 @@ public class AidatTariffConfiguration : IEntityTypeConfiguration<AidatTariff>
         builder.ToTable("AidatTariffs");
 
         builder.HasKey(t => t.Id);
+        TenantOwnedConfiguration.Configure(builder);
 
         builder.Property(t => t.Name)
             .IsRequired()

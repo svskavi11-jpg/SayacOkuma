@@ -1,6 +1,8 @@
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Westalife.Api.Infrastructure;
+using Westalife.Domain.Constants;
 using Westalife.Application.Features.Payments.Commands.CancelPayment;
 using Westalife.Application.Features.Payments.Commands.CreateBulkPayment;
 using Westalife.Application.Features.Payments.Commands.DeletePayment;
@@ -29,6 +31,7 @@ public class PaymentsController : ControllerBase
     // ── Tahsilat CRUD ─────────────────────────────────────────────────────────
 
     /// <summary>Daire tahsilat listesi (iptal edilenler dahil).</summary>
+    [HasPermission(Permissions.Payments.View)]
     [HttpGet("by-apartment/{apartmentId:guid}")]
     [ProducesResponseType(typeof(IReadOnlyList<PaymentListItem>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetPayments(Guid apartmentId, CancellationToken ct)
@@ -38,6 +41,7 @@ public class PaymentsController : ControllerBase
     }
 
     /// <summary>Yeni tahsilat kaydeder.</summary>
+    [HasPermission(Permissions.Payments.Create)]
     [HttpPost]
     [ProducesResponseType(typeof(RecordPaymentResult), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -63,6 +67,7 @@ public class PaymentsController : ControllerBase
     /// Banka ekstresini (.xlsx / .csv) ayrıştırır, daire ve borç türü tahminleriyle
     /// önizleme listesi döner. Veritabanına kayıt YAZMAZ.
     /// </summary>
+    [HasPermission(Permissions.Payments.Create)]
     [HttpPost("bank-statement/parse")]
     [ProducesResponseType(typeof(BankStatementParseResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
@@ -86,6 +91,7 @@ public class PaymentsController : ControllerBase
     /// <summary>
     /// Önizleme ekranında onaylanan banka ekstresi satırlarını toplu tahsilat olarak kaydeder.
     /// </summary>
+    [HasPermission(Permissions.Payments.Create)]
     [HttpPost("bulk")]
     [ProducesResponseType(typeof(CreateBulkPaymentResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
@@ -99,6 +105,7 @@ public class PaymentsController : ControllerBase
     }
 
     /// <summary>Yanlış girilen tahsilatı düzeltir. Mahsup cari hesapta yeniden hesaplanır.</summary>
+    [HasPermission(Permissions.Payments.Create)]
     [HttpPut("{paymentId:guid}")]
     [ProducesResponseType(typeof(UpdatePaymentResult), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -120,6 +127,7 @@ public class PaymentsController : ControllerBase
     }
 
     /// <summary>Yanlış girilen tahsilatı kalıcı siler.</summary>
+    [HasPermission(Permissions.Payments.Cancel)]
     [HttpDelete("{paymentId:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -130,6 +138,7 @@ public class PaymentsController : ControllerBase
     }
 
     /// <summary>Tahsilatı iptal eder (soft-delete).</summary>
+    [HasPermission(Permissions.Payments.Cancel)]
     [HttpPost("{paymentId:guid}/cancel")]
     [ProducesResponseType(typeof(CancelPaymentResult), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -147,6 +156,7 @@ public class PaymentsController : ControllerBase
     /// Dairenin cari hesabını hesaplar (faiz + FIFO allocation).
     /// asOfDate belirtilmezse bugün kullanılır.
     /// </summary>
+    [HasPermission(Permissions.Payments.View)]
     [HttpGet("ledger/{apartmentId:guid}")]
     [ProducesResponseType(typeof(LedgerResult), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -166,6 +176,7 @@ public class PaymentsController : ControllerBase
     /// GELİR = dairelerden tahsilat (Payment.PaymentDate).
     /// GİDER = doğalgaz firmalarına ödeme (GasInvoice.PaidOn).
     /// </summary>
+    [HasPermission(Permissions.Payments.View)]
     [HttpGet("cash-flow")]
     [ProducesResponseType(typeof(CashFlowResult), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetCashFlow(

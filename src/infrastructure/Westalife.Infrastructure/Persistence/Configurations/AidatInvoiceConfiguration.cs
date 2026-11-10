@@ -12,6 +12,7 @@ public class AidatInvoiceConfiguration : IEntityTypeConfiguration<AidatInvoice>
         builder.ToTable("AidatInvoices");
 
         builder.HasKey(i => i.Id);
+        TenantOwnedConfiguration.Configure(builder);
 
         builder.Property(i => i.PeriodStart).IsRequired();
         builder.Property(i => i.PeriodEnd).IsRequired();

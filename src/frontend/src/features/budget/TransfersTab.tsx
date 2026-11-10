@@ -4,6 +4,7 @@ import { DeleteOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs, { type Dayjs } from 'dayjs'
 import { apiClient } from '../../api/client'
+import { useAuth } from '../auth/AuthContext'
 import { formatDate } from '../../utils/dateUtils'
 import type { BudgetRealizationReport, BudgetTransferItem } from '../../types/api'
 
@@ -19,6 +20,8 @@ interface TransferForm {
 
 /** Kalemler arasi virman. Kaynak kalan butceyi asamaz. */
 export function TransfersTab({ year, locked }: { year: number; locked: boolean }) {
+  const { hasPermission } = useAuth()
+  const canTransfer = hasPermission('Budget.Transfer')
   const queryClient = useQueryClient()
   const [form] = Form.useForm<TransferForm>()
 
@@ -70,11 +73,12 @@ export function TransfersTab({ year, locked }: { year: number; locked: boolean }
     { title: 'Not', dataIndex: 'note', render: (v: string | null) => v || '—' },
     {
       title: '',
+      fixed: 'right',
       width: 70,
       render: (_: unknown, row) => (
-        <Popconfirm title="Bu virman silinsin mi?" okText="Sil" cancelText="Vazgeç" onConfirm={() => deleteMutation.mutate(row.id)}>
+        canTransfer ? <Popconfirm title="Bu virman silinsin mi?" okText="Sil" cancelText="Vazgeç" onConfirm={() => deleteMutation.mutate(row.id)}>
           <Button size="small" danger icon={<DeleteOutlined />} disabled={locked} />
-        </Popconfirm>
+        </Popconfirm> : null
       ),
     },
   ]
@@ -82,7 +86,7 @@ export function TransfersTab({ year, locked }: { year: number; locked: boolean }
   return (
     <Space direction="vertical" size={16} style={{ width: '100%' }}>
       {locked && <Alert type="warning" showIcon message="Bu bütçe yılı kilitli. Virman yapılamaz." />}
-      <Form form={form} layout="inline" disabled={locked} onFinish={(values) => saveMutation.mutate(values)}>
+      {canTransfer && <Form form={form} layout="inline" disabled={locked} onFinish={(values) => saveMutation.mutate(values)}>
         <Form.Item name="transferDate" rules={[{ required: true, message: 'Tarih zorunludur.' }]}>
           <DatePicker format="DD.MM.YYYY" placeholder="Tarih" disabledDate={(d) => d.year() !== year || d.isAfter(dayjs(), 'day')} />
         </Form.Item>
@@ -101,8 +105,9 @@ export function TransfersTab({ year, locked }: { year: number; locked: boolean }
         <Form.Item>
           <Button type="primary" htmlType="submit" loading={saveMutation.isPending}>Aktar</Button>
         </Form.Item>
-      </Form>
+      </Form>}
       <Table
+        scroll={{ x: 'max-content' }}
         rowKey="id"
         size="small"
         loading={transfersQuery.isLoading}

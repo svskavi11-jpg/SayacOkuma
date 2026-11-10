@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Alert, Button, Card, Col, Form, Input, InputNumber, Row, Space, Switch, Typography, message } from 'antd'
 import { MailOutlined } from '@ant-design/icons'
 import { apiClient } from '../../api/client'
+import { IfPermission } from '../auth/IfPermission'
 import type { NotificationSettingsDTO, NotificationSettingsUpdate } from '../../types/api'
 
 interface NotificationSettingsForm extends NotificationSettingsUpdate {
@@ -96,24 +97,24 @@ export function NotificationSettingsCard() {
           <Typography.Paragraph type="secondary">Kayıtlı bir SMTP şifresi var.</Typography.Paragraph>
         )}
         <Row gutter={12}>
-          <Col span={12}>
+          <Col xs={24} md={12}>
             <Form.Item name="smtpHost" label="Sunucu">
               <Input placeholder="smtp.ornek.com" />
             </Form.Item>
           </Col>
-          <Col span={12}>
+          <Col xs={24} md={12}>
             <Form.Item name="smtpPort" label="Port" rules={[{ required: true, message: 'Port zorunludur.' }]}>
               <InputNumber min={1} max={65535} style={{ width: '100%' }} />
             </Form.Item>
           </Col>
         </Row>
         <Row gutter={12}>
-          <Col span={12}>
+          <Col xs={24} md={12}>
             <Form.Item name="smtpUser" label="Kullanıcı">
               <Input />
             </Form.Item>
           </Col>
-          <Col span={12}>
+          <Col xs={24} md={12}>
             <Form.Item name="smtpPassword" label="Şifre">
               <Input.Password placeholder={data?.smtpPasswordSet ? 'Değiştirmek için yazın' : 'Şifre'} />
             </Form.Item>
@@ -124,17 +125,17 @@ export function NotificationSettingsCard() {
           <Typography.Paragraph type="secondary">Kayıtlı bir SMS şifresi var.</Typography.Paragraph>
         )}
         <Row gutter={12}>
-          <Col span={8}>
+          <Col xs={24} md={8}>
             <Form.Item name="smsProvider" label="Sağlayıcı">
               <Input placeholder="Netgsm" />
             </Form.Item>
           </Col>
-          <Col span={8}>
+          <Col xs={24} md={8}>
             <Form.Item name="smsUser" label="Kullanıcı">
               <Input />
             </Form.Item>
           </Col>
-          <Col span={8}>
+          <Col xs={24} md={8}>
             <Form.Item name="smsPassword" label="Şifre">
               <Input.Password placeholder={data?.smsPasswordSet ? 'Değiştirmek için yazın' : 'Şifre'} />
             </Form.Item>
@@ -148,20 +149,22 @@ export function NotificationSettingsCard() {
           <Typography.Paragraph type="secondary">Kayıtlı bir WhatsApp token var.</Typography.Paragraph>
         )}
         <Row gutter={12}>
-          <Col span={12}>
+          <Col xs={24} md={12}>
             <Form.Item name="whatsAppToken" label="Token">
               <Input.Password placeholder={data?.whatsAppTokenSet ? 'Değiştirmek için yazın' : 'Token'} />
             </Form.Item>
           </Col>
-          <Col span={12}>
+          <Col xs={24} md={12}>
             <Form.Item name="whatsAppPhoneNumberId" label="Phone Number Id">
               <Input />
             </Form.Item>
           </Col>
         </Row>
+        <IfPermission code="Settings.Notification">
         <Button type="primary" htmlType="submit" loading={saveMutation.isPending}>
           Kaydet
         </Button>
+        </IfPermission>
       </Form>
     </Card>
   )

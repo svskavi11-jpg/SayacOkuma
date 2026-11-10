@@ -1,3 +1,4 @@
+import { AppModal } from '../../components/AppModal'
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -7,7 +8,6 @@ import {
   Form,
   Input,
   InputNumber,
-  Modal,
   Popconfirm,
   Radio,
   Select,
@@ -248,6 +248,7 @@ export function RoleAssignModal({
     {
       title: 'İşlemler',
       key: 'actions',
+      fixed: 'right',
       width: 310,
       render: (_: unknown, row) => {
         if (row.isCancelled) {
@@ -308,7 +309,7 @@ export function RoleAssignModal({
   )
 
   return (
-    <Modal
+    <AppModal
       title={`Görev Ata — Daire ${apartment?.doorNumber ?? ''}`}
       open={apartment !== null}
       onCancel={onClose}
@@ -433,6 +434,7 @@ export function RoleAssignModal({
         </Space>
       </Form>
       <Table
+        scroll={{ x: 'max-content' }}
         rowKey="id"
         size="small"
         loading={rolesQuery.isLoading}
@@ -441,6 +443,6 @@ export function RoleAssignModal({
         pagination={false}
         locale={{ emptyText: 'Görev kaydı yok.' }}
       />
-    </Modal>
+    </AppModal>
   )
 }

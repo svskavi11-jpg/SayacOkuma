@@ -45,7 +45,7 @@ const dateText = (value: string) => dayjs(value).format('DD.MM.YYYY')
 
 export type RangeValue = [Dayjs, Dayjs]
 
-export function useManagementPeriodRange() {
+export function useManagementPeriodRange(enabled = true) {
   const [range, setRange] = useState<RangeValue>([dayjs().startOf('year'), dayjs().endOf('year')])
   const [initialized, setInitialized] = useState(false)
 
@@ -53,6 +53,7 @@ export function useManagementPeriodRange() {
     queryKey: ['management-period-settings'],
     queryFn: async () =>
       (await apiClient.get<ManagementPeriodSettingsDTO>('/settings/management-period')).data,
+    enabled,
   })
 
   useEffect(() => {
@@ -417,6 +418,7 @@ export function AuditIncomeExpenseTab() {
         }
       />
       <Table
+        scroll={{ x: 'max-content' }}
         rowKey="title"
         size="small"
         loading={query.isLoading}
@@ -728,6 +730,7 @@ export function AuditBankTab() {
         </Space>
       )}
       <Table
+        scroll={{ x: 'max-content' }}
         rowKey={(row) => `${row.date}-${row.kind}-${row.description}-${row.moneyIn}-${row.moneyOut}`}
         size="small"
         loading={query.isFetching}

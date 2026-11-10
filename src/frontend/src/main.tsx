@@ -2,11 +2,11 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { App as AntdApp, ConfigProvider } from 'antd'
-import trTR from 'antd/es/locale/tr_TR'
 import dayjs from 'dayjs'
 import 'dayjs/locale/tr'
 import App from './App'
+import { AuthProvider } from './features/auth/AuthContext'
+import { ThemeProvider } from './features/theme/ThemeProvider'
 import './index.css'
 
 dayjs.locale('tr')
@@ -19,15 +19,14 @@ const queryClient = new QueryClient({
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ConfigProvider locale={trTR} theme={{ token: { colorPrimary: '#1677ff' } }}>
-      {/* AntdApp context: AppLayout icindeki App.useApp() notification'larini baglar. */}
-      <AntdApp>
-        <QueryClientProvider client={queryClient}>
-          <BrowserRouter>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <AuthProvider>
+          <ThemeProvider>
             <App />
-          </BrowserRouter>
-        </QueryClientProvider>
-      </AntdApp>
-    </ConfigProvider>
+          </ThemeProvider>
+        </AuthProvider>
+      </BrowserRouter>
+    </QueryClientProvider>
   </StrictMode>,
 )

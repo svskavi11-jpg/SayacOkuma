@@ -1,9 +1,11 @@
+import { AppModal } from '../../components/AppModal'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Alert, Button, Form, Input, InputNumber, Modal, Popconfirm, Space, Table, Tag, message } from 'antd'
+import { Alert, Button, Form, Input, InputNumber, Popconfirm, Space, Table, Tag, message } from 'antd'
 import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { apiClient } from '../../api/client'
+import { useAuth } from '../auth/AuthContext'
 import type { BudgetRealizationReport, BudgetRealizationRow } from '../../types/api'
 
 const tl = (v: number) => v.toLocaleString('tr-TR', { style: 'currency', currency: 'TRY' })
@@ -13,6 +15,9 @@ const pct = (v: number) =>
 /** Faz 6.10: Yıllık bütçe kalemleri. Tahmini tutar sabittir. */
 export function BudgetItemsTab({ year, locked = false }: { year: number; locked?: boolean }) {
   const queryClient = useQueryClient()
+  const { hasPermission } = useAuth()
+  const canCreate = hasPermission('Budget.Create')
+  const canEdit = hasPermission('Budget.Edit')
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<BudgetRealizationRow | null>(null)
   const [form] = Form.useForm<{ category: string; estimatedAmount: number }>()
@@ -69,10 +74,11 @@ export function BudgetItemsTab({ year, locked = false }: { year: number; locked?
     },
     {
       title: 'İşlem',
+      fixed: 'right',
       width: 180,
       render: (_: unknown, row) => (
         <Space size={4}>
-          <Button
+          {canEdit && <Button
             size="small"
             disabled={locked}
             icon={<EditOutlined />}
@@ -83,8 +89,8 @@ export function BudgetItemsTab({ year, locked = false }: { year: number; locked?
             }}
           >
             Düzenle
-          </Button>
-          <Popconfirm
+          </Button>}
+          {canEdit && <Popconfirm
             title="Bu kalem silinsin mi?"
             description="Bağlı gideri olan kalem silinemez."
             okText="Sil"
@@ -92,7 +98,7 @@ export function BudgetItemsTab({ year, locked = false }: { year: number; locked?
             onConfirm={() => deleteMutation.mutate(row.budgetItemId)}
           >
             <Button size="small" danger icon={<DeleteOutlined />} disabled={locked} />
-          </Popconfirm>
+          </Popconfirm>}
         </Space>
       ),
     },
@@ -102,7 +108,7 @@ export function BudgetItemsTab({ year, locked = false }: { year: number; locked?
     <>
       {locked && <Alert type="warning" showIcon style={{ marginBottom: 12 }} message="Bu bütçe yılı kilitli. Kalem eklenemez veya değiştirilemez." />}
       <Space style={{ marginBottom: 12 }}>
-        <Button
+        {canCreate && <Button
           type="primary"
           disabled={locked}
           icon={<PlusOutlined />}
@@ -113,9 +119,10 @@ export function BudgetItemsTab({ year, locked = false }: { year: number; locked?
           }}
         >
           Kalem Ekle
-        </Button>
+        </Button>}
       </Space>
       <Table
+        scroll={{ x: 'max-content' }}
         rowKey="budgetItemId"
         size="small"
         loading={query.isLoading}
@@ -124,7 +131,7 @@ export function BudgetItemsTab({ year, locked = false }: { year: number; locked?
         pagination={{ pageSize: 12 }}
         locale={{ emptyText: `${year} yılı için bütçe kalemi yok.` }}
       />
-      <Modal
+      <AppModal
         title={editing ? 'Bütçe Kalemini Düzenle' : `${year} — Yeni Bütçe Kalemi`}
         open={open}
         confirmLoading={saveMutation.isPending}
@@ -160,7 +167,7 @@ export function BudgetItemsTab({ year, locked = false }: { year: number; locked?
             />
           </Form.Item>
         </Form>
-      </Modal>
+      </AppModal>
     </>
   )
 }

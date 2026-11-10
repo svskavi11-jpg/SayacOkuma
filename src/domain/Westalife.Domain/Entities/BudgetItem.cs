@@ -7,8 +7,13 @@ namespace Westalife.Domain.Entities;
 /// Yıllık bütçe kalemi (işletme projesi). Tahmini tutar sabittir;
 /// gerçekleşen, bu kaleme bağlı giderlerin toplamıdır.
 /// </summary>
-public class BudgetItem : BaseEntity
+public class BudgetItem : BaseEntity, ITenantEntity
 {
+    /// <summary>Kaydın ait olduğu site.</summary>
+    public Guid TenantId { get; private set; }
+
+    public void AssignTenant(Guid tenantId) => TenantId = tenantId;
+
     public int Year { get; private set; }
 
     public string Category { get; private set; } = string.Empty;
