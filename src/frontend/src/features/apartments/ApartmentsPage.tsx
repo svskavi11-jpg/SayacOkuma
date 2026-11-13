@@ -23,7 +23,7 @@ import {
   Typography,
   Upload,
 } from 'antd'
-import { DownloadOutlined, EditOutlined, FormOutlined, MoreOutlined, PlusOutlined, SearchOutlined, UploadOutlined } from '@ant-design/icons'
+import { DownloadOutlined, EditOutlined, FormOutlined, MoreOutlined, PlusOutlined, SearchOutlined, SwapOutlined, UploadOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { apiClient } from '../../api/client'
 import { formatDate } from '../../utils/dateUtils'
@@ -46,9 +46,10 @@ import dayjs, { type Dayjs } from 'dayjs'
 import { AnalysisModal } from './AnalysisModal'
 import { RoleAssignModal } from './RoleAssignModal'
 import { PortalAccountModal } from './PortalAccountModal'
+import { PortalPasswordResetModal } from './PortalPasswordResetModal'
 import { ReadingsModal } from './ReadingsModal'
 import { OwnerEditModal, OwnerHistoryModal } from './OwnerModals'
-import { AccountBookOutlined, HistoryOutlined, KeyOutlined, LineChartOutlined, MoneyCollectOutlined, SafetyCertificateOutlined, TableOutlined, TeamOutlined, UserOutlined } from '@ant-design/icons'
+import { AccountBookOutlined, HistoryOutlined, KeyOutlined, LineChartOutlined, LockOutlined, MoneyCollectOutlined, SafetyCertificateOutlined, TableOutlined, TeamOutlined, UserOutlined } from '@ant-design/icons'
 import { useAuth } from '../auth/AuthContext'
 
 // Türkçe sayı biçimi: binlik ayracı nokta, ondalık ayracı virgül (Intl 'tr-TR')
@@ -147,6 +148,8 @@ export function ApartmentsPage() {
   // Etap 6.6: Manuel okuma girişi (saha arızası B planı).
   const [manualFor, setManualFor] = useState<ApartmentListItem | null>(null)
   const [manualForm] = Form.useForm<{ meterId: string; readingDate: Dayjs; indexValue: number }>()
+  const [replaceFor, setReplaceFor] = useState<ApartmentListItem | null>(null)
+  const [replaceForm] = Form.useForm<{ closingIndex: number; newSerialNumber: string; openingIndex: number }>()
   const [manualResult, setManualResult] = useState<ManualReadingResult | null>(null)
 
   // Toplu daire ekleme (sayı girilir; kapı numaraları mevcut sonuncudan devam eder).
@@ -180,6 +183,7 @@ export function ApartmentsPage() {
   const [ownerHistoryFor, setOwnerHistoryFor] = useState<ApartmentListItem | null>(null)
   const [roleFor, setRoleFor] = useState<ApartmentListItem | null>(null)
   const [portalFor, setPortalFor] = useState<ApartmentListItem | null>(null)
+  const [resetPortalFor, setResetPortalFor] = useState<ApartmentListItem | null>(null)
 
   // Etap 6.8: Devir bakiyesi girişi (Anapara + Geçmiş Faiz + Devir Tarihi).
   const [devirFor, setDevirFor] = useState<ApartmentListItem | null>(null)
@@ -231,6 +235,22 @@ export function ApartmentsPage() {
       void queryClient.invalidateQueries({ queryKey: ['dashboard-summary'] })
       setManualFor(null)
       setManualResult(res)
+    },
+  })
+
+  const replaceMutation = useMutation({
+    mutationFn: async (req: {
+      apartmentId: string
+      closingIndex: number
+      newSerialNumber: string
+      openingIndex: number
+    }) => (await apiClient.post('/meter-readings/replace', req)).data,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['apartments'] })
+      void queryClient.invalidateQueries({ queryKey: ['meter-readings'] })
+      setReplaceFor(null)
+      replaceForm.resetFields()
+      message.success('Sayaç değiştirildi. Eski sayaç pasif, yeni sayaç açılış endeksiyle kaydedildi.')
     },
   })
 
@@ -454,8 +474,11 @@ export function ApartmentsPage() {
     {
       title: 'Sayaç Seri No',
       width: 160,
-      render: (_: unknown, record: ApartmentListItem) =>
-        record.meters.length > 0 ? record.meters[0].serialNumber : <Tag>Sayaç yok</Tag>,
+      render: (_: unknown, record: ApartmentListItem) => {
+        const active = record.meters.find((m) => m.id === record.activeMeterId)
+          ?? record.meters.find((m) => m.isActive)
+        return active ? active.serialNumber : <Tag>Sayaç yok</Tag>
+      },
     },
     {
       title: 'İşlem',
@@ -471,12 +494,18 @@ export function ApartmentsPage() {
                   icon: <FormOutlined />,
                   label: 'Manuel Okuma',
                   disabled: record.meters.filter((m) => m.isActive).length === 0,
+                }, {
+                  key: 'replace',
+                  icon: <SwapOutlined />,
+                  label: 'Sayaç Değiştir',
+                  disabled: !record.activeMeterId,
                 }] : []),
                 ...(canEdit ? [{ key: 'dimension', icon: <EditOutlined />, label: 'm² Düzenle' }] : []),
                 ...(canAssignTariff ? [{ key: 'tariff', icon: <MoneyCollectOutlined />, label: 'Tarife Ata' }] : []),
                 ...(canManageResident ? [
                   { key: 'residents', icon: <TeamOutlined />, label: 'Sakin Yönetimi' },
                   { key: 'portal', icon: <KeyOutlined />, label: 'Portal hesabı' },
+                  { key: 'resetPortal', icon: <LockOutlined />, label: 'Portal Hesabı Şifre Sıfırla' },
                   { key: 'role', icon: <SafetyCertificateOutlined />, label: 'Görev Ata' },
                 ] : []),
                 ...(canEdit ? [
@@ -488,7 +517,10 @@ export function ApartmentsPage() {
                 ...(canAnalysis ? [{ key: 'analysis', icon: <LineChartOutlined />, label: 'Tüketim Analizi' }] : []),
               ],
               onClick: ({ key }) => {
-                if (key === 'manual') {
+                if (key === 'replace') {
+                  setReplaceFor(record)
+                  replaceForm.resetFields()
+                } else if (key === 'manual') {
                   setManualFor(record)
                   manualForm.resetFields()
                   const activeMeters = record.meters.filter((m) => m.isActive)
@@ -518,6 +550,8 @@ export function ApartmentsPage() {
                   })
                 } else if (key === 'portal') {
                   setPortalFor(record)
+                } else if (key === 'resetPortal') {
+                  setResetPortalFor(record)
                 } else if (key === 'owner') {
                   setOwnerEditFor(record)
                 } else if (key === 'ownerHistory') {
@@ -632,6 +666,7 @@ export function ApartmentsPage() {
       <OwnerHistoryModal apartment={ownerHistoryFor} onClose={() => setOwnerHistoryFor(null)} />
       <RoleAssignModal apartment={roleFor} onClose={() => setRoleFor(null)} />
       <PortalAccountModal apartment={portalFor} onClose={() => setPortalFor(null)} />
+      <PortalPasswordResetModal apartment={resetPortalFor} onClose={() => setResetPortalFor(null)} />
 
       {/* Etap 6.8: Devir bakiyesi girişi — Anapara + Geçmiş Faiz + Devir Tarihi */}
       <AppModal
@@ -969,6 +1004,63 @@ export function ApartmentsPage() {
             Tarifeyi tüm benzer dairelere toplu atamak için Aidat Yönetimi → Tarifeler ekranındaki
             Daireleri Ata butonunu kullanın.
           </Typography.Text>
+        </Form>
+      </AppModal>
+
+      <AppModal
+        title={`Sayaç Değiştir — Daire ${replaceFor?.doorNumber ?? ''}`}
+        open={replaceFor !== null}
+        onCancel={() => setReplaceFor(null)}
+        confirmLoading={replaceMutation.isPending}
+        okText="Sayacı Değiştir"
+        cancelText="Vazgeç"
+        onOk={() =>
+          replaceForm.validateFields().then((values) => {
+            if (replaceFor === null) return
+            replaceMutation.mutate({
+              apartmentId: replaceFor.id,
+              closingIndex: values.closingIndex,
+              newSerialNumber: values.newSerialNumber.trim(),
+              openingIndex: values.openingIndex,
+            })
+          })
+        }
+      >
+        <Typography.Paragraph type="secondary">
+          Eski sayaç kapanış endeksiyle kapanır ve pasife alınır. Yeni sayacın açılış endeksi
+          ilk okumadır, tüketimi 0 sayılır.
+          {replaceFor?.lastIndexValue != null && (
+            <> Son kayıtlı endeks: <strong>{replaceFor.lastIndexValue.toLocaleString('tr-TR')} kWh</strong>.</>
+          )}
+        </Typography.Paragraph>
+        <Form form={replaceForm} layout="vertical">
+          <Form.Item
+            name="closingIndex"
+            label="Eski Sayacın Kapanış Endeksi"
+            rules={[
+              { required: true, message: 'Kapanış endeksi zorunludur.' },
+              { type: 'number', min: 0, message: 'Endeks negatif olamaz.' },
+            ]}
+          >
+            <InputNumber style={{ width: '100%' }} min={0} step={0.001} decimalSeparator="," addonAfter="kWh" />
+          </Form.Item>
+          <Form.Item
+            name="newSerialNumber"
+            label="Yeni Sayaç Seri No"
+            rules={[{ required: true, whitespace: true, message: 'Seri numarası zorunludur.' }]}
+          >
+            <Input maxLength={50} />
+          </Form.Item>
+          <Form.Item
+            name="openingIndex"
+            label="Yeni Sayaç Açılış Endeksi"
+            rules={[
+              { required: true, message: 'Açılış endeksi zorunludur.' },
+              { type: 'number', min: 0, message: 'Endeks negatif olamaz.' },
+            ]}
+          >
+            <InputNumber style={{ width: '100%' }} min={0} step={0.001} decimalSeparator="," addonAfter="kWh" />
+          </Form.Item>
         </Form>
       </AppModal>
 

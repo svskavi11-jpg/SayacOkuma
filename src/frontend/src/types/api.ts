@@ -73,6 +73,8 @@ export interface GasInvoiceListItem {
   isPaid: boolean
   /** Faz 6.8: ödeme tarihi */
   paidOn: string | null
+  createdBy?: string | null
+  lastModifiedBy?: string | null
 }
 
 /** Etap 6.7: fatura düzenleme detayı */
@@ -403,6 +405,9 @@ export interface PaymentListItem {
   targetDebtType?: PaymentTargetDebtType | null
   bankAccountId?: string | null
   bankAccountLabel?: string | null
+  createdBy?: string | null
+  lastModifiedBy?: string | null
+  receiptNumber?: string | null
 }
 
 /** Backend LedgerDebtType (JSON enum adı). Otomatik FIFO için alan gönderilmez. */
@@ -418,6 +423,7 @@ export interface RecordPaymentRequest {
   amount: number
   description?: string | null
   receivedBy?: string | null
+  receiptNumber?: string | null
   /** Hedefli tahsilat. Boşsa en eski borçtan başlayan genel FIFO uygulanır. */
   targetDebtType?: PaymentTargetDebtType | null
   /** Faz 7.1: Hedef sakin (eski kiracı borcu için) */
@@ -430,6 +436,7 @@ export interface UpdatePaymentRequest {
   amount: number
   description?: string | null
   receivedBy?: string | null
+  receiptNumber?: string | null
   targetDebtType?: PaymentTargetDebtType | null
   bankAccountId?: string | null
 }
@@ -453,6 +460,7 @@ export interface AllocationDetail {
   paymentDate: string
   allocatedAmount: number
   target: 'OpeningBalance' | 'Invoice' | 'Interest' | 'Aidat'
+  performedBy?: string | null
 }
 
 export type RoleType = 'Yonetici' | 'Denetci'
@@ -533,6 +541,7 @@ export interface LedgerCredit {
   paymentDate: string
   amount: number
   targetDebtType: 'OpeningBalancePrincipal' | 'Invoice' | 'OpeningBalanceInterest' | 'Aidat' | null
+  performedBy?: string | null
 }
 
 export interface LedgerResult {
@@ -621,6 +630,8 @@ export interface AidatInvoiceListItem {
   isCancelled?: boolean
   cancelledAt?: string | null
   isLocked?: boolean
+  createdBy?: string | null
+  lastModifiedBy?: string | null
 }
 
 export interface CreateAidatInvoiceRequest {
@@ -801,6 +812,7 @@ export interface BudgetPeriodStatus {
   year: number
   isLocked: boolean
   lockedOn: string | null
+  performedBy?: string | null
 }
 
 export interface BudgetTransferItem {
@@ -826,6 +838,7 @@ export interface ExpenseListItem {
   fundTitle: string | null
   bankAccountId?: string | null
   bankAccountLabel?: string | null
+  createdBy?: string | null
 }
 
 export interface BankAccountListItem {

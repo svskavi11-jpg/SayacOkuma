@@ -50,4 +50,15 @@ public class ResidentController : ControllerBase
         var file = await _mediator.Send(new GetResidentHeatingPdfQuery(id), cancellationToken);
         return File(file.Content, "application/pdf", file.FileName);
     }
+
+    /// <summary>Sakinin kendi dairesine ait tahsilat makbuzu.</summary>
+    [HttpGet("payments/{id:guid}/receipt.pdf")]
+    [Produces("application/pdf")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> PaymentReceipt(Guid id, CancellationToken cancellationToken)
+    {
+        var file = await _mediator.Send(new GetResidentPaymentReceiptQuery(id), cancellationToken);
+        return File(file.Content, "application/pdf", file.FileName);
+    }
 }

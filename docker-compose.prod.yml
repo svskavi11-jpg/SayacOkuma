@@ -26,8 +26,10 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+    networks:
+      - sayacokuma_network
 
-  # Gece 03:00 (Europe/Istanbul) pg_dump → ./backups/*.sql.gz (30 gün retention)
+  # Gece 03:00 (Europe/Istanbul): pg_dump ve evrak arşivi → ./backups (30 gün)
   db-backup:
     build:
       context: .
@@ -45,11 +47,15 @@ services:
       BACKUP_DIR: /backups
       BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
       BACKUP_CRON: ${BACKUP_CRON:-0 3 * * *}
+      DOCUMENTS_DIR: /documents
     volumes:
       - ./backups:/backups
+      - sayacokuma_resident_documents:/documents:ro
     depends_on:
       db:
         condition: service_healthy
+    networks:
+      - sayacokuma_network
 
   migrator:
     image: sayacokuma-api:latest
@@ -62,6 +68,8 @@ services:
       db:
         condition: service_healthy
     restart: "no"
+    networks:
+      - sayacokuma_network
 
   api:
     image: sayacokuma-api:latest
@@ -69,6 +77,8 @@ services:
       context: .
       dockerfile: src/api/Westalife.Api/Dockerfile
     container_name: sayacokuma-prod-api
+    # Volume root:root olusur. entrypoint.sh sahibi app yapip sureci app'e dusurur.
+    user: "0:0"
     restart: unless-stopped
     environment:
       ASPNETCORE_ENVIRONMENT: Production
@@ -77,6 +87,7 @@ services:
       Auth__SigningKey: ${AUTH_SIGNING_KEY:?AUTH_SIGNING_KEY .env icinde tanimli olmali}
       Auth__SeedPassword: ${AUTH_SEED_PASSWORD:?AUTH_SEED_PASSWORD .env icinde tanimli olmali}
       ResidentDocuments__RootPath: /app/data/resident-documents
+      Maintenance__FlagPath: /app/logs/maintenance.on
     depends_on:
       db:
         condition: service_healthy
@@ -93,6 +104,8 @@ services:
       timeout: 5s
       start_period: 40s
       retries: 3
+    networks:
+      - sayacokuma_network
 
   web:
     image: sayacokuma-web:latest
@@ -109,8 +122,15 @@ services:
     depends_on:
       api:
         condition: service_healthy
+    networks:
+      - sayacokuma_network
 
 volumes:
   sayacokuma_pgdata_prod:
   sayacokuma_api_logs:
   sayacokuma_resident_documents:
+
+networks:
+  sayacokuma_network:
+    name: sayacokuma_network
+    driver: bridge

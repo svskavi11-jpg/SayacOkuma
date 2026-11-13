@@ -1,6 +1,7 @@
 using Westalife.Domain.Common;
 using Westalife.Domain.Constants;
 using Westalife.Domain.Exceptions;
+using Westalife.Domain.Services;
 using Westalife.Domain.Services.Ledger;
 
 namespace Westalife.Domain.Entities;
@@ -37,6 +38,9 @@ public class Payment : BaseEntity, ITenantEntity
 
     /// <summary>Banka dekont / işlem referans numarası (mükerrer tahsilat kontrolü için). İsteğe bağlı.</summary>
     public string? DocumentNumber { get; private set; }
+
+    /// <summary>Resmi makbuz numarası. Eski kayıtlarda boş kalır; ilk indirmede üretilir.</summary>
+    public string? ReceiptNumber { get; private set; }
 
     /// <summary>Tahsilatı giren görevli. Faz 7'de JWT claim'den okunacak.</summary>
     public string ReceivedBy { get; private set; } = string.Empty;
@@ -118,9 +122,7 @@ public class Payment : BaseEntity, ITenantEntity
         Amount = decimal.Round(amount, 2);
         Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
         DocumentNumber = normalizedDocNo;
-        ReceivedBy = string.IsNullOrWhiteSpace(receivedBy)
-            ? DomainConstants.Payment.DefaultReceivedBy
-            : receivedBy.Trim();
+        ReceivedBy = string.IsNullOrWhiteSpace(receivedBy) ? string.Empty : receivedBy.Trim();
         ApartmentOwnerId = apartmentOwnerId;
         LegalResponsibleOwnerId = legalResponsibleOwnerId;
         TargetDebtType = targetDebtType;
@@ -182,11 +184,16 @@ public class Payment : BaseEntity, ITenantEntity
         PaymentDate = paymentDate;
         Amount = decimal.Round(amount, 2);
         Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim();
-        ReceivedBy = string.IsNullOrWhiteSpace(receivedBy)
-            ? DomainConstants.Payment.DefaultReceivedBy
-            : receivedBy.Trim();
+        ReceivedBy = string.IsNullOrWhiteSpace(receivedBy) ? string.Empty : receivedBy.Trim();
         TargetDebtType = targetDebtType;
         BankAccountId = NormalizeBankAccountId(bankAccountId);
+        LastModifiedOn = DateTimeOffset.UtcNow;
+    }
+
+    public void AssignReceiptNumber(string receiptNumber)
+    {
+        var normalized = ReceiptNumberSequence.Normalize(receiptNumber);
+        ReceiptNumber = normalized;
         LastModifiedOn = DateTimeOffset.UtcNow;
     }
 

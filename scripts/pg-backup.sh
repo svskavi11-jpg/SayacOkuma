@@ -1,12 +1,14 @@
 #!/bin/sh
-# Westalife — PostgreSQL gece yedeği (.sql.gz) + retention
+# Westalife — PostgreSQL gece yedeği (.sql.gz), evrak arşivi (.tar.gz) ve 30 gün saklama
 set -eu
 
 BACKUP_DIR="${BACKUP_DIR:-/backups}"
+DOCUMENTS_DIR="${DOCUMENTS_DIR:-/documents}"
 RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-30}"
 PREFIX="${BACKUP_PREFIX:-sayacokuma}"
 STAMP="$(date +%Y%m%d_%H%M%S)"
 FILE="${BACKUP_DIR}/${PREFIX}_${STAMP}.sql.gz"
+DOC_FILE="${BACKUP_DIR}/documents_${STAMP}.tar.gz"
 
 mkdir -p "${BACKUP_DIR}"
 
@@ -39,5 +41,19 @@ mv "${FILE}.partial" "${FILE}"
 SIZE="$(wc -c < "${FILE}" | tr -d ' ')"
 echo "[$(date -Iseconds)] Yedek tamam: ${FILE} (${SIZE} bayt)"
 
-DELETED="$(find "${BACKUP_DIR}" -type f -name "${PREFIX}_*.sql.gz" -mtime +"${RETENTION_DAYS}" -print -delete | wc -l | tr -d ' ')"
-echo "[$(date -Iseconds)] Retention: ${RETENTION_DAYS} gunden eski ${DELETED} dosya silindi"
+echo "[$(date -Iseconds)] Evrak yedegi basliyor: ${DOC_FILE}"
+
+if ! tar -czf "${DOC_FILE}.partial" -C "${DOCUMENTS_DIR}" .
+then
+  echo "[$(date -Iseconds)] HATA: evrak arsivi basarisiz"
+  rm -f "${DOC_FILE}.partial"
+  exit 1
+fi
+
+mv "${DOC_FILE}.partial" "${DOC_FILE}"
+DOC_SIZE="$(wc -c < "${DOC_FILE}" | tr -d ' ')"
+echo "[$(date -Iseconds)] Evrak yedegi tamam: ${DOC_FILE} (${DOC_SIZE} bayt)"
+
+DELETED_SQL="$(find "${BACKUP_DIR}" -type f -name "${PREFIX}_*.sql.gz" -mtime +"${RETENTION_DAYS}" -print -delete | wc -l | tr -d ' ')"
+DELETED_DOCS="$(find "${BACKUP_DIR}" -type f -name "documents_*.tar.gz" -mtime +"${RETENTION_DAYS}" -print -delete | wc -l | tr -d ' ')"
+echo "[$(date -Iseconds)] Retention: ${RETENTION_DAYS} gunden eski ${DELETED_SQL} sql ve ${DELETED_DOCS} evrak yedegi silindi"

@@ -12,6 +12,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Westalife.Api.Infrastructure;
 using Westalife.Application;
+using Westalife.Application.Common.Interfaces;
 using Westalife.Domain.Constants;
 using Westalife.Infrastructure;
 using Westalife.Infrastructure.Auth;
@@ -67,6 +68,7 @@ builder.Services.AddCors(options =>
 builder.Services.AddOpenApi();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddSingleton<IMaintenanceMode, FileMaintenanceMode>();
 
 var signingKey = builder.Configuration["Auth:SigningKey"];
 if (!builder.Environment.IsDevelopment() && string.IsNullOrWhiteSpace(signingKey))
@@ -134,6 +136,7 @@ app.UseMiddleware<ApiKeyMiddleware>();
 
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<MaintenanceModeMiddleware>();
 
 app.MapControllers();
 

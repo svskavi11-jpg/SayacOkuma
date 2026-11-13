@@ -108,7 +108,6 @@ export function ReadingsModal({
           readingId,
           newIndexValue: d.newIndexValue,
           reason: d.reason.trim(),
-          changedBy: null, // Faz 7'ye kadar boş → backend "Yönetici" kaydeder
         })),
     [editDrafts],
   )

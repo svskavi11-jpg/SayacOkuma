@@ -32,7 +32,9 @@ public sealed record AidatInvoiceListItem(
     decimal FundBalance,
     bool IsCancelled = false,
     DateTimeOffset? CancelledAt = null,
-    bool IsLocked = false);
+    bool IsLocked = false,
+    string? CreatedBy = null,
+    string? LastModifiedBy = null);
 
 public sealed class GetAidatInvoicesQueryHandler : IRequestHandler<GetAidatInvoicesQuery, IReadOnlyList<AidatInvoiceListItem>>
 {
@@ -181,7 +183,9 @@ public sealed class GetAidatInvoicesQueryHandler : IRequestHandler<GetAidatInvoi
                 decimal.Round(paid - spent, 2),
                 invoice.IsCancelled,
                 invoice.CancelledAt,
-                isPeriodLocked));
+                isPeriodLocked,
+                invoice.CreatedBy,
+                invoice.LastModifiedBy));
         }
 
         return items;

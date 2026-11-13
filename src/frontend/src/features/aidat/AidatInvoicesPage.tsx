@@ -208,6 +208,14 @@ export function AidatInvoicesPage() {
       ),
     },
     {
+      title: 'İşlemi Yapan',
+      width: 180,
+      render: (_: unknown, r: AidatInvoiceListItem) => {
+        const name = r.isCancelled ? (r.lastModifiedBy || r.createdBy) : r.createdBy
+        return name?.trim() ? name : '—'
+      },
+    },
+    {
       title: 'İşlemler',
       key: 'actions',
       fixed: 'right',

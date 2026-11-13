@@ -3,6 +3,26 @@ const SESSION_KEY = 'westalife.session'
 /** SuperAdmin site seçimi. Interceptor bu kimliği X-Tenant-Id olarak gönderir. */
 export const TENANT_OVERRIDE_KEY = 'westalife.tenantId'
 const TENANT_OVERRIDE_NAME_KEY = 'westalife.tenantName'
+const TENANT_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+let memoryTenantId: string | null = null
+
+export function isTenantId(value: string | null | undefined): value is string {
+  return typeof value === 'string' && TENANT_ID_PATTERN.test(value)
+}
+
+export function rememberTenant(id: string | null) {
+  memoryTenantId = isTenantId(id) ? id : null
+}
+
+/** Bellekteki seçim, yoksa localStorage. İstek anında okunur. */
+export function currentTenantId(): string | null {
+  if (isTenantId(memoryTenantId)) {
+    return memoryTenantId
+  }
+  const stored = localStorage.getItem(TENANT_OVERRIDE_KEY)
+  return isTenantId(stored) ? stored : null
+}
 
 export interface AuthSession {
   token: string
@@ -55,7 +75,7 @@ export function clearSession() {
 }
 
 export function readTenantOverride(): { id: string; name: string } | null {
-  const id = localStorage.getItem(TENANT_OVERRIDE_KEY)
+  const id = currentTenantId()
   if (!id) {
     return null
   }
@@ -63,13 +83,19 @@ export function readTenantOverride(): { id: string; name: string } | null {
 }
 
 export function writeTenantOverride(id: string, name: string) {
+  if (!isTenantId(id)) {
+    return false
+  }
   localStorage.setItem(TENANT_OVERRIDE_KEY, id)
   localStorage.setItem(TENANT_OVERRIDE_NAME_KEY, name)
+  rememberTenant(id)
+  return true
 }
 
 export function clearTenantOverride() {
   localStorage.removeItem(TENANT_OVERRIDE_KEY)
   localStorage.removeItem(TENANT_OVERRIDE_NAME_KEY)
+  rememberTenant(null)
 }
 
 export function readToken() {

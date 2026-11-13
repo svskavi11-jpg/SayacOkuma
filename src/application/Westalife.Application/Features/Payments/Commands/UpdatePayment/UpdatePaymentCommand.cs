@@ -20,7 +20,8 @@ public sealed record UpdatePaymentCommand(
     string? Description,
     string? ReceivedBy,
     LedgerDebtType? TargetDebtType,
-    Guid? BankAccountId = null) : IRequest<UpdatePaymentResult>;
+    Guid? BankAccountId = null,
+    string? ReceiptNumber = null) : IRequest<UpdatePaymentResult>;
 
 public sealed record UpdatePaymentResult(
     Guid PaymentId,
@@ -53,6 +54,11 @@ public sealed class UpdatePaymentCommandValidator : AbstractValidator<UpdatePaym
             .MaximumLength(DomainConstants.Payment.ReceivedByMaxLength)
             .When(c => c.ReceivedBy is not null);
 
+        RuleFor(c => c.ReceiptNumber)
+            .MaximumLength(DomainConstants.Payment.ReceiptNumberMaxLength)
+            .WithMessage(DomainConstants.Payment.ReceiptNumberTooLong)
+            .When(c => c.ReceiptNumber is not null);
+
         RuleFor(c => c.TargetDebtType)
             .IsInEnum()
             .Must(t => t != LedgerDebtType.WaiverOffset)
@@ -83,6 +89,14 @@ public sealed class UpdatePaymentCommandHandler : IRequestHandler<UpdatePaymentC
             request.ReceivedBy,
             request.TargetDebtType,
             bankAccountId);
+
+        if (!string.IsNullOrWhiteSpace(request.ReceiptNumber)
+            && !string.Equals(request.ReceiptNumber.Trim(), payment.ReceiptNumber, StringComparison.Ordinal))
+        {
+            var existingNumbers = await ReceiptNumberAllocator.LoadAsync(_db, payment.Id, cancellationToken);
+            payment.AssignReceiptNumber(ReceiptNumberAllocator.Allocate(
+                existingNumbers, request.PaymentDate.Year, request.ReceiptNumber));
+        }
 
         await _db.SaveChangesAsync(cancellationToken);
 

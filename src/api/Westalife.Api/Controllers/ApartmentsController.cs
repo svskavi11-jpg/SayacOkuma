@@ -2,6 +2,7 @@ using Westalife.Application.Features.Apartments.Commands.AddApartments;
 using Westalife.Application.Features.Roles;
 using Westalife.Application.Features.Apartments.Commands.SetOpeningBalance;
 using Westalife.Application.Features.Apartments.Commands.ProvisionResidentAccount;
+using Westalife.Application.Features.Auth.ResetUserPassword;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -179,6 +180,23 @@ public class ApartmentsController : ControllerBase
     public async Task<IActionResult> SetOpeningBalance(
         Guid id, [FromBody] SetOpeningBalanceCommand command, CancellationToken cancellationToken) =>
         Ok(await _mediator.Send(command with { ApartmentId = id }, cancellationToken));
+
+    [HasPermission(Permissions.Apartments.ManageResident)]
+    [HttpPost("{id:guid}/resident-account/reset-password")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> ResetResidentPassword(
+        Guid id, [FromBody] ResetResidentPasswordBody body, CancellationToken cancellationToken)
+    {
+        await _mediator.Send(
+            new ResetUserPasswordCommand(id, body.NewPassword, PasswordResetTarget.Resident),
+            cancellationToken);
+        return NoContent();
+    }
+
+    public sealed record ResetResidentPasswordBody(string NewPassword);
 
     [HasPermission(Permissions.Apartments.View)]
     [HttpGet("{id:guid}/roles")]

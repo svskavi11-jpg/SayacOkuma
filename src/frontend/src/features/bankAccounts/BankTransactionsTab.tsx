@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Button, Card, Col, DatePicker, Form, Input, InputNumber, Popconfirm, Row, Select, Space, Table, message } from "antd"
+import { Button, Card, DatePicker, Form, Input, InputNumber, Popconfirm, Select, Space, Table, message } from "antd"
 import type { ColumnsType } from "antd/es/table"
 import dayjs, { type Dayjs } from "dayjs"
 import { apiClient } from "../../api/client"
@@ -35,7 +35,7 @@ interface EntryForm {
   description?: string
 }
 
-export function BankTransactionsTab() {
+export function BankTransactionsTab({ mode }: { mode: "transfer" | "entry" }) {
   const { hasPermission } = useAuth()
   const canManage = hasPermission("Bank.Manage")
   const queryClient = useQueryClient()
@@ -132,78 +132,82 @@ export function BankTransactionsTab() {
     },
   ]
 
+  const rows = (transactionsQuery.data ?? []).filter((row) =>
+    mode === "transfer"
+      ? row.type === "TransferIn" || row.type === "TransferOut"
+      : row.type === "BankInterest" || row.type === "BankFee",
+  )
+
   return (
     <Space direction="vertical" size={16} style={{ width: "100%" }}>
-      {canManage && <Row gutter={[16, 16]}>
-        <Col xs={24} lg={12}>
-          <Card size="small" title="Virman">
-            <Form
-              form={transferForm}
-              layout="vertical"
-              initialValues={{ transactionDate: dayjs() }}
-              onFinish={(values) => transferMutation.mutate(values)}
-            >
-              <Form.Item name="sourceBankAccountId" label="Kaynak hesap" rules={[{ required: true, message: "Kaynak hesap zorunludur." }]}>
-                <BankAccountSelect allowClear={false} excludeId={targetId} placeholder="Paranın çıkacağı hesap" style={{ width: "100%" }} />
-              </Form.Item>
-              <Form.Item name="targetBankAccountId" label="Hedef hesap" rules={[{ required: true, message: "Hedef hesap zorunludur." }]}>
-                <BankAccountSelect allowClear={false} excludeId={sourceId} placeholder="Paranın gireceği hesap" style={{ width: "100%" }} />
-              </Form.Item>
-              <Form.Item name="amount" label="Tutar" rules={[{ required: true, message: "Tutar zorunludur." }]}>
-                <InputNumber min={0.01} precision={2} decimalSeparator="," addonAfter="TL" style={{ width: "100%" }} />
-              </Form.Item>
-              <Form.Item name="transactionDate" label="Tarih" rules={[{ required: true, message: "Tarih zorunludur." }]}>
-                <DatePicker format="DD.MM.YYYY" style={{ width: "100%" }} disabledDate={(date) => date.isAfter(dayjs(), "day")} />
-              </Form.Item>
-              <Form.Item name="description" label="Açıklama">
-                <Input maxLength={200} />
-              </Form.Item>
-              <Button type="primary" htmlType="submit" loading={transferMutation.isPending}>Virmanı kaydet</Button>
-            </Form>
-          </Card>
-        </Col>
-        <Col xs={24} lg={12}>
-          <Card size="small" title="Faiz / Masraf">
-            <Form
-              form={entryForm}
-              layout="vertical"
-              initialValues={{ transactionDate: dayjs(), type: "BankInterest" }}
-              onFinish={(values) => entryMutation.mutate(values)}
-            >
-              <Form.Item name="bankAccountId" label="Hesap" rules={[{ required: true, message: "Hesap zorunludur." }]}>
-                <BankAccountSelect allowClear={false} placeholder="Hesap seçin" style={{ width: "100%" }} />
-              </Form.Item>
-              <Form.Item name="type" label="Tür" rules={[{ required: true, message: "Tür zorunludur." }]}>
-                <Select
-                  options={[
-                    { value: "BankInterest", label: "Faiz" },
-                    { value: "BankFee", label: "Masraf" },
-                  ]}
-                />
-              </Form.Item>
-              <Form.Item name="amount" label="Tutar" rules={[{ required: true, message: "Tutar zorunludur." }]}>
-                <InputNumber min={0.01} precision={2} decimalSeparator="," addonAfter="TL" style={{ width: "100%" }} />
-              </Form.Item>
-              <Form.Item name="transactionDate" label="Tarih" rules={[{ required: true, message: "Tarih zorunludur." }]}>
-                <DatePicker format="DD.MM.YYYY" style={{ width: "100%" }} disabledDate={(date) => date.isAfter(dayjs(), "day")} />
-              </Form.Item>
-              <Form.Item name="description" label="Açıklama">
-                <Input maxLength={200} />
-              </Form.Item>
-              <Button type="primary" htmlType="submit" loading={entryMutation.isPending}>Hareketi kaydet</Button>
-            </Form>
-          </Card>
-        </Col>
-      </Row>}
+      {canManage && mode === "transfer" && (
+        <Card size="small" style={{ maxWidth: 560 }}>
+          <Form
+            form={transferForm}
+            layout="vertical"
+            initialValues={{ transactionDate: dayjs() }}
+            onFinish={(values) => transferMutation.mutate(values)}
+          >
+            <Form.Item name="sourceBankAccountId" label="Kaynak hesap" rules={[{ required: true, message: "Kaynak hesap zorunludur." }]}>
+              <BankAccountSelect allowClear={false} excludeId={targetId} placeholder="Paranın çıkacağı hesap" style={{ width: "100%" }} />
+            </Form.Item>
+            <Form.Item name="targetBankAccountId" label="Hedef hesap" rules={[{ required: true, message: "Hedef hesap zorunludur." }]}>
+              <BankAccountSelect allowClear={false} excludeId={sourceId} placeholder="Paranın gireceği hesap" style={{ width: "100%" }} />
+            </Form.Item>
+            <Form.Item name="amount" label="Tutar" rules={[{ required: true, message: "Tutar zorunludur." }]}>
+              <InputNumber min={0.01} precision={2} decimalSeparator="," addonAfter="TL" style={{ width: "100%" }} />
+            </Form.Item>
+            <Form.Item name="transactionDate" label="Tarih" rules={[{ required: true, message: "Tarih zorunludur." }]}>
+              <DatePicker format="DD.MM.YYYY" style={{ width: "100%" }} disabledDate={(date) => date.isAfter(dayjs(), "day")} />
+            </Form.Item>
+            <Form.Item name="description" label="Açıklama">
+              <Input maxLength={200} />
+            </Form.Item>
+            <Button type="primary" htmlType="submit" loading={transferMutation.isPending}>Virmanı kaydet</Button>
+          </Form>
+        </Card>
+      )}
+      {canManage && mode === "entry" && (
+        <Card size="small" style={{ maxWidth: 560 }}>
+          <Form
+            form={entryForm}
+            layout="vertical"
+            initialValues={{ transactionDate: dayjs(), type: "BankInterest" }}
+            onFinish={(values) => entryMutation.mutate(values)}
+          >
+            <Form.Item name="bankAccountId" label="Hesap" rules={[{ required: true, message: "Hesap zorunludur." }]}>
+              <BankAccountSelect allowClear={false} placeholder="Hesap seçin" style={{ width: "100%" }} />
+            </Form.Item>
+            <Form.Item name="type" label="Tür" rules={[{ required: true, message: "Tür zorunludur." }]}>
+              <Select
+                options={[
+                  { value: "BankInterest", label: "Faiz" },
+                  { value: "BankFee", label: "Masraf" },
+                ]}
+              />
+            </Form.Item>
+            <Form.Item name="amount" label="Tutar" rules={[{ required: true, message: "Tutar zorunludur." }]}>
+              <InputNumber min={0.01} precision={2} decimalSeparator="," addonAfter="TL" style={{ width: "100%" }} />
+            </Form.Item>
+            <Form.Item name="transactionDate" label="Tarih" rules={[{ required: true, message: "Tarih zorunludur." }]}>
+              <DatePicker format="DD.MM.YYYY" style={{ width: "100%" }} disabledDate={(date) => date.isAfter(dayjs(), "day")} />
+            </Form.Item>
+            <Form.Item name="description" label="Açıklama">
+              <Input maxLength={200} />
+            </Form.Item>
+            <Button type="primary" htmlType="submit" loading={entryMutation.isPending}>Hareketi kaydet</Button>
+          </Form>
+        </Card>
+      )}
       <Table
         scroll={{ x: 'max-content' }}
         rowKey="id"
         size="small"
         loading={transactionsQuery.isLoading}
-        dataSource={transactionsQuery.data ?? []}
+        dataSource={rows}
         columns={columns}
         pagination={{ pageSize: 12 }}
-        locale={{ emptyText: "Banka hareketi yok." }}
+        locale={{ emptyText: mode === "transfer" ? "Virman hareketi yok." : "Faiz veya masraf hareketi yok." }}
       />
     </Space>
   )

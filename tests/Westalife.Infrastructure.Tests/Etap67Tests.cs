@@ -16,7 +16,10 @@ using Westalife.Application.Features.GasInvoices.Commands.LockPeriod;
 using Westalife.Application.Features.GasInvoices.Commands.UpdateGasInvoice;
 using Westalife.Application.Features.GasInvoices.Queries.GetGasInvoiceDetail;
 using Westalife.Application.Features.Meters.Commands.ImportMeters;
+using Westalife.Application.Common.Models;
 using Westalife.Application.Features.MeterReadings.Commands.AddManualMeterReading;
+using Westalife.Application.Features.MeterReadings.Commands.ChangeMeter;
+using Westalife.Application.Features.MeterReadings.Commands.RecordMeterReadings;
 using Westalife.Application.Features.MeterReadings.Commands.UpdateMeterReading;
 using Westalife.Application.Features.MeterReadings.Queries.GetMeterReadingAuditLog;
 using Westalife.Application.Features.MeterReadings.Queries.GetMeterReadings;
@@ -419,7 +422,7 @@ public class Etap67Tests
         Assert.Equal(50m, log[0].OldConsumptionKWh);
         Assert.Equal(60m, log[0].NewConsumptionKWh);
         Assert.Equal("Excel aktarımında yanlış girildi", log[0].Reason);
-        Assert.Equal("Operatör 1", log[0].ChangedBy);
+        Assert.Equal(Westalife.Domain.Common.AuditActor.System, log[0].ChangedBy);
 
         // İlk okuma etiketi korunur: r1 hâlâ initial (düzeltmede dokunulmadı).
         var first = await db.MeterReadings.FirstAsync(x => x.Id == r1.ReadingId);
@@ -459,9 +462,9 @@ public class Etap67Tests
         var second = await db.MeterReadings.FirstAsync(x => x.Id == r2.ReadingId);
         Assert.Equal(60m, second.ConsumptionKWh);
 
-        // ChangedBy boş → varsayılan "Yönetici".
+        // Oturum yok: düzeltmeyi yapan damga "Sistem" olur.
         var log = await mediator.Send(new GetMeterReadingAuditLogQuery(r1.ReadingId));
-        Assert.Equal(DomainConstants.MeterReadingAuditLog.DefaultChangedBy, log[0].ChangedBy);
+        Assert.Equal(Westalife.Domain.Common.AuditActor.System, log[0].ChangedBy);
     }
 
     [Fact]
@@ -546,5 +549,81 @@ public class Etap67Tests
             [
                 new MeterReadingCorrectionItem(r1.ReadingId, 120m, "", null),
             ])));
+    }
+
+    [Fact]
+    public async Task ChangeMeter_WritesClosingAndOpening_AndSkipsPassiveMeterOnAutoRead()
+    {
+        var (mediator, db) = Build();
+        var (apartmentId, meterId) = await ImportRandomMeterAsync(mediator, db);
+        var oldMeter = await db.Meters.FirstAsync(m => m.Id == meterId);
+
+        await mediator.Send(new AddManualMeterReadingCommand(
+            apartmentId, meterId, DateTimeOffset.UtcNow.AddDays(-2), 1000m));
+
+        var newSerial = $"YENI{Random.Shared.Next(100000, 999999)}";
+        var result = await mediator.Send(new ChangeMeterCommand(apartmentId, 1080m, newSerial, 5m));
+
+        Assert.Equal(meterId, result.OldMeterId);
+        Assert.Equal(80m, result.ClosingConsumptionKWh);
+
+        var closed = await db.Meters.FirstAsync(m => m.Id == meterId);
+        Assert.False(closed.IsActive);
+
+        var opened = await db.Meters.FirstAsync(m => m.Id == result.NewMeterId);
+        Assert.True(opened.IsActive);
+        Assert.Equal(apartmentId, opened.ApartmentId);
+        Assert.Equal(oldMeter.MbusPrimaryAddress, opened.MbusPrimaryAddress);
+
+        var closing = await db.MeterReadings.SingleAsync(r => r.MeterId == meterId && r.IndexValue == 1080m);
+        Assert.Equal(80m, closing.ConsumptionKWh);
+        Assert.False(closing.IsInitialReading);
+
+        var opening = await db.MeterReadings.SingleAsync(r => r.MeterId == opened.Id);
+        Assert.Equal(5m, opening.IndexValue);
+        Assert.Equal(0m, opening.ConsumptionKWh);
+        Assert.True(opening.IsInitialReading);
+
+        var later = DateTimeOffset.UtcNow.AddMinutes(1);
+        var recorded = await mediator.Send(new RecordMeterReadingsCommand(
+        [
+            new MeterSnapshot
+            {
+                SerialNumber = oldMeter.SerialNumber,
+                ReadingTimestampUtc = later,
+                CumulativeEnergyKWh = 1100m,
+            },
+            new MeterSnapshot
+            {
+                SerialNumber = newSerial,
+                ReadingTimestampUtc = later,
+                CumulativeEnergyKWh = 40m,
+            },
+        ], ReadingSource.Simulator));
+
+        Assert.Equal(1, recorded.InsertedCount);
+        var next = await db.MeterReadings.SingleAsync(r => r.MeterId == opened.Id && r.IndexValue == 40m);
+        Assert.Equal(35m, next.ConsumptionKWh);
+
+        var total = await db.MeterReadings
+            .Where(r => r.MeterId == meterId || r.MeterId == opened.Id)
+            .SumAsync(r => r.ConsumptionKWh);
+        Assert.Equal(115m, total);
+    }
+
+    [Fact]
+    public async Task ChangeMeter_ClosingBelowLastIndex_RejectsWithoutDeactivating()
+    {
+        var (mediator, db) = Build();
+        var (apartmentId, meterId) = await ImportRandomMeterAsync(mediator, db);
+        await mediator.Send(new AddManualMeterReadingCommand(
+            apartmentId, meterId, DateTimeOffset.UtcNow.AddDays(-1), 1000m));
+
+        var ex = await Assert.ThrowsAsync<DomainException>(() =>
+            mediator.Send(new ChangeMeterCommand(apartmentId, 900m, $"YENI{Random.Shared.Next(100000, 999999)}", 1m)));
+
+        Assert.Contains(DomainConstants.ValidationMessages.ManualReadingIndexRegression, ex.Message);
+        var meter = await db.Meters.FirstAsync(m => m.Id == meterId);
+        Assert.True(meter.IsActive);
     }
 }

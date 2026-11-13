@@ -10,22 +10,18 @@ namespace Westalife.Infrastructure.Reporting.Pdf;
 /// <summary>Yıllık gelir-gider raporu. Gelir = iptal edilmemiş tahsilat, gider = Expense.</summary>
 public static class IncomeExpensePdfDocument
 {
-    private const string FontFamily = "Lato";
     private static readonly CultureInfo Tr = CultureInfo.GetCultureInfo("tr-TR");
 
-    static IncomeExpensePdfDocument()
+    public static byte[] Generate(IncomeExpenseReport data)
     {
-        QuestPDF.Settings.License = LicenseType.Community;
-    }
-
-    public static byte[] Generate(IncomeExpenseReport data) =>
-        Document.Create(container =>
+        PdfFonts.Ensure();
+        return Document.Create(container =>
         {
             container.Page(page =>
             {
                 page.Size(PageSizes.A4);
                 page.Margin(28);
-                page.DefaultTextStyle(x => x.FontFamily(FontFamily).FontSize(9));
+                page.DefaultTextStyle(x => PdfFonts.WithFallback(x).FontSize(9));
 
                 page.Header().Column(col =>
                 {
@@ -54,6 +50,7 @@ public static class IncomeExpensePdfDocument
                 });
             });
         }).GeneratePdf();
+    }
 
     private static void MonthTable(IContainer container, IncomeExpenseReport data)
     {

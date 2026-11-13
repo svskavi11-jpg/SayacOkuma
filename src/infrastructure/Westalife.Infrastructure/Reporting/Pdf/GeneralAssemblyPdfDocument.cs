@@ -13,22 +13,19 @@ namespace Westalife.Infrastructure.Reporting.Pdf;
 /// </summary>
 public static class GeneralAssemblyPdfDocument
 {
-    private const string FontFamily = "Lato";
     private static readonly CultureInfo Tr = CultureInfo.GetCultureInfo("tr-TR");
 
-    static GeneralAssemblyPdfDocument()
+    public static byte[] Generate(GeneralAssemblyReport data)
     {
-        QuestPDF.Settings.License = LicenseType.Community;
-    }
-
-    public static byte[] Generate(GeneralAssemblyReport data) =>
+        PdfFonts.Ensure();
+        return
         Document.Create(container =>
         {
             container.Page(page =>
             {
                 page.Size(PageSizes.A4.Landscape());
                 page.Margin(24);
-                page.DefaultTextStyle(x => x.FontFamily(FontFamily).FontSize(8.5f));
+                page.DefaultTextStyle(x => PdfFonts.WithFallback(x).FontSize(8.5f));
 
                 page.Header().Column(col =>
                 {
@@ -375,6 +372,7 @@ public static class GeneralAssemblyPdfDocument
                 });
             });
         }).GeneratePdf();
+    }
 
     private static void KpiBox(IContainer cell, string label, string value, string color) =>
         cell.Padding(2).Border(0.6f).BorderColor("#E2E8F0").Background("#F8FAFC").Padding(6).Column(c =>

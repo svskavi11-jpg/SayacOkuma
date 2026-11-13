@@ -11,6 +11,7 @@ using Westalife.Application.Features.Payments.Commands.RecordPayment;
 using Westalife.Application.Features.Payments.Commands.UpdatePayment;
 using Westalife.Application.Features.Payments.Queries.GetCashFlow;
 using Westalife.Application.Features.Payments.Queries.GetLedger;
+using Westalife.Application.Features.Payments.Queries.GetPaymentReceipt;
 using Westalife.Application.Features.Payments.Queries.GetPayments;
 using Westalife.Domain.Services.Ledger;
 
@@ -57,7 +58,8 @@ public class PaymentsController : ControllerBase
             request.ReceivedBy,
             request.TargetDebtType,
             request.TargetOwnerId,
-            request.BankAccountId);
+            request.BankAccountId,
+            request.ReceiptNumber);
 
         var result = await _mediator.Send(command, ct);
         return CreatedAtAction(nameof(GetPayments), new { apartmentId = result.ApartmentId }, result);
@@ -121,9 +123,22 @@ public class PaymentsController : ControllerBase
                 request.Description,
                 request.ReceivedBy,
                 request.TargetDebtType,
-                request.BankAccountId),
+                request.BankAccountId,
+                request.ReceiptNumber),
             ct);
         return Ok(result);
+    }
+
+    /// <summary>Tahsilat makbuzu. Numarası boşsa bu indirmede üretilir.</summary>
+    [HasPermission(Permissions.Payments.View)]
+    [HttpGet("{paymentId:guid}/receipt.pdf")]
+    [Produces("application/pdf")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Receipt(Guid paymentId, CancellationToken ct)
+    {
+        var file = await _mediator.Send(new GetPaymentReceiptQuery(paymentId), ct);
+        return File(file.Content, "application/pdf", file.FileName);
     }
 
     /// <summary>Yanlış girilen tahsilatı kalıcı siler.</summary>
@@ -199,7 +214,8 @@ public sealed record RecordPaymentRequest(
     string? ReceivedBy,
     LedgerDebtType? TargetDebtType = null,
     Guid? TargetOwnerId = null,
-    Guid? BankAccountId = null);
+    Guid? BankAccountId = null,
+    string? ReceiptNumber = null);
 
 public sealed record UpdatePaymentRequest(
     DateOnly PaymentDate,
@@ -207,6 +223,7 @@ public sealed record UpdatePaymentRequest(
     string? Description,
     string? ReceivedBy,
     LedgerDebtType? TargetDebtType = null,
-    Guid? BankAccountId = null);
+    Guid? BankAccountId = null,
+    string? ReceiptNumber = null);
 
 public sealed record CancelPaymentRequest(string Reason);

@@ -322,6 +322,14 @@ export function InvoicesPage() {
       ),
     },
     {
+      title: 'İşlemi Yapan',
+      width: 180,
+      render: (_: unknown, r: GasInvoiceListItem) => {
+        const name = r.isLocked ? (r.lastModifiedBy || r.createdBy) : r.createdBy
+        return name?.trim() ? name : '—'
+      },
+    },
+    {
       title: 'Vade / Ödeme',
       width: 210,
       render: (_: unknown, r: GasInvoiceListItem) => (

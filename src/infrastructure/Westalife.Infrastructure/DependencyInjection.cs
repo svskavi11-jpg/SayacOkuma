@@ -12,6 +12,7 @@ using Westalife.Application.Features.Payments.Commands.ParseBankStatement;
 using Westalife.Infrastructure.Metering.Readers;
 using Westalife.Infrastructure.Notifications;
 using Westalife.Infrastructure.Persistence.Contexts;
+using Westalife.Infrastructure.Persistence.Interceptors;
 using Westalife.Infrastructure.Storage;
 
 namespace Westalife.Infrastructure;
@@ -22,7 +23,9 @@ public static class DependencyInjection
     public static IServiceCollection AddInfrastructure(
         this IServiceCollection services, string connectionString, string? residentDocumentRoot = null)
     {
-        services.AddDbContext<ApplicationDbContext>(options =>
+        services.AddHttpContextAccessor();
+        services.AddScoped<AuditStampInterceptor>();
+        services.AddDbContext<ApplicationDbContext>((sp, options) =>
             options.UseNpgsql(connectionString, npgsqlOptions =>
                 npgsqlOptions.EnableRetryOnFailure(
                     maxRetryCount: 3,
@@ -30,16 +33,17 @@ public static class DependencyInjection
                     errorCodesToAdd: null))
                 // EF 10'un bilinen yanlış pozitifi ("PendingModelChangesWarning"):
                 // migration snapshot ile model eşitliği boş diff migration ile teyit edilmiştir.
-                .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning)));
+                .ConfigureWarnings(w => w.Ignore(RelationalEventId.PendingModelChangesWarning))
+                .AddInterceptors(sp.GetRequiredService<AuditStampInterceptor>()));
 
         // Application katmanı DbContext'e IApplicationDbContext soyutlaması üzerinden erişir.
         services.AddScoped<IApplicationDbContext>(sp =>
             sp.GetRequiredService<ApplicationDbContext>());
 
-        services.AddHttpContextAccessor();
         services.AddScoped<ITenantContext, HttpTenantContext>();
         services.AddOptions<AuthOptions>().BindConfiguration(AuthOptions.SectionName);
         services.AddScoped<IAuthService, JwtAuthService>();
+        services.AddScoped<IAccountSecurity, AccountSecurity>();
         services.AddScoped<StaffAccessReader>();
         services.AddScoped<IAccessProfileReader>(sp => sp.GetRequiredService<StaffAccessReader>());
         services.AddScoped<ITenantUserProvisioner, TenantUserProvisioner>();
@@ -53,8 +57,13 @@ public static class DependencyInjection
                 options.Password.RequireUppercase = true;
                 options.Password.RequireLowercase = true;
                 options.Password.RequireNonAlphanumeric = true;
+                options.Lockout.MaxFailedAccessAttempts = 5;
+                options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+                options.Lockout.AllowedForNewUsers = true;
             })
             .AddRoles<AppRole>()
+            .AddSignInManager()
+            .AddDefaultTokenProviders()
             .AddEntityFrameworkStores<ApplicationDbContext>();
 
         services.AddMetering();
@@ -73,6 +82,7 @@ public static class DependencyInjection
         services.AddScoped<INotificationService>(sp => sp.GetRequiredService<SmsNotificationService>());
         services.AddScoped<INotificationService>(sp => sp.GetRequiredService<WhatsAppNotificationService>());
         services.AddScoped<INoticePdfGenerator, Reporting.Pdf.NoticePdfGenerator>();
+        services.AddSingleton<IPaymentReceiptPdf, Reporting.Pdf.PaymentReceiptPdfDocument>();
 
         return services;
     }

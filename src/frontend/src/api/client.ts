@@ -1,7 +1,13 @@
 import axios from 'axios'
 import { notifyError } from './notifier'
 import type { ProblemDetails } from '../types/api'
-import { clearSession, readSession, readToken, TENANT_OVERRIDE_KEY } from '../features/auth/authStorage'
+import { clearSession, currentTenantId, readToken } from '../features/auth/authStorage'
+
+declare module 'axios' {
+  interface AxiosRequestConfig {
+    skipErrorToast?: boolean
+  }
+}
 
 // Tek axios instance: tum istekler /api/v1 on ekiyle Vite proxy uzerinden API'ye gider.
 export const apiClient = axios.create({
@@ -14,17 +20,14 @@ interface HandledAxiosError extends Error {
 }
 
 apiClient.interceptors.request.use((config) => {
+  // Site kimliği oturum okunmadan alınır. Süresi dolmuş oturum temizliği başlığı silmesin.
+  const tenantId = currentTenantId()
   const token = readToken()
   if (token) {
-    config.headers.Authorization = `Bearer ${token}`
+    config.headers.set('Authorization', `Bearer ${token}`)
   }
-
-  const session = readSession()
-  if (session?.role === 'SuperAdmin') {
-    const tenantId = localStorage.getItem(TENANT_OVERRIDE_KEY)
-    if (tenantId) {
-      config.headers['X-Tenant-Id'] = tenantId
-    }
+  if (tenantId) {
+    config.headers.set('X-Tenant-Id', tenantId)
   }
 
   return config
@@ -49,7 +52,11 @@ apiClient.interceptors.response.use(
             .join(' | ')
         : undefined
 
-      notifyError(problem.title ?? 'Hata', fieldErrors ?? problem.detail, problem.traceId)
+      const detail = problem.detail ?? ''
+      const siteNotSelected = detail.includes('site seç')
+      if (!error.config?.skipErrorToast && !siteNotSelected) {
+        notifyError(problem.title ?? 'Hata', fieldErrors ?? detail, problem.traceId)
+      }
 
       const handled = new Error(problem.detail ?? problem.title) as HandledAxiosError
       handled.handled = true

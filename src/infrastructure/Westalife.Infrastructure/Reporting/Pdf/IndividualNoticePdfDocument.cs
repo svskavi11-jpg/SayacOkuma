@@ -18,9 +18,6 @@ namespace Westalife.Infrastructure.Reporting.Pdf;
 /// </summary>
 public static class IndividualNoticePdfDocument
 {
-    // Capraz-platform font: QuestPDF gomulu "Lato" arsivi her ortamda mevcut
-    // (Windows gelistirme + Linux konteyner) ve Turkce karakterleri destekler.
-    private const string FontFamily = "Lato";
     private const string WatermarkText = "BİREYSEL GİDER BİLDİRİMİ";
 
     // Referans form renkleri: koyu gri bölüm başlığı, açık gri içerik kutusu, sağ kenar şeridi.
@@ -31,7 +28,7 @@ public static class IndividualNoticePdfDocument
 
     static IndividualNoticePdfDocument()
     {
-        QuestPDF.Settings.License = LicenseType.Community; // Onaylı: yıllık gelir < 1M$
+        PdfFonts.Ensure();
 
         // QuestPDF 2026.9+: sistem fontları varsayılan devre dışı — Türkçe karakterler için
         // Windows font dizini DİNAMİK çözülür (Kural #2: mutlak yol yok), mevcutsa kaydedilir.
@@ -44,7 +41,7 @@ public static class IndividualNoticePdfDocument
                 if (File.Exists(fontPath))
                 {
                     using var fontStream = new FileStream(fontPath, FileMode.Open, FileAccess.Read);
-                    FontManager.RegisterFont(fontStream);
+                    FontManager.RegisterFontFromStream(fontStream);
                 }
             }
         }
@@ -92,7 +89,7 @@ public static class IndividualNoticePdfDocument
                     page.MarginLeft(28);
                     // Sağ kenarda gri şerit için ek boşluk bırakılır.
                     page.MarginRight(28 + SideStripWidth);
-                    page.DefaultTextStyle(x => x.FontFamily(FontFamily).FontSize(9));
+                    page.DefaultTextStyle(x => PdfFonts.WithFallback(x).FontSize(9));
 
                     // Sağ kenar: tüm sayfa boyunca gri şerit + dikey filigran metin.
                     page.Background().AlignRight().Width(SideStripWidth).Background(SideStripColor)

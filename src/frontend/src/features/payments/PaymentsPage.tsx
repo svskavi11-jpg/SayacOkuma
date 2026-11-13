@@ -27,6 +27,7 @@ import {
   DeleteOutlined,
   DollarOutlined,
   EditOutlined,
+  FilePdfOutlined,
   MinusCircleOutlined,
   PlusOutlined,
   StopOutlined,
@@ -35,6 +36,7 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import dayjs, { type Dayjs } from 'dayjs'
 import { apiClient } from '../../api/client'
+import { downloadFile } from '../../api/download'
 import { useAuth } from '../auth/AuthContext'
 import { BankAccountSelect } from '../bankAccounts/BankAccountSelect'
 import { formatDate as dateFmt } from '../../utils/dateUtils'
@@ -123,6 +125,7 @@ interface MovementRow {
   interestDetail: string | null
   isCancelled?: boolean
   originalAmount?: number | null
+  performedBy?: string | null
 }
 type MovementRowWithBalance = MovementRow & { runningBalance: number }
 
@@ -263,13 +266,30 @@ function PaymentsTab() {
       width: 160,
       render: (v: PaymentListItem['targetDebtType']) => paymentTargetLabel(v),
     },
-    { title: 'Girişi Yapan', dataIndex: 'receivedBy', width: 140 },
+    {
+      title: 'Girişi Yapan',
+      dataIndex: 'receivedBy',
+      width: 140,
+      render: (v: string | null) => v?.trim() ? v : '—',
+    },
+    {
+      title: 'İşlemi Yapan',
+      dataIndex: 'createdBy',
+      width: 180,
+      render: (v: string | null) => v?.trim() ? v : '—',
+    },
     {
       title: 'Durum',
       dataIndex: 'isCancelled',
-      width: 100,
-      render: (v: boolean) =>
-        v ? <Tag color="red">İptal</Tag> : <Tag color="green">Aktif</Tag>,
+      width: 110,
+      render: (v: boolean, r: PaymentListItem) =>
+        v ? (
+          <Tag color="red" title={r.lastModifiedBy ? `İptal eden: ${r.lastModifiedBy}` : undefined}>
+            İptal
+          </Tag>
+        ) : (
+          <Tag color="green">Aktif</Tag>
+        ),
     },
     {
       title: 'İşlem',
@@ -277,6 +297,13 @@ function PaymentsTab() {
       width: 250,
       render: (_: unknown, r: PaymentListItem) => (
         <Space size={4} wrap>
+          <Button
+            size="small"
+            icon={<FilePdfOutlined />}
+            onClick={() => downloadFile(`/payments/${r.id}/receipt.pdf`, 'Makbuz.pdf')}
+          >
+            Makbuz
+          </Button>
           {canCreate && !r.isCancelled && (
             <Button
               size="small"
@@ -289,6 +316,7 @@ function PaymentsTab() {
                   paymentTarget: toFormTarget(r.targetDebtType),
                   description: r.description ?? undefined,
                   receivedBy: r.receivedBy,
+                  receiptNumber: r.receiptNumber ?? undefined,
                   bankAccountId: r.bankAccountId ?? undefined,
                 })
                 setAddOpen(true)
@@ -384,6 +412,7 @@ function PaymentsTab() {
               amount: values.amount as number,
               description: (values.description as string | null) ?? null,
               receivedBy: (values.receivedBy as string | null) ?? null,
+              receiptNumber: ((values.receiptNumber as string | null) ?? '').trim() || null,
               targetDebtType: resolveTargetDebtType(values.paymentTarget as PaymentTargetValue),
               bankAccountId: (values.bankAccountId as string | null) || null,
             }
@@ -442,6 +471,9 @@ function PaymentsTab() {
           </Form.Item>
           <Form.Item name="receivedBy" label="Tahsilat Yapan">
             <Input maxLength={100} placeholder="İsteğe bağlı — Faz 7'de JWT'den otomatik dolar" />
+          </Form.Item>
+          <Form.Item name="receiptNumber" label="Makbuz No" extra="Boş bırakılırsa yıl sırasından üretilir. Örnek: 2026-0001">
+            <Input maxLength={30} placeholder="Otomatik" />
           </Form.Item>
         </Form>
       </AppModal>
@@ -678,7 +710,16 @@ function LedgerTab() {
               : al.target === 'Interest'
                 ? 'Devir Faiz'
                 : al.target
-        movements.push({ key: `tahsilat-${al.paymentId}-${l.sourceId}`, date: al.paymentDate, type: 'Tahsilat', description: `Tahsilat — ${targetLabel}`, debit: 0, credit: al.allocatedAmount, interestDetail: null })
+        movements.push({
+          key: `tahsilat-${al.paymentId}-${l.sourceId}`,
+          date: al.paymentDate,
+          type: 'Tahsilat',
+          description: `Tahsilat — ${targetLabel}`,
+          debit: 0,
+          credit: al.allocatedAmount,
+          interestDetail: null,
+          performedBy: al.performedBy,
+        })
       }
     }
     if (typeFilter === 'all' && !activeResidentFilter) {
@@ -691,6 +732,7 @@ function LedgerTab() {
           debit: 0,
           credit: credit.amount,
           interestDetail: null,
+          performedBy: credit.performedBy,
         })
       }
     }
@@ -917,6 +959,12 @@ function LedgerTab() {
                   : v === 'Faiz' ? <Tag color="orange">Faiz</Tag>
                   : v === 'Görev Mahsubu' ? <Tag color="cyan">Görev Mahsubu</Tag>
                   : <Tag color="green">Tahsilat</Tag>,
+              },
+              {
+                title: 'İşlemi Yapan',
+                dataIndex: 'performedBy',
+                width: 180,
+                render: (v: string | null) => v?.trim() ? v : '—',
               },
               {
                 title: 'Açıklama',

@@ -47,6 +47,14 @@ public sealed class RecordMeterReadingsCommandHandler
                 continue;
             }
 
+            if (!meter.IsActive)
+            {
+                _logger.LogInformation(
+                    "Okuma atlandı: sayaç {Serial} pasif (değiştirilmiş).",
+                    snapshot.SerialNumber);
+                continue;
+            }
+
             if (snapshot.HasDataError)
             {
                 skippedDeviceError++;

@@ -25,5 +25,25 @@ services:
       timeout: 5s
       retries: 5
 
+  # Tarayıcıdan veritabanı. Yalnızca bu bilgisayar. Üretim compose'una eklenmez.
+  adminer:
+    image: adminer:4
+    container_name: sayacokuma-adminer
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ADMINER_DEFAULT_SERVER: db
+    ports:
+      - "127.0.0.1:8090:8080"
+    networks:
+      - sayacokuma_network
+
 volumes:
   sayacokuma_pgdata:
+
+networks:
+  sayacokuma_network:
+    external: true
+    name: sayacokuma_network

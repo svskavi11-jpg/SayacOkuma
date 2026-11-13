@@ -32,6 +32,10 @@ RUN apt-get update \
 
 # Publish ciktilari + migration bundle
 COPY --from=build /app/publish .
+COPY src/api/Westalife.Api/entrypoint.sh /app/entrypoint.sh
+RUN chmod 755 /app/entrypoint.sh \
+    && mkdir -p /app/logs \
+    && chown app:app /app/logs
 
 ENV ASPNETCORE_URLS=http://+:8080 \
     ASPNETCORE_ENVIRONMENT=Production
@@ -41,6 +45,8 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
     CMD wget -qO- http://localhost:8080/health || exit 1
 
+# Migrator bu imaji USER app ile calistirir. API servisi compose'ta root baslar;
+# entrypoint.sh log dizinini app'e verir ve sureci app'e dusurur.
 USER app
 
-ENTRYPOINT ["dotnet", "Westalife.Api.dll"]
+ENTRYPOINT ["/app/entrypoint.sh"]

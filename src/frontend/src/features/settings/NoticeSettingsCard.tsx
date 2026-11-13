@@ -18,11 +18,11 @@ const PREVIEW_PX_PER_MM = 2.2
 /** Slider + sayı kutusu; Form.Item ile value/onChange alır. */
 function HeightControl({ value, onChange }: { value?: number; onChange?: (v: number) => void }) {
   return (
-    <Row gutter={8} align="middle">
+    <Row gutter={12} align="middle" wrap={false}>
       <Col flex="auto">
         <Slider min={LOGO_HEIGHT_MIN_MM} max={LOGO_HEIGHT_MAX_MM} value={value} onChange={onChange} />
       </Col>
-      <Col flex="90px">
+      <Col flex="none">
         <InputNumber
           min={LOGO_HEIGHT_MIN_MM}
           max={LOGO_HEIGHT_MAX_MM}
@@ -30,7 +30,7 @@ function HeightControl({ value, onChange }: { value?: number; onChange?: (v: num
           value={value}
           onChange={(v) => v !== null && onChange?.(v)}
           addonAfter="mm"
-          style={{ width: '100%' }}
+          style={{ width: 120 }}
         />
       </Col>
     </Row>

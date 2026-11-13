@@ -149,6 +149,12 @@ export function ExpensesTab({
     { title: 'Banka', dataIndex: 'bankAccountLabel', width: 180, render: (v: string | null) => v || '—' },
     { title: 'Tutar', dataIndex: 'amount', align: 'right', width: 140, render: (v: number) => tl(v) },
     {
+      title: 'İşlemi Yapan',
+      dataIndex: 'createdBy',
+      width: 180,
+      render: (v: string | null) => v?.trim() ? v : '—',
+    },
+    {
       title: '',
       fixed: 'right',
       width: 70,

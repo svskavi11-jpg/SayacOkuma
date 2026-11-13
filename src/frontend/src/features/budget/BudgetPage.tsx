@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Alert, Button, Card, DatePicker, Popconfirm, Space, Tabs, message } from 'antd'
+import { Alert, Button, Card, DatePicker, Popconfirm, Space, Tabs, Typography, message } from 'antd'
 import { LockOutlined, UnlockOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { apiClient } from '../../api/client'
@@ -87,6 +87,11 @@ export function BudgetPage() {
               {locked ? 'Kilidi Aç' : 'Yılı Kilitle'}
             </Button>
           </Popconfirm>}
+          {locked && periodQuery.data?.performedBy && (
+            <Typography.Text type="secondary">
+              Kilitleyen: {periodQuery.data.performedBy}
+            </Typography.Text>
+          )}
           <DatePicker
             picker="year"
             value={dayjs().year(year)}

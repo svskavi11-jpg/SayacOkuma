@@ -12,8 +12,69 @@ body {
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
 }
 
+.settings-page {
+  inline-size: 100%;
+}
+
+.settings-tabs.ant-tabs > .ant-tabs-nav {
+  margin: 0;
+  padding: 4px 12px 0;
+  background: var(--settings-surface);
+  border-radius: var(--settings-radius) var(--settings-radius) 0 0;
+}
+
+.settings-tabs.ant-tabs > .ant-tabs-nav::before {
+  border-bottom-color: var(--settings-line);
+}
+
+.settings-tabs .ant-tabs-tab {
+  position: relative;
+}
+
+.settings-tabs .ant-tabs-ink-bar {
+  visibility: hidden;
+}
+
+.settings-tabs .ant-tabs-tab-active::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  border-block-end: 3px solid var(--settings-accent);
+}
+
+.settings-tabs.ant-tabs > .ant-tabs-content-holder {
+  background: var(--settings-surface);
+  border-radius: 0 0 var(--settings-radius) var(--settings-radius);
+  padding: 8px 20px 20px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+}
+
+.settings-tabs .ant-card {
+  max-width: none !important;
+  margin: 0 !important;
+  background: transparent;
+  box-shadow: none;
+}
+
+.settings-tabs .ant-card-head {
+  padding-inline: 0;
+  border-bottom: none;
+}
+
+.settings-tabs .ant-card-body {
+  padding: 0 0 8px;
+}
+
 @media (max-width: 767px) {
   .login-hero {
     display: none !important;
   }
+
+  .login-publisher-mobile {
+    display: block;
+  }
+}
+
+.login-publisher-mobile {
+  display: none;
 }

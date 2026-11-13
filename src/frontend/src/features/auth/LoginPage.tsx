@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { Button, Form, Input, Typography, theme } from 'antd'
 import { LockOutlined, MailOutlined } from '@ant-design/icons'
+import { PublisherMark } from '../../components/PublisherMark'
 import { useAuth } from './AuthContext'
 import { homePath } from './ProtectedRoute'
 
@@ -26,8 +27,11 @@ export function LoginPage() {
       const role = await login(values.email.trim(), values.password)
       navigate(homePath(role), { replace: true })
     } catch (err) {
-      const status = (err as { response?: { status?: number } }).response?.status
-      setError(status === 401 ? 'E-posta veya şifre hatalı.' : 'Giriş yapılamadı. Bağlantıyı kontrol edin.')
+      const response = (err as { response?: { status?: number; data?: { detail?: string } } }).response
+      const detail = response?.data?.detail
+      setError(response?.status === 401
+        ? (detail || 'E-posta veya şifre hatalı.')
+        : 'Giriş yapılamadı. Bağlantıyı kontrol edin.')
     } finally {
       setSubmitting(false)
     }
@@ -48,19 +52,18 @@ export function LoginPage() {
         }}
       >
         <div>
-          <Typography.Title level={3} style={{ color: '#fff', margin: 0 }}>
-            Westalife
-          </Typography.Title>
-          <Typography.Text style={{ color: 'rgba(255,255,255,0.82)' }}>
-            Site yönetim sistemi
-          </Typography.Text>
+          <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.32em', color: '#fff' }}>VAYS</div>
+          <div style={{ marginTop: 10, fontSize: 12, fontWeight: 500, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.62)' }}>
+            Veri Apartman Yönetim Sistemi
+          </div>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'center' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
           <LockMark />
+          <p style={{ margin: '28px 0 0', maxWidth: 420, fontSize: 28, fontWeight: 650, lineHeight: 1.3, letterSpacing: '-0.02em', color: '#fff' }}>
+            Aidat, Isınma ve Sayaç İşlemleri Tek Panelde
+          </p>
         </div>
-        <Typography.Paragraph style={{ color: 'rgba(255,255,255,0.78)', margin: 0, maxWidth: 360 }}>
-          Aidat, ısınma ve sayaç işlemleri tek panelde.
-        </Typography.Paragraph>
+        <PublisherMark tone="dark" flush />
       </section>
 
       <section
@@ -73,6 +76,11 @@ export function LoginPage() {
         }}
       >
         <div style={{ width: '100%', maxWidth: 420 }}>
+          <img
+            src="/brand/vays-logo.png"
+            alt="Vays — Veri Apartman Yönetim Sistemi"
+            style={{ width: '100%', maxWidth: 340, height: 'auto', display: 'block', margin: '0 auto 28px' }}
+          />
           <Typography.Title level={2} style={{ marginBottom: 8, fontWeight: 750 }}>
             Sisteme Giriş Yapın
           </Typography.Title>
@@ -113,6 +121,9 @@ export function LoginPage() {
               Giriş Yap
             </Button>
           </Form>
+          <div className="login-publisher-mobile">
+            <PublisherMark tone="light" flush />
+          </div>
         </div>
       </section>
     </div>

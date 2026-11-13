@@ -19,8 +19,9 @@ import {
   SafetyCertificateOutlined,
 } from '@ant-design/icons'
 import { registerNotifier } from '../api/notifier'
+import { PublisherMark } from './PublisherMark'
 import { useAuth } from '../features/auth/AuthContext'
-import { clearTenantOverride, readTenantOverride } from '../features/auth/authStorage'
+import { ChangePasswordModal } from '../features/auth/ChangePasswordModal'
 
 const { Sider, Content, Header } = Layout
 
@@ -72,12 +73,13 @@ export function AppLayout() {
   const navigate = useNavigate()
   const location = useLocation()
   const { notification } = AntdApp.useApp()
-  const { session, logout, hasPermission } = useAuth()
+  const { session, logout, hasPermission, activeTenant, leaveTenant } = useAuth()
   const screens = Grid.useBreakpoint()
   const isNarrow = screens.lg === false
   const [menuOpen, setMenuOpen] = useState(false)
+  const [passwordOpen, setPasswordOpen] = useState(false)
   const isResident = session?.role === 'Resident'
-  const tenantOverride = session?.role === 'SuperAdmin' ? readTenantOverride() : null
+  const tenantOverride = session?.role === 'SuperAdmin' || session?.isSuperAdmin ? activeTenant : null
   const residentMenu = [
     { key: '/resident', icon: <HomeOutlined />, label: 'Hesabım' },
   ]
@@ -119,16 +121,24 @@ export function AppLayout() {
   return (
     <Layout style={{ minHeight: '100vh' }}>
       {!isNarrow && (
-        <Sider theme="dark" width={220}>
-          <div style={{ padding: '16px', textAlign: 'center' }}>
-            <Typography.Title level={5} style={{ color: '#fff', margin: 0 }}>
-              Westalife Residence
-            </Typography.Title>
-            <Typography.Text style={{ color: '#aaa', fontSize: 12 }}>
-              {isResident ? 'Sakin Paneli' : 'Sayac Okuma Sistemi'}
-            </Typography.Text>
+        <Sider
+          theme="dark"
+          width={220}
+          style={{ position: 'sticky', top: 0, height: '100vh', overflow: 'hidden' }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+            <div style={{ padding: 12, flex: '0 0 auto' }}>
+              <div style={{ background: '#fff', borderRadius: 12, padding: 8 }}>
+                <img
+                  src="/brand/vays-logo.png"
+                  alt="Vays"
+                  style={{ width: '100%', height: 'auto', display: 'block' }}
+                />
+              </div>
+            </div>
+            <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>{menu}</div>
+            <PublisherMark tone="dark" />
           </div>
-          {menu}
         </Sider>
       )}
       <Drawer
@@ -136,10 +146,18 @@ export function AppLayout() {
         placement="left"
         open={isNarrow && menuOpen}
         onClose={() => setMenuOpen(false)}
-        styles={{ body: { padding: 0 } }}
+        styles={{ body: { padding: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' } }}
         width={280}
       >
-        {menu}
+        <div style={{ padding: 16, flex: '0 0 auto' }}>
+          <img
+            src="/brand/vays-logo.png"
+            alt="Vays"
+            style={{ width: '100%', height: 'auto', display: 'block' }}
+          />
+        </div>
+        <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>{menu}</div>
+        <PublisherMark tone="light" />
       </Drawer>
       <Layout>
         {tenantOverride && (
@@ -150,7 +168,7 @@ export function AppLayout() {
             <Button
               size="small"
               onClick={() => {
-                clearTenantOverride()
+                leaveTenant()
                 window.location.reload()
               }}
             >
@@ -163,12 +181,17 @@ export function AppLayout() {
             {isNarrow && (
               <Button type="text" icon={<MenuOutlined />} aria-label="Menü" onClick={() => setMenuOpen(true)} />
             )}
+            {isNarrow && (
+              <img src="/favicon-192.png" alt="Vays" width={32} height={32} style={{ display: 'block' }} />
+            )}
             {!isNarrow && (
               <Typography.Text strong>{isResident ? 'Sakin Paneli' : 'Yönetim Paneli'}</Typography.Text>
             )}
           </Space>
           <Space>
-            <Typography.Text ellipsis style={{ maxWidth: isNarrow ? 120 : 220 }}>{session?.fullName}</Typography.Text>
+            <Button type="text" onClick={() => setPasswordOpen(true)} style={{ maxWidth: isNarrow ? 140 : 240, paddingInline: 8 }}>
+              <Typography.Text ellipsis>{session?.fullName}</Typography.Text>
+            </Button>
             <Button
               icon={<LogoutOutlined />}
               aria-label="Çıkış"
@@ -184,6 +207,7 @@ export function AppLayout() {
         <Content style={{ margin: isNarrow ? 8 : 16 }}>
           <Outlet />
         </Content>
+        <ChangePasswordModal open={passwordOpen} onClose={() => setPasswordOpen(false)} />
       </Layout>
     </Layout>
   )

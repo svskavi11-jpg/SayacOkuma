@@ -19,7 +19,8 @@ public sealed record ExpenseListItem(
     Guid? FundAidatInvoiceId,
     string? FundTitle,
     Guid? BankAccountId,
-    string? BankAccountLabel);
+    string? BankAccountLabel,
+    string? CreatedBy = null);
 
 public sealed class GetExpensesQueryValidator : AbstractValidator<GetExpensesQuery>
 {
@@ -67,6 +68,7 @@ public sealed class GetExpensesQueryHandler : IRequestHandler<GetExpensesQuery, 
                 e.BankAccountId,
                 BankName = bank != null ? bank.BankName : null,
                 AccountName = bank != null ? bank.AccountName : null,
+                e.CreatedBy,
             }).ToListAsync(cancellationToken);
 
         return rows
@@ -81,7 +83,8 @@ public sealed class GetExpensesQueryHandler : IRequestHandler<GetExpensesQuery, 
                 r.FundAidatInvoiceId,
                 r.FundTitle,
                 r.BankAccountId,
-                r.BankName == null ? null : r.BankName + " — " + r.AccountName))
+                r.BankName == null ? null : r.BankName + " — " + r.AccountName,
+                r.CreatedBy))
             .ToList();
     }
 }

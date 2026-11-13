@@ -28,7 +28,7 @@ public class MeterReadingAuditLog : BaseEntity
     /// <summary>Kullanıcının yazması zorunlu olan değişiklik nedeni.</summary>
     public string Reason { get; private set; } = string.Empty;
 
-    /// <summary>Düzeltmeyi yapan kullanıcı (Faz 7'ye kadar serbest metin; boşsa "Yönetici").</summary>
+    /// <summary>Düzeltmeyi yapan kişi. Kayıt anında oturum damgasıyla doldurulur.</summary>
     public string ChangedBy { get; private set; } = string.Empty;
 
     /// <summary>Düzeltme zamanı (UTC).</summary>
@@ -62,9 +62,7 @@ public class MeterReadingAuditLog : BaseEntity
         OldConsumptionKWh = oldConsumptionKWh;
         NewConsumptionKWh = newConsumptionKWh;
         Reason = reason.Trim();
-        ChangedBy = string.IsNullOrWhiteSpace(changedBy)
-            ? DomainConstants.MeterReadingAuditLog.DefaultChangedBy
-            : changedBy.Trim();
+        ChangedBy = string.IsNullOrWhiteSpace(changedBy) ? string.Empty : changedBy.Trim();
         ChangedOnUtc = changedOnUtc;
     }
 }

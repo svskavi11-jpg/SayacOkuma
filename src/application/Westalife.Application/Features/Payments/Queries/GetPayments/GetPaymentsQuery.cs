@@ -23,7 +23,10 @@ public sealed record PaymentListItem(
     DateTimeOffset CreatedOn,
     LedgerDebtType? TargetDebtType,
     Guid? BankAccountId,
-    string? BankAccountLabel);
+    string? BankAccountLabel,
+    string? CreatedBy = null,
+    string? LastModifiedBy = null,
+    string? ReceiptNumber = null);
 
 public sealed class GetPaymentsQueryHandler : IRequestHandler<GetPaymentsQuery, IReadOnlyList<PaymentListItem>>
 {
@@ -52,7 +55,10 @@ public sealed class GetPaymentsQueryHandler : IRequestHandler<GetPaymentsQuery, 
                 p.CreatedOn,
                 p.TargetDebtType,
                 p.BankAccountId,
-                p.BankAccount == null ? null : p.BankAccount.BankName + " — " + p.BankAccount.AccountName))
+                p.BankAccount == null ? null : p.BankAccount.BankName + " — " + p.BankAccount.AccountName,
+                p.CreatedBy,
+                p.LastModifiedBy,
+                p.ReceiptNumber))
             .ToListAsync(cancellationToken);
     }
 }

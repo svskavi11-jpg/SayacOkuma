@@ -160,6 +160,7 @@ export function BankAccountsPage() {
       }
     >
       <Tabs
+        destroyOnHidden={false}
         items={[
           {
             key: "accounts",
@@ -222,9 +223,14 @@ export function BankAccountsPage() {
             ),
           },
           {
-            key: "movements",
-            label: "Hareketler ve Virman",
-            children: <BankTransactionsTab />,
+            key: "transfer",
+            label: "Virman",
+            children: <BankTransactionsTab mode="transfer" />,
+          },
+          {
+            key: "entry",
+            label: "Faiz / Masraf",
+            children: <BankTransactionsTab mode="entry" />,
           },
         ]}
       />

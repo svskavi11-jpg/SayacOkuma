@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Westalife.Api.Infrastructure;
 using Westalife.Domain.Constants;
 using Westalife.Application.Features.MeterReadings.Commands.AddManualMeterReading;
+using Westalife.Application.Features.MeterReadings.Commands.ChangeMeter;
 using Westalife.Application.Features.MeterReadings.Commands.ImportReadingsFromExcel;
 using Westalife.Application.Features.MeterReadings.Commands.TriggerMeterReadingCycle;
 using Westalife.Application.Features.MeterReadings.Commands.UpdateMeterReading;
@@ -50,6 +51,22 @@ public class MeterReadingsController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
     public async Task<IActionResult> AddManualReading(
         [FromBody] AddManualMeterReadingCommand command, CancellationToken cancellationToken)
+    {
+        var result = await _mediator.Send(command, cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Sayaç değişimi. Eski sayaca kapanış okuması yazılır ve pasife alınır;
+    /// yeni sayaç açılış endeksiyle (tüketim 0) açılır. Tek kayıtta tamamlanır.
+    /// </summary>
+    [HasPermission(Permissions.MeterReadings.ManualEntry)]
+    [HttpPost("replace")]
+    [ProducesResponseType(typeof(ChangeMeterResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> ReplaceMeter(
+        [FromBody] ChangeMeterCommand command, CancellationToken cancellationToken)
     {
         var result = await _mediator.Send(command, cancellationToken);
         return Ok(result);

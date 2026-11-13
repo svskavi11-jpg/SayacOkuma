@@ -13,8 +13,10 @@ import {
   Popconfirm,
   Row,
   Space,
+  Table,
   Tag,
   Typography,
+  Alert,
   message,
 } from 'antd'
 import { PlusOutlined, UserAddOutlined } from '@ant-design/icons'
@@ -47,6 +49,18 @@ interface StaffForm {
   password: string
 }
 
+interface StaffRow {
+  id: string
+  fullName: string
+  email: string
+  roleName: string
+}
+
+interface ResetForm {
+  password: string
+  confirm: string
+}
+
 const passwordRules = [
   { required: true, message: 'Şifre zorunludur.' },
   { min: 8, message: 'Şifre en az 8 karakter olmalıdır.' },
@@ -63,6 +77,11 @@ const panelLabels: Record<string, string> = {
   'Roles.Manage': 'Rol ve Yetki Yönetimi',
 }
 
+function isMissingSite(error: unknown) {
+  const message = error instanceof Error ? error.message : ''
+  return message.includes('site seç')
+}
+
 function panelOf(item: CatalogItem) {
   if (item.code.startsWith('Reports.')) return 'Raporlar'
   if (item.code.startsWith('Roles.')) return 'Roller'
@@ -70,25 +89,38 @@ function panelOf(item: CatalogItem) {
 }
 
 export function RolesPage() {
-  const { hasPermission } = useAuth()
+  const { hasPermission, session, activeTenant } = useAuth()
   const canManage = hasPermission('Roles.Manage')
+  const canManageUsers = hasPermission('Settings.ManageUsers')
+  const siteRequired = session?.isSuperAdmin === true || session?.role === 'SuperAdmin'
+  const siteMissing = siteRequired && !activeTenant?.id
   const queryClient = useQueryClient()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [draftName, setDraftName] = useState('')
   const [draftPermissions, setDraftPermissions] = useState<string[]>([])
   const [creating, setCreating] = useState(false)
   const [addingStaff, setAddingStaff] = useState(false)
+  const [resetFor, setResetFor] = useState<StaffRow | null>(null)
   const [createForm] = Form.useForm<RoleForm>()
   const [staffForm] = Form.useForm<StaffForm>()
+  const [resetForm] = Form.useForm<ResetForm>()
 
   const roles = useQuery({
-    queryKey: ['roles'],
+    queryKey: ['roles', activeTenant?.id ?? 'self'],
+    enabled: !siteMissing,
     queryFn: async () => (await apiClient.get<RoleRow[]>('/roles')).data,
   })
 
   const catalog = useQuery({
     queryKey: ['permission-catalog'],
+    enabled: !siteMissing,
     queryFn: async () => (await apiClient.get<CatalogItem[]>('/roles/permissions')).data,
+  })
+
+  const staff = useQuery({
+    queryKey: ['staff', activeTenant?.id ?? 'self'],
+    enabled: canManageUsers && !siteMissing,
+    queryFn: async () => (await apiClient.get<StaffRow[]>('/roles/staff')).data,
   })
 
   const selected = roles.data?.find((role) => role.id === selectedId) ?? roles.data?.[0] ?? null
@@ -173,11 +205,35 @@ export function RolesPage() {
       setAddingStaff(false)
       staffForm.resetFields()
       void queryClient.invalidateQueries({ queryKey: ['roles'] })
+      void queryClient.invalidateQueries({ queryKey: ['staff'] })
+    },
+  })
+
+  const resetMutation = useMutation({
+    mutationFn: (values: ResetForm) => apiClient.post(`/roles/staff/${resetFor!.id}/reset-password`, {
+      newPassword: values.password,
+    }),
+    onSuccess: () => {
+      message.success('Personel şifresi sıfırlandı.')
+      setResetFor(null)
+      resetForm.resetFields()
     },
   })
 
   const currentPermissions = shown?.permissions ?? []
   const locked = !shown || shown.isSystem || !canManage
+  const missingSite = siteMissing || isMissingSite(roles.error) || isMissingSite(staff.error)
+
+  if (missingSite) {
+    return (
+      <Alert
+        type="warning"
+        showIcon
+        message="Lütfen bir site seçin"
+        description="Roller ve personel bir siteye bağlıdır. Süper Admin panelinden Siteye Gir ile bir site seçin."
+      />
+    )
+  }
 
   return (
     <Row gutter={[16, 16]}>
@@ -285,6 +341,35 @@ export function RolesPage() {
         </Card>
       </Col>
 
+      {canManageUsers && (
+        <Col xs={24}>
+          <Card title="Personel">
+            <Table<StaffRow>
+              rowKey="id"
+              size="small"
+              loading={staff.isLoading}
+              dataSource={staff.data ?? []}
+              pagination={false}
+              locale={{ emptyText: <Empty description="Personel yok" /> }}
+              columns={[
+                { title: 'Ad soyad', dataIndex: 'fullName' },
+                { title: 'E-posta', dataIndex: 'email' },
+                { title: 'Rol', dataIndex: 'roleName' },
+                {
+                  title: 'İşlem',
+                  width: 140,
+                  render: (_: unknown, row: StaffRow) => (
+                    <Button size="small" onClick={() => { resetForm.resetFields(); setResetFor(row) }}>
+                      Şifre Sıfırla
+                    </Button>
+                  ),
+                },
+              ]}
+            />
+          </Card>
+        </Col>
+      )}
+
       <AppModal
         title="Yeni rol"
         open={creating}
@@ -321,6 +406,44 @@ export function RolesPage() {
             <Input />
           </Form.Item>
           <Form.Item name="password" label="Şifre" rules={passwordRules}>
+            <Input.Password />
+          </Form.Item>
+        </Form>
+      </AppModal>
+
+      <AppModal
+        title={resetFor ? `Şifre sıfırla · ${resetFor.fullName}` : 'Şifre sıfırla'}
+        open={resetFor !== null}
+        onCancel={() => setResetFor(null)}
+        onOk={() => resetForm.submit()}
+        confirmLoading={resetMutation.isPending}
+        okText="Sıfırla"
+        cancelText="Vazgeç"
+        destroyOnClose
+      >
+        <Typography.Paragraph type="secondary">
+          Yeni şifreyi personele siz iletin. E-posta gönderilmez. Varsa hesap kilidi de kalkar.
+        </Typography.Paragraph>
+        <Form form={resetForm} layout="vertical" onFinish={(values) => resetMutation.mutate(values)}>
+          <Form.Item name="password" label="Yeni şifre" rules={passwordRules}>
+            <Input.Password />
+          </Form.Item>
+          <Form.Item
+            name="confirm"
+            label="Yeni şifre (tekrar)"
+            dependencies={['password']}
+            rules={[
+              { required: true, message: 'Şifre tekrarı zorunludur.' },
+              ({ getFieldValue }) => ({
+                validator(_, value) {
+                  if (!value || getFieldValue('password') === value) {
+                    return Promise.resolve()
+                  }
+                  return Promise.reject(new Error('Şifreler aynı değil.'))
+                },
+              }),
+            ]}
+          >
             <Input.Password />
           </Form.Item>
         </Form>

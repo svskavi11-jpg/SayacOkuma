@@ -2,12 +2,12 @@ import { AppModal } from '../../components/AppModal'
 import { useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Button, Form, Input, Select, Space, Table, Tag, message } from 'antd'
+import { Button, Form, Input, Select, Space, Table, Tabs, Tag, message } from 'antd'
 import { PlusOutlined, UserAddOutlined } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { apiClient } from '../../api/client'
 import { useAuth } from '../auth/AuthContext'
-import { writeTenantOverride } from '../auth/authStorage'
+import { MigrationWizard } from './MigrationWizard'
 
 interface TenantRow {
   id: string
@@ -53,7 +53,7 @@ const passwordRules = [
 ]
 
 export function SuperAdminPage() {
-  const { session } = useAuth()
+  const { session, enterTenant } = useAuth()
   const queryClient = useQueryClient()
   const [createForm] = Form.useForm<TenantForm>()
   const [editForm] = Form.useForm<EditForm>()
@@ -153,7 +153,10 @@ export function SuperAdminPage() {
             size="small"
             disabled={!row.isActive}
             onClick={() => {
-              writeTenantOverride(row.id, row.name)
+              if (!enterTenant(row.id, row.name)) {
+                message.error('Site kimliği okunamadı.')
+                return
+              }
               window.location.reload()
             }}
           >
@@ -175,17 +178,34 @@ export function SuperAdminPage() {
 
   return (
     <>
-      <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
-        <span />
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreating(true)}>Yeni müşteri</Button>
-      </Space>
-      <Table
-        scroll={{ x: 'max-content' }}
-        rowKey="id"
-        loading={tenants.isLoading}
-        dataSource={tenants.data ?? []}
-        columns={columns}
-        pagination={false}
+      <Tabs
+        items={[
+          {
+            key: 'tenants',
+            label: 'Müşteriler',
+            children: (
+              <>
+                <Space style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
+                  <span />
+                  <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreating(true)}>Yeni müşteri</Button>
+                </Space>
+                <Table
+                  scroll={{ x: 'max-content' }}
+                  rowKey="id"
+                  loading={tenants.isLoading}
+                  dataSource={tenants.data ?? []}
+                  columns={columns}
+                  pagination={false}
+                />
+              </>
+            ),
+          },
+          {
+            key: 'migration',
+            label: 'Sunucu Taşıma',
+            children: <MigrationWizard />,
+          },
+        ]}
       />
 
       <AppModal

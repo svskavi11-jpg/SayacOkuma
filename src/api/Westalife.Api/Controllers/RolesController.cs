@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Westalife.Api.Infrastructure;
 using Westalife.Application.Common.Interfaces;
 using Westalife.Application.Features.Admin.Tenants;
+using Westalife.Application.Features.Auth.ResetUserPassword;
 using Westalife.Application.Features.Roles;
 using Westalife.Domain.Constants;
 
@@ -52,6 +53,22 @@ public sealed class RolesController : ControllerBase
     }
 
     [HasPermission(Permissions.Settings.ManageUsers)]
+    [HttpGet("staff")]
+    public async Task<IReadOnlyList<StaffAccountItem>> Staff(CancellationToken cancellationToken) =>
+        await _mediator.Send(new ListStaffQuery(), cancellationToken);
+
+    [HasPermission(Permissions.Settings.ManageUsers)]
+    [HttpPost("staff/{userId:guid}/reset-password")]
+    public async Task<IActionResult> ResetStaffPassword(
+        Guid userId, ResetPasswordBody body, CancellationToken cancellationToken)
+    {
+        await _mediator.Send(
+            new ResetUserPasswordCommand(userId, body.NewPassword, PasswordResetTarget.Staff),
+            cancellationToken);
+        return NoContent();
+    }
+
+    [HasPermission(Permissions.Settings.ManageUsers)]
     [HttpPost("staff")]
     public async Task<ActionResult<Guid>> AddStaff(AddStaffBody body, CancellationToken cancellationToken)
     {
@@ -63,4 +80,6 @@ public sealed class RolesController : ControllerBase
     }
 
     public sealed record AddStaffBody(string FullName, string Email, string Password, Guid RoleId);
+
+    public sealed record ResetPasswordBody(string NewPassword);
 }

@@ -178,6 +178,13 @@ public sealed class CreateBulkPaymentCommandHandler
 
         if (paymentsToCreate.Count > 0)
         {
+            var existingNumbers = await ReceiptNumberAllocator.LoadAsync(_db, null, cancellationToken);
+            foreach (var created in paymentsToCreate)
+            {
+                created.AssignReceiptNumber(ReceiptNumberAllocator.Allocate(
+                    existingNumbers, created.PaymentDate.Year, null));
+            }
+
             _db.Payments.AddRange(paymentsToCreate);
             await _db.SaveChangesAsync(cancellationToken);
         }

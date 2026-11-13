@@ -41,7 +41,8 @@ public record LedgerCredit(
     Guid PaymentId,
     DateOnly PaymentDate,
     decimal Amount,
-    LedgerDebtType? TargetDebtType);
+    LedgerDebtType? TargetDebtType,
+    string? PerformedBy = null);
 
 /// <summary>Cari hesap tek satırı.</summary>
 public record LedgerLine(
@@ -118,5 +119,6 @@ public record AllocationDetail(
     Guid PaymentId,
     DateOnly PaymentDate,
     decimal AllocatedAmount,
-    AllocationTarget Target
+    AllocationTarget Target,
+    string? PerformedBy = null
 );

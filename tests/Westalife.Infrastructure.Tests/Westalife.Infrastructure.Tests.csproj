@@ -19,7 +19,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="..\..\src\infrastructure\Westalife.Infrastructure\Westalife.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\api\Westalife.Api\Westalife.Api.csproj" />
   </ItemGroup>
 
 </Project>

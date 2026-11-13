@@ -48,7 +48,25 @@ public sealed class HttpTenantContext : ITenantContext
     private bool TryImpersonatedTenant(out Guid tenantId)
     {
         tenantId = Guid.Empty;
-        var raw = _http.HttpContext?.Request.Headers[DomainConstants.Auth.TenantHeader].ToString();
-        return Guid.TryParse(raw, out tenantId) && tenantId != Guid.Empty;
+        var headers = _http.HttpContext?.Request.Headers;
+        if (headers is null || !headers.TryGetValue(DomainConstants.Auth.TenantHeader, out var values))
+        {
+            return false;
+        }
+
+        foreach (var value in values)
+        {
+            foreach (var part in (value ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                var text = part.Trim().Trim('"');
+                if (Guid.TryParse(text, out var parsed) && parsed != Guid.Empty)
+                {
+                    tenantId = parsed;
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 }

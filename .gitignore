@@ -30,8 +30,9 @@ Thumbs.db
 logs/
 *.log
 
-# Local DB backups
+# Local DB backups and migration bundles (dumps, documents, signing keys)
 backups/
+migration-out/
 
 dist/
 

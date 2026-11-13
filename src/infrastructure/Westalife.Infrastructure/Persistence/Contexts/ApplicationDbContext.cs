@@ -55,6 +55,7 @@ public class ApplicationDbContext : IdentityDbContext<AppUser, AppRole, Guid>, I
     {
         base.OnModelCreating(modelBuilder);
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
+        ApplyAuditActorColumns(modelBuilder);
         ApplyTenantQueryFilters(modelBuilder);
     }
 
@@ -68,6 +69,27 @@ public class ApplicationDbContext : IdentityDbContext<AppUser, AppRole, Guid>, I
     {
         StampTenant();
         return base.SaveChangesAsync(cancellationToken);
+    }
+
+    private static void ApplyAuditActorColumns(ModelBuilder modelBuilder)
+    {
+        foreach (var entityType in modelBuilder.Model.GetEntityTypes())
+        {
+            if (entityType.ClrType is null
+                || entityType.IsOwned()
+                || !typeof(BaseEntity).IsAssignableFrom(entityType.ClrType))
+            {
+                continue;
+            }
+
+            modelBuilder.Entity(entityType.ClrType)
+                .Property<string?>(nameof(BaseEntity.CreatedBy))
+                .HasMaxLength(AuditActor.MaxLength);
+
+            modelBuilder.Entity(entityType.ClrType)
+                .Property<string?>(nameof(BaseEntity.LastModifiedBy))
+                .HasMaxLength(AuditActor.MaxLength);
+        }
     }
 
     private void StampTenant()

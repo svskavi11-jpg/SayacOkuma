@@ -9,22 +9,18 @@ namespace Westalife.Infrastructure.Reporting.Pdf;
 /// <summary>Bütçe gerçekleşme raporu. Kalan = tahmini − gerçekleşen.</summary>
 public static class BudgetRealizationPdfDocument
 {
-    private const string FontFamily = "Lato";
     private static readonly CultureInfo Tr = CultureInfo.GetCultureInfo("tr-TR");
 
-    static BudgetRealizationPdfDocument()
+    public static byte[] Generate(BudgetRealizationReport data)
     {
-        QuestPDF.Settings.License = LicenseType.Community;
-    }
-
-    public static byte[] Generate(BudgetRealizationReport data) =>
-        Document.Create(container =>
+        PdfFonts.Ensure();
+        return Document.Create(container =>
         {
             container.Page(page =>
             {
                 page.Size(PageSizes.A4.Landscape());
                 page.Margin(28);
-                page.DefaultTextStyle(x => x.FontFamily(FontFamily).FontSize(9));
+                page.DefaultTextStyle(x => PdfFonts.WithFallback(x).FontSize(9));
 
                 page.Header().Column(col =>
                 {
@@ -86,6 +82,7 @@ public static class BudgetRealizationPdfDocument
                 });
             });
         }).GeneratePdf();
+    }
 
     private static void HeaderCell(IContainer cell, string text) =>
         cell.Background("#F2F2F2").Border(0.5f).BorderColor("#AAAAAA").Padding(3).Text(text).Bold();

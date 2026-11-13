@@ -17,6 +17,7 @@ interface ResidentLedgerRow {
   description: string
   amount: number
   remaining: number | null
+  paymentId?: string | null
 }
 
 interface ResidentLedger {
@@ -94,6 +95,16 @@ export function ResidentPage() {
       align: 'right',
       width: 140,
       render: (value: number | null) => (value === null ? '—' : tl(value)),
+    },
+    {
+      title: '',
+      width: 130,
+      render: (_: unknown, row) =>
+        row.kind === 'Tahsilat' && row.paymentId ? (
+          <Typography.Link onClick={() => downloadFile(`/resident/payments/${row.paymentId}/receipt.pdf`, 'Makbuz.pdf')}>
+            <FilePdfOutlined /> Makbuz
+          </Typography.Link>
+        ) : null,
     },
   ]
 

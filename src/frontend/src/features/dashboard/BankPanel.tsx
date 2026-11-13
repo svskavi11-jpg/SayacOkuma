@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react'
+// BankPanel — banka hesapları ve nakit akış grafiği
 import { useQuery } from '@tanstack/react-query'
 import { Button, Card, Col, Empty, Row, Space, Statistic, Tag, Typography, theme } from 'antd'
 import {
@@ -161,7 +162,7 @@ export function BankPanel() {
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  boxShadow: '0 6px 16px rgba(22, 119, 255, 0.22)',
+                  boxShadow: `0 6px 16px ${token.colorPrimary}38`,
                 }}
               >
                 <div>
@@ -240,12 +241,13 @@ export function BankPanel() {
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              fontSize: 18,
-                              fontWeight: 700,
+                              fontSize: 17,
+                              fontWeight: 800,
                               flexShrink: 0,
+                              border: `1.5px solid ${bankLook.accent}33`,
                             }}
                           >
-                            <BankOutlined />
+                            {account.bankName.charAt(0).toLocaleUpperCase('tr-TR')}
                           </div>
                           <div style={{ minWidth: 0 }}>
                             <Typography.Text

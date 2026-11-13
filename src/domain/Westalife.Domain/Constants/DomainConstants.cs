@@ -132,10 +132,9 @@ public static class DomainConstants
     public static class MeterReadingAuditLog
     {
         public const int ReasonMaxLength = 500;
-        public const int ChangedByMaxLength = 100;
 
-        /// <summary>Faz 7'ye kadar (JWT yok) düzeltmeyi yapan kullanıcı boş bırakılırsa kullanılır.</summary>
-        public const string DefaultChangedBy = "Yönetici";
+        /// <summary>Oturum damgası (ad + kimlik) sığsın diye <see cref="Westalife.Domain.Common.AuditActor.MaxLength"/> ile aynıdır.</summary>
+        public const int ChangedByMaxLength = Westalife.Domain.Common.AuditActor.MaxLength;
     }
 
     /// <summary>Aidat tarifesı kuralları (Faz 6.9).</summary>
@@ -265,9 +264,9 @@ public static class DomainConstants
         public const int CancellationReasonMaxLength = 500;
         public const string DocumentNumberTooLong = "Dekont numarası en fazla 100 karakter olabilir.";
         public const string DocumentNumberDuplicate = "Bu dekont numarasına ait aktif bir tahsilat kaydı zaten mevcut.";
-
-        /// <summary>Faz 7'ye kadar (JWT yok) tahsilatı giren kullanıcı boş bırakılırsa kullanılır.</summary>
-        public const string DefaultReceivedBy = "Yönetici";
+        public const int ReceiptNumberMaxLength = 30;
+        public const string ReceiptNumberTooLong = "Makbuz numarası en fazla 30 karakter olabilir.";
+        public const string ReceiptNumberDuplicate = "Bu makbuz numarası bu sitede zaten kullanılıyor.";
     }
 
     /// <summary>Banka hesap kartı. Tahsilat ve gider bu karta bağlanır; bağ boş kalabilir.</summary>
@@ -506,6 +505,9 @@ public static class DomainConstants
         public const string ManualReadingDuplicate = "Bu sayaç için aynı okuma tarihine ait kayıt zaten mevcut.";
         public const string ManualReadingIndexRegression =
             "Endeks gerilemesi: girilen değer, bu sayacın son kayıtlı okumasından küçük olamaz.";
+
+        public const string MeterReplacementSameSerial =
+            "Yeni sayaç seri numarası eski sayaçla aynı olamaz.";
 
         /// <summary>Excel okuma içe aktarma kuralları (Etap 6.6).</summary>
         public const string ReadingImportNoActiveMeter =

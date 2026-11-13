@@ -58,7 +58,7 @@ public class Meter : BaseEntity, ITenantEntity
     }
 
     public static Meter CreateCalorimeter(
-        string serialNumber, Guid apartmentId, int primaryAddress, string manufacturer, DateTimeOffset installationDateUtc)
+        string serialNumber, Guid apartmentId, int? primaryAddress, string manufacturer, DateTimeOffset installationDateUtc)
     {
         if (apartmentId == Guid.Empty)
         {
@@ -66,6 +66,18 @@ public class Meter : BaseEntity, ITenantEntity
         }
 
         return new Meter(serialNumber, MeterType.Calorimeter, manufacturer, installationDateUtc, apartmentId, primaryAddress);
+    }
+
+    /// <summary>Sayaç değişiminde eski cihazı okuma döngüsünden çıkarır.</summary>
+    public void Deactivate()
+    {
+        if (!IsActive)
+        {
+            return;
+        }
+
+        IsActive = false;
+        LastModifiedOn = DateTimeOffset.UtcNow;
     }
 
     public static Meter CreateGasMasterMeter(string serialNumber, int primaryAddress, string manufacturer, DateTimeOffset installationDateUtc) =>

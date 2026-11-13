@@ -7,7 +7,11 @@ using Westalife.Domain.Entities;
 
 namespace Westalife.Application.Features.Budget.Commands.BudgetPeriod;
 
-public sealed record BudgetPeriodStatus(int Year, bool IsLocked, DateTimeOffset? LockedOn);
+public sealed record BudgetPeriodStatus(
+    int Year,
+    bool IsLocked,
+    DateTimeOffset? LockedOn,
+    string? PerformedBy = null);
 
 public sealed record GetBudgetPeriodQuery(int Year) : IRequest<BudgetPeriodStatus>;
 
@@ -34,7 +38,11 @@ public sealed class GetBudgetPeriodQueryHandler : IRequestHandler<GetBudgetPerio
 
         return period is null
             ? new BudgetPeriodStatus(request.Year, false, null)
-            : new BudgetPeriodStatus(period.Year, period.IsLocked, period.LockedOn);
+            : new BudgetPeriodStatus(
+                period.Year,
+                period.IsLocked,
+                period.LockedOn,
+                period.LastModifiedBy ?? period.CreatedBy);
     }
 }
 
@@ -75,6 +83,10 @@ public sealed class SetBudgetPeriodLockCommandHandler : IRequestHandler<SetBudge
         }
 
         await _db.SaveChangesAsync(cancellationToken);
-        return new BudgetPeriodStatus(period.Year, period.IsLocked, period.LockedOn);
+        return new BudgetPeriodStatus(
+            period.Year,
+            period.IsLocked,
+            period.LockedOn,
+            period.LastModifiedBy ?? period.CreatedBy);
     }
 }

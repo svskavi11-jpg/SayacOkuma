@@ -23,6 +23,14 @@ public class PaymentConfiguration : IEntityTypeConfiguration<Payment>
         builder.Property(p => p.DocumentNumber)
             .HasMaxLength(DomainConstants.Payment.DocumentNumberMaxLength);
 
+        builder.Property(p => p.ReceiptNumber)
+            .HasMaxLength(DomainConstants.Payment.ReceiptNumberMaxLength);
+
+        builder.HasIndex(p => new { p.TenantId, p.ReceiptNumber })
+            .IsUnique()
+            .HasFilter("\"ReceiptNumber\" IS NOT NULL")
+            .HasDatabaseName("UX_Payments_Tenant_ReceiptNumber");
+
         builder.Property(p => p.ReceivedBy)
             .IsRequired()
             .HasMaxLength(DomainConstants.Payment.ReceivedByMaxLength);

@@ -29,7 +29,8 @@ public sealed record RecordPaymentCommand(
     string? ReceivedBy,
     LedgerDebtType? TargetDebtType = null,
     Guid? TargetOwnerId = null,
-    Guid? BankAccountId = null) : IRequest<RecordPaymentResult>;
+    Guid? BankAccountId = null,
+    string? ReceiptNumber = null) : IRequest<RecordPaymentResult>;
 
 public sealed record RecordPaymentResult(
     Guid PaymentId,
@@ -63,6 +64,11 @@ public sealed class RecordPaymentCommandValidator : AbstractValidator<RecordPaym
         RuleFor(c => c.ReceivedBy)
             .MaximumLength(DomainConstants.Payment.ReceivedByMaxLength)
             .When(c => c.ReceivedBy is not null);
+
+        RuleFor(c => c.ReceiptNumber)
+            .MaximumLength(DomainConstants.Payment.ReceiptNumberMaxLength)
+            .WithMessage(DomainConstants.Payment.ReceiptNumberTooLong)
+            .When(c => c.ReceiptNumber is not null);
 
         // Faz 7.1: Hedefli tahsilat — borç türü enum doğrulaması (verildiyse).
         RuleFor(c => c.TargetDebtType)
@@ -109,6 +115,10 @@ public sealed class RecordPaymentCommandHandler : IRequestHandler<RecordPaymentC
             request.TargetDebtType,
             request.TargetOwnerId,
             bankAccountId);
+
+        var existingNumbers = await ReceiptNumberAllocator.LoadAsync(_db, null, cancellationToken);
+        payment.AssignReceiptNumber(ReceiptNumberAllocator.Allocate(
+            existingNumbers, request.PaymentDate.Year, request.ReceiptNumber));
 
         _db.Payments.Add(payment);
         await _db.SaveChangesAsync(cancellationToken);

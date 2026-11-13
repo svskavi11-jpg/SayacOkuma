@@ -17,7 +17,9 @@ public sealed record GasInvoiceListItem(
     bool IsLocked,
     DateOnly DueDate,
     bool IsPaid,
-    DateOnly? PaidOn);
+    DateOnly? PaidOn,
+    string? CreatedBy = null,
+    string? LastModifiedBy = null);
 
 public sealed class GetGasInvoicesQueryHandler : IRequestHandler<GetGasInvoicesQuery, IReadOnlyList<GasInvoiceListItem>>
 {
@@ -43,7 +45,9 @@ public sealed class GetGasInvoicesQueryHandler : IRequestHandler<GetGasInvoicesQ
                 i.IsLocked,
                 i.DueDate,
                 i.IsPaid,
-                i.PaidOn))
+                i.PaidOn,
+                i.CreatedBy,
+                i.LastModifiedBy))
             .ToListAsync(cancellationToken);
 
         return items;

@@ -14,12 +14,18 @@ namespace Westalife.Infrastructure.Auth;
 public sealed class JwtAuthService : IAuthService
 {
     private readonly UserManager<AppUser> _users;
+    private readonly SignInManager<AppUser> _signIn;
     private readonly StaffAccessReader _access;
     private readonly AuthOptions _options;
 
-    public JwtAuthService(UserManager<AppUser> users, StaffAccessReader access, IOptions<AuthOptions> options)
+    public JwtAuthService(
+        UserManager<AppUser> users,
+        SignInManager<AppUser> signIn,
+        StaffAccessReader access,
+        IOptions<AuthOptions> options)
     {
         _users = users;
+        _signIn = signIn;
         _access = access;
         _options = options.Value;
     }
@@ -32,7 +38,23 @@ public sealed class JwtAuthService : IAuthService
         }
 
         var user = await _users.FindByEmailAsync(email.Trim());
-        if (user is null || !await _users.CheckPasswordAsync(user, password))
+        if (user is null)
+        {
+            throw new UnauthorizedException("E-posta veya şifre hatalı.");
+        }
+
+        if (!await _users.GetLockoutEnabledAsync(user))
+        {
+            await _users.SetLockoutEnabledAsync(user, true);
+        }
+
+        var signIn = await _signIn.CheckPasswordSignInAsync(user, password, lockoutOnFailure: true);
+        if (signIn.IsLockedOut)
+        {
+            throw new UnauthorizedException("Hesabınız 15 dakika süreyle kilitlendi.");
+        }
+
+        if (!signIn.Succeeded)
         {
             throw new UnauthorizedException("E-posta veya şifre hatalı.");
         }

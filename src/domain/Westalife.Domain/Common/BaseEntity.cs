@@ -10,4 +10,10 @@ public abstract class BaseEntity
     public DateTimeOffset CreatedOn { get; set; } = DateTimeOffset.UtcNow;
 
     public DateTimeOffset? LastModifiedOn { get; set; }
+
+    /// <summary>Kaydı oluşturan kişi. Eski satırlarda boş kalır.</summary>
+    public string? CreatedBy { get; set; }
+
+    /// <summary>Kaydı son değiştiren kişi. Eski satırlarda boş kalır.</summary>
+    public string? LastModifiedBy { get; set; }
 }

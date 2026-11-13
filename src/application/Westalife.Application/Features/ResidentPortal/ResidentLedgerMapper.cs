@@ -10,7 +10,8 @@ public sealed record ResidentLedgerRow(
     string Kind,
     string Description,
     decimal Amount,
-    decimal? Remaining);
+    decimal? Remaining,
+    Guid? PaymentId = null);
 
 public sealed record ResidentLedgerResponse(
     string DoorNumber,
@@ -86,7 +87,8 @@ public static class ResidentLedgerMapper
                         "Tahsilat",
                         "Tahsilat",
                         allocation.AllocatedAmount,
-                        null));
+                        null,
+                        allocation.PaymentId));
                 }
             }
         }
@@ -99,7 +101,8 @@ public static class ResidentLedgerMapper
                 "Tahsilat",
                 "Tahsilat",
                 credit.Amount,
-                null));
+                null,
+                credit.PaymentId));
         }
 
         rows.Sort(static (left, right) =>

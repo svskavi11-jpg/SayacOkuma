@@ -137,7 +137,8 @@ public static class LedgerService
                     payment.Id,
                     payment.PaymentDate,
                     toAllocate,
-                    target));
+                    target,
+                    payment.CreatedBy));
             }
 
             // Mahsup edilemeyen tutar alacaktır. Aidat hedefi, tahakkuk silinince faturaya
@@ -148,7 +149,8 @@ public static class LedgerService
                     payment.Id,
                     payment.PaymentDate,
                     availableAmount,
-                    payment.TargetDebtType));
+                    payment.TargetDebtType,
+                    payment.CreatedBy));
             }
         }
 

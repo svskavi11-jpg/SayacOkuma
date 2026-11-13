@@ -118,7 +118,8 @@ public sealed class UpdateMeterReadingCommandHandler
             next.SetIndex(next.IndexValue, nextNewConsumption, next.IsInitialReading);
         }
 
-        // Denetim izi: eski/yeni değer + zorunlu neden + kullanıcı (boşsa "Yönetici") + zaman.
+        // Denetim izi: eski/yeni değer + zorunlu neden + zaman.
+        // Düzeltmeyi yapan kişi kayıt anında oturum damgasından yazılır.
         _db.MeterReadingAuditLogs.Add(new MeterReadingAuditLog(
             reading.Id,
             oldIndex,
@@ -126,7 +127,7 @@ public sealed class UpdateMeterReadingCommandHandler
             oldConsumption,
             newConsumption,
             item.Reason,
-            item.ChangedBy ?? DomainConstants.MeterReadingAuditLog.DefaultChangedBy,
+            string.Empty,
             DateTimeOffset.UtcNow));
     }
 }

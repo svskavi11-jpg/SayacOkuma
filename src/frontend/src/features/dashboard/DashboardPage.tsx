@@ -13,13 +13,16 @@ import {
   Space,
   Statistic,
   Tag,
+  Tooltip,
   Typography,
   theme,
 } from 'antd'
 import {
   AccountBookOutlined,
   AlertOutlined,
+  BankOutlined,
   CheckCircleOutlined,
+  CreditCardOutlined,
   DashboardOutlined,
   FallOutlined,
   FilePdfOutlined,
@@ -71,6 +74,7 @@ function KpiCard({
   color,
   bgTint,
   icon,
+  trend,
 }: {
   label: string
   amount: number
@@ -78,6 +82,7 @@ function KpiCard({
   color: string
   bgTint: string
   icon: ReactNode
+  trend?: { value: number; label?: string }
 }) {
   return (
     <Card
@@ -136,6 +141,25 @@ function KpiCard({
             >
               {hint}
             </Typography.Text>
+          )}
+          {trend !== undefined && (
+            <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span
+                style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: trend.value >= 0 ? '#389e0d' : '#cf1322',
+                  background: trend.value >= 0 ? '#f6ffed' : '#fff1f0',
+                  borderRadius: 6,
+                  padding: '2px 8px',
+                }}
+              >
+                {trend.value >= 0 ? '↑' : '↓'} %{Math.abs(trend.value).toFixed(1)}
+              </span>
+              <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+                {trend.label ?? 'geçen aya göre'}
+              </Typography.Text>
+            </div>
           )}
         </div>
 
@@ -239,7 +263,7 @@ export function DashboardPage() {
     return (
       <div
         style={{
-          background: '#f0f2f5',
+          background: token.colorBgLayout ?? '#f0f2f5',
           padding: 24,
           minHeight: 'calc(100vh - 64px)',
           margin: -16,
@@ -280,45 +304,177 @@ export function DashboardPage() {
   return (
     <div
       style={{
-        background: '#f0f2f5',
+        background: token.colorBgLayout ?? '#f0f2f5',
         padding: 24,
         margin: -16,
         minHeight: 'calc(100vh - 64px)',
       }}
     >
-      {/* Üst Başlık Alanı */}
+      {/* ── Gradient Hero Banner ── */}
       <div
         style={{
+          background: `linear-gradient(135deg, ${token.colorPrimary} 0%, ${token.colorPrimaryActive} 100%)`,
+          borderRadius: 20,
+          padding: '24px 28px',
+          marginBottom: 24,
+          boxShadow: `0 8px 32px ${token.colorPrimary}38`,
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           flexWrap: 'wrap',
-          gap: 12,
-          marginBottom: 22,
+          gap: 16,
         }}
       >
+        {/* Sol: Başlık */}
         <div>
-          <Typography.Title level={3} style={{ margin: 0, fontWeight: 700, color: '#1f1f1f' }}>
-            {data.buildingName || 'Westalife Residence'}
-          </Typography.Title>
-          <Typography.Text type="secondary" style={{ fontSize: 13 }}>
-            {dayjs().format('DD.MM.YYYY')} · {data.apartmentCount} Bağımsız Bölüm ·{' '}
-            {data.activeMeterCount} Aktif Sayaç
-          </Typography.Text>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
+            <div
+              style={{
+                width: 42,
+                height: 42,
+                borderRadius: 12,
+                background: 'rgba(255,255,255,0.18)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 22,
+                color: '#fff',
+              }}
+            >
+              <HomeOutlined />
+            </div>
+            <Typography.Title
+              level={3}
+              style={{ margin: 0, fontWeight: 800, color: '#fff', letterSpacing: -0.3 }}
+            >
+              {data.buildingName || 'Westalife Residence'}
+            </Typography.Title>
+          </div>
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+            <Tag
+              style={{
+                background: 'rgba(255,255,255,0.18)',
+                border: 'none',
+                color: '#fff',
+                borderRadius: 6,
+                fontWeight: 500,
+              }}
+            >
+              📅 {dayjs().format('DD MMMM YYYY')}
+            </Tag>
+            <Tag
+              style={{
+                background: 'rgba(255,255,255,0.18)',
+                border: 'none',
+                color: '#fff',
+                borderRadius: 6,
+                fontWeight: 500,
+              }}
+            >
+              🏢 {data.apartmentCount} Bağımsız Bölüm
+            </Tag>
+            <Tag
+              style={{
+                background: 'rgba(255,255,255,0.18)',
+                border: 'none',
+                color: '#fff',
+                borderRadius: 6,
+                fontWeight: 500,
+              }}
+            >
+              ⚡ {data.activeMeterCount} Aktif Sayaç
+            </Tag>
+          </div>
         </div>
-        <Space size={10}>
-          <Button
-            size="middle"
-            icon={<HomeOutlined />}
-            onClick={() => navigate('/apartments')}
-            style={{ borderRadius: 8, fontWeight: 500 }}
-          >
-            Daire Listesi
-          </Button>
+
+        {/* Sağ: Quick Actions */}
+        <Space size={8} wrap>
+          <Tooltip title="Daire Listesi">
+            <Button
+              icon={<HomeOutlined />}
+              onClick={() => navigate('/apartments')}
+              style={{
+                borderRadius: 10,
+                fontWeight: 600,
+                background: 'rgba(255,255,255,0.15)',
+                border: '1px solid rgba(255,255,255,0.3)',
+                color: '#fff',
+                backdropFilter: 'blur(4px)',
+              }}
+            >
+              Daireler
+            </Button>
+          </Tooltip>
+          <Tooltip title="Banka Hesapları">
+            <Button
+              icon={<BankOutlined />}
+              onClick={() => navigate('/bank-accounts')}
+              style={{
+                borderRadius: 10,
+                fontWeight: 600,
+                background: 'rgba(255,255,255,0.15)',
+                border: '1px solid rgba(255,255,255,0.3)',
+                color: '#fff',
+                backdropFilter: 'blur(4px)',
+              }}
+            >
+              Bankalar
+            </Button>
+          </Tooltip>
+          <Tooltip title="Ödemeler">
+            <Button
+              icon={<CreditCardOutlined />}
+              onClick={() => navigate('/payments')}
+              style={{
+                borderRadius: 10,
+                fontWeight: 600,
+                background: 'rgba(255,255,255,0.15)',
+                border: '1px solid rgba(255,255,255,0.3)',
+                color: '#fff',
+                backdropFilter: 'blur(4px)',
+              }}
+            >
+              Ödemeler
+            </Button>
+          </Tooltip>
+          <Tooltip title="Raporlar">
+            <Button
+              icon={<PieChartOutlined />}
+              onClick={() => navigate('/reports')}
+              style={{
+                borderRadius: 10,
+                fontWeight: 600,
+                background: 'rgba(255,255,255,0.15)',
+                border: '1px solid rgba(255,255,255,0.3)',
+                color: '#fff',
+                backdropFilter: 'blur(4px)',
+              }}
+            >
+              Raporlar
+            </Button>
+          </Tooltip>
+          {canTrigger && (
+            <Button
+              type="primary"
+              icon={<ThunderboltOutlined />}
+              loading={readingMutation.isPending}
+              onClick={() => readingMutation.mutate()}
+              style={{
+                borderRadius: 10,
+                fontWeight: 700,
+                background: '#fff',
+                color: token.colorPrimary,
+                border: 'none',
+                boxShadow: '0 4px 14px rgba(0,0,0,0.15)',
+              }}
+            >
+              Sayaç Oku
+            </Button>
+          )}
         </Space>
       </div>
 
-      {/* 1. Üst KPI Kartları (AntD Statistic + Sol İnce Çizgi: Yeşil, Kırmızı, Mor, Turuncu) */}
+      {/* 1. Üst KPI Kartları */}
       <Row gutter={[20, 20]}>
         <Col xs={24} sm={12} md={6} style={{ display: 'flex' }}>
           <div style={{ width: '100%' }}>
@@ -353,10 +509,11 @@ export function DashboardPage() {
             <KpiCard
               label="Aidat Borcu"
               amount={aidatDebt}
-              hint="Kalan anapara + gecikme faizi"
+              hint={`${debtorCount} borçlu daire`}
               color="#722ed1"
               bgTint="#f9f0ff"
               icon={<AccountBookOutlined />}
+              trend={debtorCount > 0 ? { value: debtorCount, label: 'borçlu daire sayısı' } : undefined}
             />
           </div>
         </Col>
@@ -474,14 +631,32 @@ export function DashboardPage() {
                         </Space>
                       }
                       description={
-                        <Space size={12} style={{ fontSize: 12, marginTop: 2 }} wrap>
-                          <span style={{ color: '#722ed1', fontWeight: 500 }}>
-                            Aidat: {tl(a.aidatDebt ?? 0)}
-                          </span>
-                          <span style={{ color: '#d46b08', fontWeight: 500 }}>
-                            Isınma: {tl(a.heatingDebt ?? 0)}
-                          </span>
-                        </Space>
+                        <div>
+                          <Space size={12} style={{ fontSize: 12, marginTop: 2 }} wrap>
+                            <span style={{ color: '#722ed1', fontWeight: 500 }}>
+                              Aidat: {tl(a.aidatDebt ?? 0)}
+                            </span>
+                            <span style={{ color: '#d46b08', fontWeight: 500 }}>
+                              Isınma: {tl(a.heatingDebt ?? 0)}
+                            </span>
+                          </Space>
+                          <Progress
+                            percent={Math.round(
+                              (a.currentBalance / topDebtors[0].currentBalance) * 100,
+                            )}
+                            showInfo={false}
+                            strokeColor={
+                              index === 0
+                                ? '#cf1322'
+                                : index < 3
+                                  ? '#fa541c'
+                                  : '#ff7875'
+                            }
+                            trailColor="#f5f5f5"
+                            size={{ width: undefined, height: 4 }}
+                            style={{ marginTop: 6, marginBottom: 0 }}
+                          />
+                        </div>
                       }
                     />
                   </List.Item>
@@ -1004,7 +1179,7 @@ export function DashboardPage() {
                 fontSize: 17,
                 fontWeight: 600,
                 borderRadius: 10,
-                boxShadow: '0 6px 18px rgba(22, 119, 255, 0.35)',
+                boxShadow: `0 6px 18px ${token.colorPrimary}40`,
               }}
             >
               Sayaçları Şimdi Oku
